@@ -1,0 +1,31 @@
+/* ============================================
+ * ESTILOS PERSONALIZADOS PARA SCANNER
+ * ============================================ */
+
+/* Limitar altura del video del scanner */
+#reader {
+  max-height: 400px !important;
+  height: auto !important;
+}
+
+#reader video {
+  max-height: 400px !important;
+  height: auto !important;
+  object-fit: cover;
+}
+
+/* Limitar altura del canvas del scanner */
+#reader canvas {
+  max-height: 400px !important;
+  height: auto !important;
+}
+
+/* Contenedor del scanner más compacto */
+#reader > div {
+  max-height: 400px !important;
+}
+
+/* Asegurar que todo el contenido del reader sea compacto */
+#reader * {
+  max-height: 400px !important;
+}

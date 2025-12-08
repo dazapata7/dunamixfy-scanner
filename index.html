@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/dunfy_fondo_coscuro.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#00D9C0" />
+    <meta name="description" content="Scanner QR/Barcode para control de entregas Dunamix" />
+    <title>Dunamix Scanner</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- Eruda: Consola de depuración móvil (solo en desarrollo) -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>
+      // Inicializar Eruda solo en localhost o IPs locales (no en producción)
+      if (window.location.hostname === 'localhost' || window.location.hostname.startsWith('192.168.')) {
+        eruda.init();
+        console.log('🔧 Eruda (consola móvil) inicializada');
+      }
+    </script>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
+</html>
