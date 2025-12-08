@@ -2,35 +2,36 @@
  * ESTILOS PERSONALIZADOS PARA SCANNER V3
  * ============================================ */
 
-/* V3.2: Área GRANDE de cámara - deja espacio para feedback */
+/* V3.3: Área MUY GRANDE de cámara - sin restricciones forzadas */
 #reader {
-  min-height: 65vh !important; /* V3.2: 65% de altura para cámara */
-  max-height: 75vh !important; /* V3.2: Máximo 75% - deja 25% para feedback */
   height: auto !important;
   width: 100% !important;
+  max-height: none !important; /* V3.3: REMOVIDO límite de altura */
+  min-height: auto !important; /* V3.3: Dejamos que crezca naturalmente */
 }
 
-/* V3.2: Video GRANDE para mejor visualización */
+/* V3.3: Video SIN restricciones de altura */
 #reader video {
-  min-height: 65vh !important;
-  max-height: 75vh !important;
   height: auto !important;
   width: 100% !important;
-  object-fit: cover; /* V3.2: Mantiene proporción sin distorsión */
+  max-height: none !important; /* V3.3: REMOVIDO límite */
+  min-height: auto !important;
+  object-fit: contain !important; /* V3.3: Cambiado a contain para mostrar TODO */
 }
 
-/* V3.2: Canvas expandido */
+/* V3.3: Canvas SIN restricciones */
 #reader canvas {
-  min-height: 65vh !important;
-  max-height: 75vh !important;
   height: auto !important;
   width: 100% !important;
+  max-height: none !important; /* V3.3: REMOVIDO límite */
+  min-height: auto !important;
 }
 
-/* V3.2: Contenedor expandido */
+/* V3.3: Contenedor SIN límites */
 #reader > div {
-  min-height: 65vh !important;
-  max-height: 75vh !important;
+  height: auto !important;
+  max-height: none !important;
+  min-height: auto !important;
 }
 
 /* V3.2: Marco del qrbox DISCRETO pero visible */

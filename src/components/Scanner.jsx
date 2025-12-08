@@ -202,29 +202,29 @@ export function Scanner({ onBack }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Header */}
-      <div className="bg-dark-800 border-b border-gray-700 p-4">
+      {/* Header - V3.3: Más compacto */}
+      <div className="bg-dark-800 border-b border-gray-700 p-2">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+            className="flex items-center gap-1 text-gray-300 hover:text-white transition-colors"
           >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Volver</span>
+            <ArrowLeft className="w-4 h-4" />
+            <span className="text-sm">Volver</span>
           </button>
-          
-          <div className="flex items-center gap-2">
-            <Camera className="w-5 h-5 text-primary-500" />
-            <h1 className="text-xl font-bold text-white">Scanner</h1>
+
+          <div className="flex items-center gap-1">
+            <Camera className="w-4 h-4 text-primary-500" />
+            <h1 className="text-lg font-bold text-white">Scanner</h1>
           </div>
 
-          <div className="w-20"></div>
+          <div className="w-16"></div>
         </div>
       </div>
 
       {/* Scanner Area */}
-      <div className="max-w-4xl mx-auto p-4">
-        <div className="space-y-4">
+      <div className="max-w-4xl mx-auto p-2">
+        <div className="space-y-2">
           {/* Camera */}
           <div className={`bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-500 ${
             scanAnimation === 'success'
@@ -237,8 +237,8 @@ export function Scanner({ onBack }) {
           </div>
 
           {/* Instrucciones */}
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
-            <div className="text-center text-gray-300 text-sm">
+          <div className="bg-dark-800 rounded-xl p-2 border border-gray-700">
+            <div className="text-center text-gray-300 text-xs">
               {isLoadingCarriers ? (
                 <div className="flex items-center justify-center gap-2">
                   <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
@@ -264,7 +264,7 @@ export function Scanner({ onBack }) {
 
           {/* Último escaneo */}
           {lastScan && (
-            <div className={`rounded-xl p-4 border-2 ${
+            <div className={`rounded-xl p-3 border-2 ${
               lastScan.isRepeated 
                 ? 'bg-red-500/10 border-red-500' 
                 : 'bg-green-500/10 border-green-500'
