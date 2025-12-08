@@ -134,8 +134,8 @@ export function ZXingScanner({ onBack }) {
       offsetY = (displayHeight - (videoHeight * scaleY)) / 2;
     }
 
-    // Aplicar escala y offset a las coordenadas
-    const padding = 5;
+    // Aplicar escala y offset a las coordenadas con padding generoso
+    const padding = 20; // Padding amplio para envolver completamente el código
     const left = Math.max(0, (minX * scaleX) + offsetX - padding);
     const top = Math.max(0, (minY * scaleY) + offsetY - padding);
     const width = Math.min(canvas.width - left, ((maxX - minX) * scaleX) + (padding * 2));
@@ -144,17 +144,17 @@ export function ZXingScanner({ onBack }) {
     // Guardar estado del marco para React
     setDetectionBox({ left, top, width, height });
 
-    // Dibujar rectángulo FINO con bordes finos
+    // Dibujar rectángulo ultra fino
     ctx.strokeStyle = 'rgba(0, 217, 192, 1)';
-    ctx.lineWidth = 2; // Borde fino
-    ctx.shadowBlur = 8;
-    ctx.shadowColor = 'rgba(0, 217, 192, 0.6)';
+    ctx.lineWidth = 1; // Borde muy fino
+    ctx.shadowBlur = 4;
+    ctx.shadowColor = 'rgba(0, 217, 192, 0.4)';
     ctx.strokeRect(left, top, width, height);
 
-    // Dibujar esquinas más pequeñas y finas
-    const cornerLength = 15;
+    // Dibujar esquinas finas
+    const cornerLength = 18; // Esquinas moderadas
     ctx.strokeStyle = 'rgba(0, 217, 192, 1)';
-    ctx.lineWidth = 3; // Esquinas un poco más gruesas que el borde
+    ctx.lineWidth = 2; // Esquinas delgadas
 
     // Esquina superior izquierda
     ctx.beginPath();
