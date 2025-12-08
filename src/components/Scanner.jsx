@@ -36,21 +36,21 @@ export function Scanner({ onBack }) {
     try {
       html5QrcodeRef.current = new Html5Qrcode('reader');
 
-      // V3: Configuración mejorada para área expandida
+      // V3.1: Configuración optimizada - marco más pequeño y ajustado
       const config = {
         fps: 5,
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // V3: qrbox dinámico - 90% del área disponible
+          // V3.1: Marco más pequeño (60% del área) para mejor detección visual
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.9);
+          const qrboxSize = Math.floor(minEdge * 0.6);
           return {
             width: qrboxSize,
             height: qrboxSize
           };
         },
-        // V3: Sin restricción de aspectRatio para permitir expansión completa
+        // V3.1: Sin restricción de aspectRatio para permitir expansión completa
         rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true // V3: Botón de flash si está disponible
+        showTorchButtonIfSupported: true // V3.1: Botón de flash si está disponible
       };
 
       await html5QrcodeRef.current.start(
@@ -61,7 +61,7 @@ export function Scanner({ onBack }) {
       );
 
       setIsScanning(true);
-      console.log('📷 Scanner iniciado con área expandida');
+      console.log('📷 Scanner iniciado con marco optimizado');
     } catch (error) {
       console.error('Error al iniciar scanner:', error);
     }
@@ -131,7 +131,7 @@ export function Scanner({ onBack }) {
     // Ignorar errores de escaneo (son normales cuando no detecta nada)
   };
 
-  // V2: Feedback de audio - Beep de éxito
+  // V3.1: Feedback de audio - Beep de éxito (MÁS FUERTE y DISTINTIVO)
   const playSuccessSound = () => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -141,20 +141,25 @@ export function Scanner({ onBack }) {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      oscillator.frequency.value = 800; // Tono agudo para éxito
+      // V3.1: Doble beep ascendente para éxito
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
       oscillator.type = 'sine';
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+      // V3.1: Volumen MÁS ALTO (0.8 = 80%)
+      gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
 
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.2);
+      oscillator.stop(audioContext.currentTime + 0.3);
+
+      console.log('🔊 Sonido de ÉXITO (verde) - Doble beep ascendente');
     } catch (error) {
       console.warn('⚠️ No se pudo reproducir sonido de éxito:', error);
     }
   };
 
-  // V2: Feedback de audio - Beep de error (más grave)
+  // V3.1: Feedback de audio - Beep de error (MÁS FUERTE y MUY DIFERENTE)
   const playErrorSound = () => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -164,14 +169,20 @@ export function Scanner({ onBack }) {
       oscillator.connect(gainNode);
       gainNode.connect(audioContext.destination);
 
-      oscillator.frequency.value = 200; // Tono grave para error
-      oscillator.type = 'square';
+      // V3.1: Triple beep descendente GRAVE para error
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.15);
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.3);
+      oscillator.type = 'sawtooth'; // V3.1: Onda más áspera para error
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      // V3.1: Volumen MÁS ALTO (0.8 = 80%)
+      gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
 
       oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
+      oscillator.stop(audioContext.currentTime + 0.5);
+
+      console.log('🔊 Sonido de ERROR (rojo) - Triple beep descendente');
     } catch (error) {
       console.warn('⚠️ No se pudo reproducir sonido de error:', error);
     }
