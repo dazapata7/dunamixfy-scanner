@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import { BrowserMultiFormatReader } from '@zxing/library';
+import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import { useScanner } from '../hooks/useScanner';
 import { ArrowLeft, Camera, CheckCircle2, XCircle } from 'lucide-react';
 
 export function ZXingScanner({ onBack }) {
   const videoRef = useRef(null);
-  const canvasRef = useRef(null);
+  const overlayCanvasRef = useRef(null);
   const readerRef = useRef(null);
-  const animationFrameRef = useRef(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scanAnimation, setScanAnimation] = useState(null);
   const lastScannedCode = useRef(null);
@@ -25,150 +24,152 @@ export function ZXingScanner({ onBack }) {
 
   const startScanner = async () => {
     try {
-      readerRef.current = new BrowserMultiFormatReader();
+      const codeReader = new BrowserMultiFormatReader();
+      readerRef.current = codeReader;
 
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(device => device.kind === 'videoinput');
-      const backCamera = videoDevices.find(device =>
+      // Obtener la cámara trasera
+      const videoInputDevices = await codeReader.listVideoInputDevices();
+      const selectedDeviceId = videoInputDevices.find(device =>
         device.label.toLowerCase().includes('back') ||
         device.label.toLowerCase().includes('rear') ||
         device.label.toLowerCase().includes('trasera')
-      ) || videoDevices[videoDevices.length - 1];
+      )?.deviceId || videoInputDevices[0]?.deviceId;
 
-      const constraints = {
-        video: {
-          deviceId: backCamera?.deviceId,
-          facingMode: { ideal: 'environment' },
-          width: { ideal: 1920 },
-          height: { ideal: 1080 }
+      console.log('📷 ZXing Scanner iniciando...');
+      console.log('📱 Dispositivos disponibles:', videoInputDevices.length);
+
+      // Iniciar decodificación continua
+      await codeReader.decodeFromVideoDevice(
+        selectedDeviceId,
+        videoRef.current,
+        (result, error) => {
+          if (result) {
+            const decodedText = result.getText();
+            const resultPoints = result.getResultPoints();
+
+            // Dibujar marco adaptativo
+            if (resultPoints && resultPoints.length >= 2) {
+              drawAdaptiveBox(resultPoints);
+            }
+
+            // Procesar código
+            onScanSuccess(decodedText);
+          } else {
+            // Limpiar marco si no hay detección
+            if (error && !(error instanceof NotFoundException)) {
+              // Solo mostrar errores que NO sean "código no encontrado"
+              // console.log('❌ Error menor:', error);
+            }
+            setDetectionBox(null);
+          }
         }
-      };
+      );
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
-
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.setAttribute('playsinline', 'true');
-        await videoRef.current.play();
-        setIsScanning(true);
-
-        // Iniciar el loop de detección
-        requestAnimationFrame(detectCode);
-
-        console.log('📷 ZXing Scanner iniciado con cámara:', backCamera?.label || 'Default');
-      }
+      setIsScanning(true);
+      console.log('✅ ZXing Scanner iniciado correctamente');
     } catch (error) {
       console.error('❌ Error al iniciar ZXing scanner:', error);
     }
   };
 
   const stopScanner = () => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
+    if (readerRef.current) {
+      readerRef.current.reset();
+      console.log('⏹️ ZXing Scanner detenido');
     }
-
-    if (videoRef.current && videoRef.current.srcObject) {
-      const tracks = videoRef.current.srcObject.getTracks();
-      tracks.forEach(track => track.stop());
-      videoRef.current.srcObject = null;
-    }
-
     setIsScanning(false);
-    console.log('⏹️ ZXing Scanner detenido');
-  };
-
-  const detectCode = async () => {
-    if (!isScanning || !videoRef.current || !canvasRef.current || scanCooldown.current) {
-      animationFrameRef.current = requestAnimationFrame(detectCode);
-      return;
-    }
-
-    const canvas = canvasRef.current;
-    const video = videoRef.current;
-    const ctx = canvas.getContext('2d');
-
-    // Ajustar canvas al tamaño del video
-    if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-    }
-
-    // Dibujar el frame actual del video en el canvas
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    try {
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const result = await readerRef.current.decodeFromImageData(imageData);
-
-      if (result) {
-        const decodedText = result.getText();
-        const resultPoints = result.getResultPoints();
-
-        // Dibujar marco adaptativo
-        if (resultPoints && resultPoints.length >= 2) {
-          drawAdaptiveBox(resultPoints);
-        }
-
-        // Procesar el código
-        await onScanSuccess(decodedText);
-      } else {
-        // No se detectó código, limpiar marco
-        setDetectionBox(null);
-      }
-    } catch (error) {
-      // Error normal cuando no hay código en el frame
-      setDetectionBox(null);
-    }
-
-    animationFrameRef.current = requestAnimationFrame(detectCode);
   };
 
   const drawAdaptiveBox = (resultPoints) => {
-    if (!canvasRef.current || !videoRef.current) return;
+    if (!overlayCanvasRef.current || !videoRef.current) return;
 
-    const canvas = canvasRef.current;
+    const canvas = overlayCanvasRef.current;
     const video = videoRef.current;
+    const ctx = canvas.getContext('2d');
 
-    // Calcular bounding box a partir de los puntos de detección
+    // Ajustar canvas al tamaño del video renderizado
+    canvas.width = video.offsetWidth;
+    canvas.height = video.offsetHeight;
+
+    // Limpiar canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Calcular bounding box
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
 
     resultPoints.forEach(point => {
       if (point) {
-        minX = Math.min(minX, point.getX());
-        minY = Math.min(minY, point.getY());
-        maxX = Math.max(maxX, point.getX());
-        maxY = Math.max(maxY, point.getY());
+        const x = point.getX();
+        const y = point.getY();
+        minX = Math.min(minX, x);
+        minY = Math.min(minY, y);
+        maxX = Math.max(maxX, x);
+        maxY = Math.max(maxY, y);
       }
     });
 
-    // Añadir padding al marco
+    // Escalar coordenadas del video real al video renderizado
+    const scaleX = video.offsetWidth / video.videoWidth;
+    const scaleY = video.offsetHeight / video.videoHeight;
+
+    // Aplicar padding
     const padding = 10;
-    minX = Math.max(0, minX - padding);
-    minY = Math.max(0, minY - padding);
-    maxX = Math.min(canvas.width, maxX + padding);
-    maxY = Math.min(canvas.height, maxY + padding);
+    const left = Math.max(0, (minX * scaleX) - padding);
+    const top = Math.max(0, (minY * scaleY) - padding);
+    const width = Math.min(canvas.width - left, ((maxX - minX) * scaleX) + (padding * 2));
+    const height = Math.min(canvas.height - top, ((maxY - minY) * scaleY) + (padding * 2));
 
-    // Convertir coordenadas del canvas a coordenadas del video mostrado
-    const scaleX = video.offsetWidth / canvas.width;
-    const scaleY = video.offsetHeight / canvas.height;
+    // Guardar estado del marco para React
+    setDetectionBox({ left, top, width, height });
 
-    setDetectionBox({
-      left: minX * scaleX,
-      top: minY * scaleY,
-      width: (maxX - minX) * scaleX,
-      height: (maxY - minY) * scaleY
-    });
+    // Dibujar rectángulo en canvas
+    ctx.strokeStyle = 'rgba(0, 217, 192, 0.9)';
+    ctx.lineWidth = 4;
+    ctx.shadowBlur = 15;
+    ctx.shadowColor = 'rgba(0, 217, 192, 0.8)';
+    ctx.strokeRect(left, top, width, height);
+
+    // Dibujar esquinas
+    const cornerLength = 20;
+    ctx.strokeStyle = 'rgba(0, 217, 192, 1)';
+    ctx.lineWidth = 6;
+
+    // Esquina superior izquierda
+    ctx.beginPath();
+    ctx.moveTo(left, top + cornerLength);
+    ctx.lineTo(left, top);
+    ctx.lineTo(left + cornerLength, top);
+    ctx.stroke();
+
+    // Esquina superior derecha
+    ctx.beginPath();
+    ctx.moveTo(left + width - cornerLength, top);
+    ctx.lineTo(left + width, top);
+    ctx.lineTo(left + width, top + cornerLength);
+    ctx.stroke();
+
+    // Esquina inferior izquierda
+    ctx.beginPath();
+    ctx.moveTo(left, top + height - cornerLength);
+    ctx.lineTo(left, top + height);
+    ctx.lineTo(left + cornerLength, top + height);
+    ctx.stroke();
+
+    // Esquina inferior derecha
+    ctx.beginPath();
+    ctx.moveTo(left + width - cornerLength, top + height);
+    ctx.lineTo(left + width, top + height);
+    ctx.lineTo(left + width, top + height - cornerLength);
+    ctx.stroke();
   };
 
   const onScanSuccess = async (decodedText) => {
     if (isProcessing || scanCooldown.current) {
-      console.log('⏭️ Escaneo ignorado (procesando o en cooldown)');
       return;
     }
 
     if (lastScannedCode.current === decodedText) {
-      console.log('⏭️ Código duplicado ignorado');
       return;
     }
 
@@ -294,40 +295,21 @@ export function ZXingScanner({ onBack }) {
               : scanAnimation === 'error'
               ? 'border-red-500 shadow-red-500/80 scale-[0.98]'
               : 'border-primary-500/30'
-          }`}>
+          }`} style={{ maxHeight: '60vh' }}>
             {/* Video */}
             <video
               ref={videoRef}
               className="w-full h-auto"
+              style={{ maxHeight: '60vh', objectFit: 'cover' }}
               playsInline
               muted
             />
 
-            {/* Canvas oculto para procesamiento */}
+            {/* Canvas overlay para marco adaptativo */}
             <canvas
-              ref={canvasRef}
-              className="hidden"
+              ref={overlayCanvasRef}
+              className="absolute top-0 left-0 w-full h-full pointer-events-none"
             />
-
-            {/* Marco adaptativo que se ajusta al código detectado */}
-            {detectionBox && (
-              <div
-                className="absolute border-4 border-primary-500 rounded-lg transition-all duration-100"
-                style={{
-                  left: `${detectionBox.left}px`,
-                  top: `${detectionBox.top}px`,
-                  width: `${detectionBox.width}px`,
-                  height: `${detectionBox.height}px`,
-                  boxShadow: '0 0 20px rgba(0, 217, 192, 0.8), inset 0 0 10px rgba(0, 217, 192, 0.3)'
-                }}
-              >
-                {/* Esquinas del marco */}
-                <div className="absolute -top-1 -left-1 w-6 h-6 border-t-4 border-l-4 border-primary-400 rounded-tl-lg"></div>
-                <div className="absolute -top-1 -right-1 w-6 h-6 border-t-4 border-r-4 border-primary-400 rounded-tr-lg"></div>
-                <div className="absolute -bottom-1 -left-1 w-6 h-6 border-b-4 border-l-4 border-primary-400 rounded-bl-lg"></div>
-                <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-4 border-r-4 border-primary-400 rounded-br-lg"></div>
-              </div>
-            )}
           </div>
 
           {/* Instrucciones */}
@@ -351,7 +333,7 @@ export function ZXingScanner({ onBack }) {
                 <div>
                   <div>✅ {carriers.length} transportadoras listas</div>
                   <div className="mt-1">📷 Apunta la cámara al código QR o de barras</div>
-                  <div className="mt-1 text-primary-400">Marco adaptativo activado</div>
+                  <div className="mt-1 text-primary-400 font-semibold">🎯 Marco adaptativo ZXing activado</div>
                 </div>
               )}
             </div>
