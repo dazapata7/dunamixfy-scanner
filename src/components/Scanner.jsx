@@ -35,20 +35,33 @@ export function Scanner({ onBack }) {
   const startScanner = async () => {
     try {
       html5QrcodeRef.current = new Html5Qrcode('reader');
-      
+
+      // V3: Configuración mejorada para área expandida
+      const config = {
+        fps: 5,
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          // V3: qrbox dinámico - 90% del área disponible
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdge * 0.9);
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          };
+        },
+        // V3: Sin restricción de aspectRatio para permitir expansión completa
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true // V3: Botón de flash si está disponible
+      };
+
       await html5QrcodeRef.current.start(
         { facingMode: 'environment' },
-        {
-          fps: 5, // V2: Reducido de 10 a 5 para prevenir escaneos rápidos
-          qrbox: { width: 250, height: 180 }, // V2: Tamaño fijo más compacto (rectangular)
-          aspectRatio: 1.777 // V2: Ratio 16:9 para área más compacta
-        },
+        config,
         onScanSuccess,
         onScanError
       );
 
       setIsScanning(true);
-      console.log('📷 Scanner iniciado');
+      console.log('📷 Scanner iniciado con área expandida');
     } catch (error) {
       console.error('Error al iniciar scanner:', error);
     }
@@ -201,14 +214,14 @@ export function Scanner({ onBack }) {
       <div className="max-w-4xl mx-auto p-4">
         <div className="space-y-4">
           {/* Camera */}
-          <div className={`bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-300 ${
+          <div className={`bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-500 ${
             scanAnimation === 'success'
-              ? 'border-green-500 shadow-green-500/50'
+              ? 'border-green-500 shadow-green-500/80 scale-[1.02] animate-pulse-success'
               : scanAnimation === 'error'
-              ? 'border-red-500 shadow-red-500/50'
-              : 'border-primary-500/20'
+              ? 'border-red-500 shadow-red-500/80 scale-[0.98] animate-pulse-error'
+              : 'border-primary-500/30'
           }`}>
-            <div id="reader" className="w-full" style={{ maxHeight: '50vh' }}></div>
+            <div id="reader" className="w-full"></div>
           </div>
 
           {/* Instrucciones */}
