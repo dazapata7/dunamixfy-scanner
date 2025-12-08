@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useStore } from '../store/useStore';
-import { Scanner as ScannerComponent } from './Scanner';
+import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 // V2: Cambiado de StoreSelector a StoreSelectorV2 para cargar tiendas desde BD
 import { StoreSelectorV2 as StoreSelector } from './StoreSelectorV2';
