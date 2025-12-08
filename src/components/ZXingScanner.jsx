@@ -87,14 +87,20 @@ export function ZXingScanner({ onBack }) {
     const video = videoRef.current;
     const ctx = canvas.getContext('2d');
 
-    // Ajustar canvas al tamaño del video renderizado
-    canvas.width = video.offsetWidth;
-    canvas.height = video.offsetHeight;
+    // Obtener dimensiones reales del video y del contenedor
+    const videoWidth = video.videoWidth;
+    const videoHeight = video.videoHeight;
+    const displayWidth = video.offsetWidth;
+    const displayHeight = video.offsetHeight;
+
+    // Ajustar canvas al tamaño exacto del video renderizado
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
 
     // Limpiar canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Calcular bounding box
+    // Calcular bounding box de los puntos de detección
     let minX = Infinity, minY = Infinity;
     let maxX = -Infinity, maxY = -Infinity;
 
@@ -109,14 +115,29 @@ export function ZXingScanner({ onBack }) {
       }
     });
 
-    // Escalar coordenadas del video real al video renderizado
-    const scaleX = video.offsetWidth / video.videoWidth;
-    const scaleY = video.offsetHeight / video.videoHeight;
+    // Calcular el aspect ratio para mantener proporciones correctas
+    const videoAspect = videoWidth / videoHeight;
+    const displayAspect = displayWidth / displayHeight;
 
-    // Aplicar padding reducido
+    let scaleX, scaleY, offsetX = 0, offsetY = 0;
+
+    // Determinar si el video tiene letterbox (barras negras) horizontal o vertical
+    if (displayAspect > videoAspect) {
+      // Video más angosto que el contenedor (barras a los lados)
+      scaleY = displayHeight / videoHeight;
+      scaleX = scaleY;
+      offsetX = (displayWidth - (videoWidth * scaleX)) / 2;
+    } else {
+      // Video más ancho que el contenedor (barras arriba/abajo)
+      scaleX = displayWidth / videoWidth;
+      scaleY = scaleX;
+      offsetY = (displayHeight - (videoHeight * scaleY)) / 2;
+    }
+
+    // Aplicar escala y offset a las coordenadas
     const padding = 5;
-    const left = Math.max(0, (minX * scaleX) - padding);
-    const top = Math.max(0, (minY * scaleY) - padding);
+    const left = Math.max(0, (minX * scaleX) + offsetX - padding);
+    const top = Math.max(0, (minY * scaleY) + offsetY - padding);
     const width = Math.min(canvas.width - left, ((maxX - minX) * scaleX) + (padding * 2));
     const height = Math.min(canvas.height - top, ((maxY - minY) * scaleY) + (padding * 2));
 
