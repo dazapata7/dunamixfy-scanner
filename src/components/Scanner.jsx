@@ -36,21 +36,22 @@ export function Scanner({ onBack }) {
     try {
       html5QrcodeRef.current = new Html5Qrcode('reader');
 
-      // V3.1: Configuración optimizada - marco más pequeño y ajustado
+      // V3.2: Configuración ÓPTIMA - rápida y efectiva
       const config = {
-        fps: 5,
+        fps: 10, // V3.2: Volver a 10 FPS (era lo que funcionaba perfecto)
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // V3.1: Marco más pequeño (60% del área) para mejor detección visual
+          // V3.2: Marco mediano (70% del área) - balance entre tamaño y detección
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.6);
+          const qrboxSize = Math.floor(minEdge * 0.7);
           return {
             width: qrboxSize,
             height: qrboxSize
           };
         },
-        // V3.1: Sin restricción de aspectRatio para permitir expansión completa
+        // V3.2: Sin restricción de aspectRatio para permitir expansión completa
         rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true // V3.1: Botón de flash si está disponible
+        showTorchButtonIfSupported: true, // V3.2: Botón de flash si está disponible
+        disableFlip: false // V3.2: Permitir flip horizontal si ayuda a detección
       };
 
       await html5QrcodeRef.current.start(

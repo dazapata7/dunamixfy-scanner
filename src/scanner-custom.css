@@ -2,42 +2,42 @@
  * ESTILOS PERSONALIZADOS PARA SCANNER V3
  * ============================================ */
 
-/* V3: Área expandida del scanner - ocupa más espacio */
+/* V3.2: Área GRANDE de cámara - deja espacio para feedback */
 #reader {
-  min-height: 60vh !important; /* V3: Mínimo 60% de la altura de viewport */
-  max-height: 70vh !important; /* V3: Máximo 70% para ver feedback */
+  min-height: 65vh !important; /* V3.2: 65% de altura para cámara */
+  max-height: 75vh !important; /* V3.2: Máximo 75% - deja 25% para feedback */
   height: auto !important;
   width: 100% !important;
 }
 
-/* V3: Video expandido para ocupar todo el contenedor */
+/* V3.2: Video GRANDE para mejor visualización */
 #reader video {
-  min-height: 60vh !important;
-  max-height: 70vh !important;
+  min-height: 65vh !important;
+  max-height: 75vh !important;
   height: auto !important;
   width: 100% !important;
-  object-fit: cover; /* V3: Mantiene proporción sin distorsión */
+  object-fit: cover; /* V3.2: Mantiene proporción sin distorsión */
 }
 
-/* V3: Canvas expandido */
+/* V3.2: Canvas expandido */
 #reader canvas {
-  min-height: 60vh !important;
-  max-height: 70vh !important;
+  min-height: 65vh !important;
+  max-height: 75vh !important;
   height: auto !important;
   width: 100% !important;
 }
 
-/* V3: Contenedor expandido */
+/* V3.2: Contenedor expandido */
 #reader > div {
-  min-height: 60vh !important;
-  max-height: 70vh !important;
+  min-height: 65vh !important;
+  max-height: 75vh !important;
 }
 
-/* V3.1: Marco del qrbox MÁS GRUESO y VISIBLE */
+/* V3.2: Marco del qrbox DISCRETO pero visible */
 #reader__scan_region {
-  border: 5px solid rgba(0, 217, 192, 1) !important; /* V3.1: Borde más grueso y opaco */
-  box-shadow: 0 0 15px rgba(0, 217, 192, 0.6) !important; /* V3.1: Glow para mayor visibilidad */
-  border-radius: 8px !important; /* V3.1: Esquinas redondeadas */
+  border: 3px solid rgba(0, 217, 192, 0.7) !important; /* V3.2: Borde discreto */
+  box-shadow: 0 0 10px rgba(0, 217, 192, 0.4) !important; /* V3.2: Glow suave */
+  border-radius: 12px !important; /* V3.2: Esquinas más redondeadas */
 }
 
 /* V3: Estilo del overlay de detección */
