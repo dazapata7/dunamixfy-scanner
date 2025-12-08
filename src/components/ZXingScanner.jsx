@@ -113,8 +113,8 @@ export function ZXingScanner({ onBack }) {
     const scaleX = video.offsetWidth / video.videoWidth;
     const scaleY = video.offsetHeight / video.videoHeight;
 
-    // Aplicar padding
-    const padding = 10;
+    // Aplicar padding reducido
+    const padding = 5;
     const left = Math.max(0, (minX * scaleX) - padding);
     const top = Math.max(0, (minY * scaleY) - padding);
     const width = Math.min(canvas.width - left, ((maxX - minX) * scaleX) + (padding * 2));
@@ -123,17 +123,17 @@ export function ZXingScanner({ onBack }) {
     // Guardar estado del marco para React
     setDetectionBox({ left, top, width, height });
 
-    // Dibujar rectángulo en canvas
-    ctx.strokeStyle = 'rgba(0, 217, 192, 0.9)';
-    ctx.lineWidth = 4;
-    ctx.shadowBlur = 15;
-    ctx.shadowColor = 'rgba(0, 217, 192, 0.8)';
+    // Dibujar rectángulo FINO con bordes finos
+    ctx.strokeStyle = 'rgba(0, 217, 192, 1)';
+    ctx.lineWidth = 2; // Borde fino
+    ctx.shadowBlur = 8;
+    ctx.shadowColor = 'rgba(0, 217, 192, 0.6)';
     ctx.strokeRect(left, top, width, height);
 
-    // Dibujar esquinas
-    const cornerLength = 20;
+    // Dibujar esquinas más pequeñas y finas
+    const cornerLength = 15;
     ctx.strokeStyle = 'rgba(0, 217, 192, 1)';
-    ctx.lineWidth = 6;
+    ctx.lineWidth = 3; // Esquinas un poco más gruesas que el borde
 
     // Esquina superior izquierda
     ctx.beginPath();
@@ -194,10 +194,20 @@ export function ZXingScanner({ onBack }) {
       setTimeout(() => setScanAnimation(null), 2000);
     }
 
+    // Limpiar el marco adaptativo después de 500ms
+    setTimeout(() => {
+      setDetectionBox(null);
+      // Limpiar canvas
+      if (overlayCanvasRef.current) {
+        const canvas = overlayCanvasRef.current;
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
+    }, 500);
+
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
-      setDetectionBox(null);
       console.log('✅ Cooldown liberado');
     }, 2000);
   };
