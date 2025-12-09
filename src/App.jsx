@@ -1,16 +1,44 @@
+import { useState } from 'react';
+import { AuthProvider, useAuth } from './hooks/useAuth';
 import { useStore } from './store/useStore';
 import { Login } from './components/Login';
+import { LoginAuth } from './components/LoginAuth';
 import { Dashboard } from './components/Dashboard';
 import { Toaster } from 'react-hot-toast';
 import './App.css';
 
-function App() {
+// Componente interno que usa el hook useAuth
+function AppContent() {
+  const { user, loading } = useAuth();
   const operator = useStore((state) => state.operator);
+  const [useRealAuth, setUseRealAuth] = useState(false); // Toggle para activar auth real
 
+  // Mostrar loading mientras verifica la sesión
+  if (loading && useRealAuth) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-400">Verificando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si está activada la autenticación real
+  if (useRealAuth) {
+    return !user ? <LoginAuth /> : <Dashboard />;
+  }
+
+  // Modo legacy (sin auth real)
+  return !operator ? <Login /> : <Dashboard />;
+}
+
+function App() {
   return (
-    <>
-      {!operator ? <Login /> : <Dashboard />}
-      
+    <AuthProvider>
+      <AppContent />
+
       <Toaster
         position="top-center"
         toastOptions={{
@@ -37,7 +65,7 @@ function App() {
           }
         }}
       />
-    </>
+    </AuthProvider>
   );
 }
 
