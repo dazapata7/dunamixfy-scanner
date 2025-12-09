@@ -50,7 +50,7 @@ export const dunamixfyApi = {
           order_id: data.response.order_id,
           firstname: data.response.firstname,
           lastname: data.response.lastname,
-          orderItems: data.response.orderItems,
+          order_items: data.response.orderItems, // Transformar camelCase a snake_case
           sync_status: data.response.sync_status,
           pay_type: data.response.pay_type,
           transportadora: data.response.transportadora,
