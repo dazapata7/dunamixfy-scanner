@@ -4,7 +4,7 @@ import { ConfigPanel } from './ConfigPanel';
 import { BarChart3, Settings, LogOut } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-export function DesktopDashboard({ onLogout }) {
+export function DesktopDashboard({ onLogout, isAdmin = false }) {
   const [activeView, setActiveView] = useState('stats'); // stats, config
 
   const handleLogout = () => {
@@ -30,13 +30,15 @@ export function DesktopDashboard({ onLogout }) {
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={() => setActiveView('config')}
-                className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors border border-gray-600"
-              >
-                <Settings className="w-5 h-5" />
-                Configuración del Sistema
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setActiveView('config')}
+                  className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors border border-gray-600"
+                >
+                  <Settings className="w-5 h-5" />
+                  Configuración del Sistema
+                </button>
+              )}
 
               <button
                 onClick={handleLogout}
@@ -51,7 +53,7 @@ export function DesktopDashboard({ onLogout }) {
 
         {/* Content */}
         <div className="max-w-7xl mx-auto p-6">
-          <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-6 mb-6`}>
             {/* Botón Estadísticas */}
             <button
               onClick={() => setActiveView('stats-detail')}
@@ -67,20 +69,22 @@ export function DesktopDashboard({ onLogout }) {
               </div>
             </button>
 
-            {/* Botón Configuración */}
-            <button
-              onClick={() => setActiveView('config')}
-              className="bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white p-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-gray-600"
-            >
-              <div className="flex items-center justify-between">
-                <div className="text-left">
-                  <Settings className="w-12 h-12 mb-4" />
-                  <h2 className="text-2xl font-bold">Configuración</h2>
-                  <p className="text-gray-300 mt-2">Gestionar tiendas, transportadoras y usuarios</p>
+            {/* Botón Configuración - Solo para admins */}
+            {isAdmin && (
+              <button
+                onClick={() => setActiveView('config')}
+                className="bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white p-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-gray-600"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-left">
+                    <Settings className="w-12 h-12 mb-4" />
+                    <h2 className="text-2xl font-bold">Configuración</h2>
+                    <p className="text-gray-300 mt-2">Gestionar tiendas, transportadoras y usuarios</p>
+                  </div>
+                  <div className="text-5xl font-bold opacity-20">⚙️</div>
                 </div>
-                <div className="text-5xl font-bold opacity-20">⚙️</div>
-              </div>
-            </button>
+              </button>
+            )}
           </div>
 
           {/* Vista de estadísticas en tiempo real */}

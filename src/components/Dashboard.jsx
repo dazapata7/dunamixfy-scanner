@@ -15,7 +15,7 @@ export function Dashboard() {
   const [showStats, setShowStats] = useState(false);
   const [showStoreSelector, setShowStoreSelector] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
-  const { isAdmin, loading: loadingRole } = useRole();
+  const { isAdmin, isOperator, loading: loadingRole } = useRole();
   
   const {
     operator,
@@ -54,7 +54,7 @@ export function Dashboard() {
     toast.success('Sincronizado', { id: 'refresh' });
   };
 
-  // Si es desktop, verificar permisos antes de mostrar panel admin
+  // Si es desktop, verificar permisos antes de mostrar panel
   if (isDesktop) {
     // Si está cargando roles, mostrar loading
     if (loadingRole) {
@@ -68,15 +68,15 @@ export function Dashboard() {
       );
     }
 
-    // Si NO es admin, mostrar mensaje de acceso denegado
-    if (!isAdmin) {
+    // Si NO es admin NI operador, mostrar mensaje de acceso denegado
+    if (!isAdmin && !isOperator) {
       return (
         <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-dark-800 rounded-2xl p-8 border border-red-500/30 text-center">
             <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
             <h1 className="text-2xl font-bold text-white mb-2">Acceso Denegado</h1>
             <p className="text-gray-400 mb-6">
-              El panel de administración solo está disponible para usuarios con rol de administrador.
+              El panel de escritorio requiere permisos de administrador u operador.
             </p>
             <button
               onClick={logout}
@@ -90,8 +90,8 @@ export function Dashboard() {
       );
     }
 
-    // Si ES admin, mostrar panel de administración
-    return <DesktopDashboard onLogout={logout} />;
+    // Mostrar panel (admin tiene acceso completo, operador solo estadísticas)
+    return <DesktopDashboard onLogout={logout} isAdmin={isAdmin} />;
   }
 
   // Vista mobile normal
