@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, TruckIcon, Store, Trash2, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, TruckIcon, Store, Trash2, BarChart3, Calendar, Package, User, CreditCard } from 'lucide-react';
 import { codesService, carriersService, storesService } from '../services/supabase';
+import { ordersService } from '../services/ordersService';
 import toast from 'react-hot-toast';
 
 export function AdminPanel({ onBack, hideBackButton = false }) {
@@ -11,6 +12,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const [carriers, setCarriers] = useState([]);
   const [stores, setStores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [ordersMap, setOrdersMap] = useState({}); // Mapa de código -> orden
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -27,17 +29,25 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const loadAllData = async () => {
     try {
       setIsLoading(true);
-      const [codes, statistics, carriersList, storesList] = await Promise.all([
+      const [codes, statistics, carriersList, storesList, orders] = await Promise.all([
         codesService.getToday(),
         codesService.getTodayStats(),
         carriersService.getAll(),
-        storesService.getAll()
+        storesService.getAll(),
+        ordersService.getToday()
       ]);
 
       setTodayCodes(codes);
       setStats(statistics);
       setCarriers(carriersList);
       setStores(storesList);
+
+      // Crear mapa de código -> orden para acceso rápido
+      const ordersMapping = {};
+      orders.forEach(order => {
+        ordersMapping[order.code] = order;
+      });
+      setOrdersMap(ordersMapping);
     } catch (error) {
       console.error('Error cargando datos:', error);
       toast.error('Error cargando datos');
@@ -48,8 +58,18 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
   const loadAllHistory = async () => {
     try {
-      const codes = await codesService.getAll();
+      const [codes, orders] = await Promise.all([
+        codesService.getAll(),
+        ordersService.getAll()
+      ]);
       setAllCodes(codes);
+
+      // Actualizar mapa de órdenes con todos los datos
+      const ordersMapping = {};
+      orders.forEach(order => {
+        ordersMapping[order.code] = order;
+      });
+      setOrdersMap(ordersMapping);
     } catch (error) {
       console.error('Error cargando historial:', error);
       toast.error('Error cargando historial');
@@ -208,36 +228,81 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                   <h2 className="text-xl font-bold text-white mb-4">Últimos Escaneos de Hoy</h2>
 
                   <div className="space-y-3">
-                    {todayCodes.slice(0, 10).map((code) => (
-                      <div
-                        key={code.id}
-                        className="bg-dark-900 rounded-lg p-4 border border-gray-700 flex items-center justify-between group hover:border-primary-500 transition-colors"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-4">
-                            <p className="font-mono font-bold text-white text-lg">{code.code}</p>
-                            <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-                              {code.carrier_display_name}
-                            </span>
-                            {code.store_name && (
-                              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
-                                {code.store_name}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-gray-400 mt-2">
-                            {new Date(code.created_at).toLocaleString('es-CO')}
-                          </p>
-                        </div>
-
-                        <button
-                          onClick={() => handleDeleteCode(code.id, code.code)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg"
+                    {todayCodes.slice(0, 10).map((code) => {
+                      const order = ordersMap[code.code];
+                      return (
+                        <div
+                          key={code.id}
+                          className="bg-dark-900 rounded-lg p-4 border border-gray-700 group hover:border-primary-500 transition-colors"
                         >
-                          <Trash2 className="w-5 h-5 text-red-500" />
-                        </button>
-                      </div>
-                    ))}
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              {/* Código y badges */}
+                              <div className="flex items-center gap-3 mb-3">
+                                <p className="font-mono font-bold text-white text-lg">{code.code}</p>
+                                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                                  {code.carrier_display_name}
+                                </span>
+                                {code.store_name && (
+                                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                                    {code.store_name}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Información de la orden */}
+                              {order && (
+                                <div className="bg-dark-800 rounded-lg p-3 border border-gray-600 space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <User className="w-4 h-4 text-primary-400" />
+                                    <span className="text-white font-semibold">
+                                      {order.firstname} {order.lastname}
+                                    </span>
+                                    {order.order_id && (
+                                      <span className="text-xs text-gray-400">
+                                        (Pedido #{order.order_id})
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {order.order_items && (
+                                    <div className="flex items-start gap-2">
+                                      <Package className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
+                                      <span className="text-sm text-gray-300">{order.order_items}</span>
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-4">
+                                    {order.pay_type && (
+                                      <div className="flex items-center gap-1.5">
+                                        <CreditCard className="w-4 h-4 text-yellow-400" />
+                                        <span className="text-xs text-gray-300">{order.pay_type}</span>
+                                      </div>
+                                    )}
+                                    {order.scan_count > 1 && (
+                                      <span className="text-xs text-orange-400">
+                                        Escaneado {order.scan_count} veces
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              <p className="text-sm text-gray-400 mt-2">
+                                {new Date(code.created_at).toLocaleString('es-CO')}
+                              </p>
+                            </div>
+
+                            <button
+                              onClick={() => handleDeleteCode(code.id, code.code)}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg ml-2"
+                            >
+                              <Trash2 className="w-5 h-5 text-red-500" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -249,36 +314,81 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                 <h2 className="text-xl font-bold text-white mb-4">Historial Completo</h2>
 
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                  {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => (
-                    <div
-                      key={code.id}
-                      className="bg-dark-900 rounded-lg p-4 border border-gray-700 flex items-center justify-between group hover:border-primary-500 transition-colors"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-4">
-                          <p className="font-mono font-bold text-white">{code.code}</p>
-                          <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                            {code.carrier_display_name}
-                          </span>
-                          {code.store_name && (
-                            <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
-                              {code.store_name}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {new Date(code.created_at).toLocaleString('es-CO')}
-                        </p>
-                      </div>
-
-                      <button
-                        onClick={() => handleDeleteCode(code.id, code.code)}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg"
+                  {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
+                    const order = ordersMap[code.code];
+                    return (
+                      <div
+                        key={code.id}
+                        className="bg-dark-900 rounded-lg p-4 border border-gray-700 group hover:border-primary-500 transition-colors"
                       >
-                        <Trash2 className="w-4 h-4 text-red-500" />
-                      </button>
-                    </div>
-                  ))}
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            {/* Código y badges */}
+                            <div className="flex items-center gap-3 mb-2">
+                              <p className="font-mono font-bold text-white">{code.code}</p>
+                              <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
+                                {code.carrier_display_name}
+                              </span>
+                              {code.store_name && (
+                                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
+                                  {code.store_name}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Información de la orden */}
+                            {order && (
+                              <div className="bg-dark-800 rounded p-2 border border-gray-600 space-y-1.5 mb-2">
+                                <div className="flex items-center gap-2">
+                                  <User className="w-3.5 h-3.5 text-primary-400" />
+                                  <span className="text-sm text-white font-medium">
+                                    {order.firstname} {order.lastname}
+                                  </span>
+                                  {order.order_id && (
+                                    <span className="text-xs text-gray-400">
+                                      (#  {order.order_id})
+                                    </span>
+                                  )}
+                                </div>
+
+                                {order.order_items && (
+                                  <div className="flex items-start gap-2">
+                                    <Package className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
+                                    <span className="text-xs text-gray-300 line-clamp-1">{order.order_items}</span>
+                                  </div>
+                                )}
+
+                                <div className="flex items-center gap-3">
+                                  {order.pay_type && (
+                                    <div className="flex items-center gap-1">
+                                      <CreditCard className="w-3.5 h-3.5 text-yellow-400" />
+                                      <span className="text-xs text-gray-300">{order.pay_type}</span>
+                                    </div>
+                                  )}
+                                  {order.scan_count > 1 && (
+                                    <span className="text-xs text-orange-400">
+                                      {order.scan_count}x escaneado
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                            <p className="text-xs text-gray-500">
+                              {new Date(code.created_at).toLocaleString('es-CO')}
+                            </p>
+                          </div>
+
+                          <button
+                            onClick={() => handleDeleteCode(code.id, code.code)}
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg ml-2"
+                          >
+                            <Trash2 className="w-4 h-4 text-red-500" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
