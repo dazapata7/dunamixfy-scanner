@@ -1,10 +1,10 @@
 /**
  * Servicio para integración con Dunamixfy CO API
- * Endpoint: https://dunamixfy.bubbleapps.io/version-test/api/1.1/wf/dfx_scanner_get_orderinfo
+ * Endpoint: https://dunamixfy.bubbleapps.io/api/1.1/wf/dfx_scanner_get_orderinfo
  */
 
 const API_KEY = 'd82b1fe06d0267b8efb596dd8190c983';
-const BASE_URL = 'https://dunamixfy.bubbleapps.io/version-test/api/1.1/wf';
+const BASE_URL = 'https://dunamixfy.bubbleapps.io/api/1.1/wf';
 
 export const dunamixfyApi = {
   /**
