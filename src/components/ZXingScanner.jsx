@@ -134,8 +134,8 @@ export function ZXingScanner({ onBack }) {
       offsetY = (displayHeight - (videoHeight * scaleY)) / 2;
     }
 
-    // Aplicar escala y offset a las coordenadas con padding generoso
-    const padding = 20; // Padding amplio para envolver completamente el código
+    // Aplicar escala y offset a las coordenadas con padding extra amplio
+    const padding = 40; // Padding muy amplio para envolver códigos de barras largos
     const left = Math.max(0, (minX * scaleX) + offsetX - padding);
     const top = Math.max(0, (minY * scaleY) + offsetY - padding);
     const width = Math.min(canvas.width - left, ((maxX - minX) * scaleX) + (padding * 2));
