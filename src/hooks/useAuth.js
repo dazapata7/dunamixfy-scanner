@@ -78,25 +78,6 @@ export function AuthProvider({ children }) {
     }
   };
 
-  // Login con Google
-  const signInWithGoogle = async () => {
-    try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-        },
-      });
-
-      if (error) throw error;
-
-      return { data, error: null };
-    } catch (error) {
-      console.error('Error en login con Google:', error);
-      toast.error(error.message);
-      return { data: null, error };
-    }
-  };
 
   // Cerrar sesión
   const signOut = async () => {
@@ -155,7 +136,6 @@ export function AuthProvider({ children }) {
     loading,
     signInWithEmail,
     signUpWithEmail,
-    signInWithGoogle,
     signOut,
     resetPassword,
     updatePassword,
