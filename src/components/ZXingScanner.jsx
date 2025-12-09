@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import { useScanner } from '../hooks/useScanner';
-import { ArrowLeft, Camera, CheckCircle2, XCircle } from 'lucide-react';
+import { ArrowLeft, Camera, CheckCircle2, XCircle, Trash2, Monitor } from 'lucide-react';
+import { codesService } from '../services/supabase';
+import toast from 'react-hot-toast';
 
 export function ZXingScanner({ onBack }) {
   const videoRef = useRef(null);
@@ -13,7 +15,67 @@ export function ZXingScanner({ onBack }) {
   const scanCooldown = useRef(false);
   const [detectionBox, setDetectionBox] = useState(null);
 
+  // Estado para vista de escritorio
+  const [isDesktop, setIsDesktop] = useState(false);
+  const [todayCodes, setTodayCodes] = useState([]);
+  const [stats, setStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
+  const [isLoadingCodes, setIsLoadingCodes] = useState(true);
+
   const { processScan, isProcessing, lastScan, carriers, isLoadingCarriers } = useScanner();
+
+  // Detectar si es desktop (pantalla >= 1024px)
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    checkIsDesktop();
+    window.addEventListener('resize', checkIsDesktop);
+
+    return () => window.removeEventListener('resize', checkIsDesktop);
+  }, []);
+
+  // Cargar códigos del día y suscribirse a cambios en tiempo real
+  useEffect(() => {
+    loadTodayCodes();
+
+    // Suscribirse a cambios en tiempo real
+    const unsubscribe = codesService.subscribeToChanges(() => {
+      loadTodayCodes();
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const loadTodayCodes = async () => {
+    try {
+      setIsLoadingCodes(true);
+      const [codes, statistics] = await Promise.all([
+        codesService.getToday(),
+        codesService.getTodayStats()
+      ]);
+      setTodayCodes(codes);
+      setStats(statistics);
+    } catch (error) {
+      console.error('Error cargando códigos del día:', error);
+      toast.error('Error cargando códigos');
+    } finally {
+      setIsLoadingCodes(false);
+    }
+  };
+
+  const handleDeleteCode = async (id, code) => {
+    if (!confirm(`¿Eliminar código ${code}?`)) return;
+
+    try {
+      await codesService.delete(id);
+      toast.success('Código eliminado');
+      loadTodayCodes();
+    } catch (error) {
+      console.error('Error eliminando código:', error);
+      toast.error('Error al eliminar');
+    }
+  };
 
   useEffect(() => {
     startScanner();
@@ -61,6 +123,12 @@ export function ZXingScanner({ onBack }) {
               // console.log('❌ Error menor:', error);
             }
             setDetectionBox(null);
+            // Limpiar canvas cuando no hay código
+            if (overlayCanvasRef.current) {
+              const canvas = overlayCanvasRef.current;
+              const ctx = canvas.getContext('2d');
+              ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
           }
         }
       );
@@ -298,7 +366,7 @@ export function ZXingScanner({ onBack }) {
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
       {/* Header */}
       <div className="bg-dark-800 border-b border-gray-700 p-2">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+        <div className={`${isDesktop ? 'max-w-7xl' : 'max-w-4xl'} mx-auto flex items-center justify-between`}>
           <button
             onClick={onBack}
             className="flex items-center gap-1 text-gray-300 hover:text-white transition-colors"
@@ -307,17 +375,21 @@ export function ZXingScanner({ onBack }) {
             <span className="text-sm">Volver</span>
           </button>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-2">
+            {isDesktop && <Monitor className="w-5 h-5 text-primary-500" />}
             <Camera className="w-4 h-4 text-primary-500" />
             <h1 className="text-lg font-bold text-white">Scanner ZXing</h1>
+            {isDesktop && <span className="text-xs text-gray-400 ml-2">Vista Escritorio</span>}
           </div>
 
           <div className="w-16"></div>
         </div>
       </div>
 
-      {/* Scanner Area */}
-      <div className="max-w-4xl mx-auto p-2">
+      {/* Layout adaptativo: Grid en desktop, Stack en mobile */}
+      <div className={`${isDesktop ? 'max-w-7xl grid grid-cols-2 gap-4' : 'max-w-4xl'} mx-auto p-2`}>
+
+        {/* Columna izquierda: Scanner */}
         <div className="space-y-2">
           {/* Camera con overlay adaptativo */}
           <div className={`relative bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-500 ${
@@ -400,6 +472,85 @@ export function ZXingScanner({ onBack }) {
             </div>
           )}
         </div>
+
+        {/* Columna derecha: Panel de estadísticas (solo desktop) */}
+        {isDesktop && (
+          <div className="space-y-4">
+            {/* Estadísticas del día */}
+            <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+              <h2 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-primary-500" />
+                Estadísticas del Día
+              </h2>
+
+              <div className="grid grid-cols-3 gap-3 mb-4">
+                <div className="bg-dark-900 rounded-lg p-3 text-center border border-gray-700">
+                  <div className="text-2xl font-bold text-primary-500">{stats.total}</div>
+                  <div className="text-xs text-gray-400 mt-1">Total</div>
+                </div>
+
+                {Object.entries(stats.byCarrier).map(([carrier, count]) => (
+                  <div key={carrier} className="bg-dark-900 rounded-lg p-3 text-center border border-gray-700">
+                    <div className="text-2xl font-bold text-green-500">{count}</div>
+                    <div className="text-xs text-gray-400 mt-1 capitalize">{carrier}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Historial en tiempo real */}
+            <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+              <h2 className="text-lg font-bold text-white mb-3">Historial del Día</h2>
+
+              {isLoadingCodes ? (
+                <div className="text-center py-8">
+                  <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                  <p className="text-gray-400 text-sm mt-2">Cargando...</p>
+                </div>
+              ) : todayCodes.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  No hay códigos escaneados hoy
+                </div>
+              ) : (
+                <div className="space-y-2 max-h-[500px] overflow-y-auto pr-2">
+                  {todayCodes.map((code) => (
+                    <div
+                      key={code.id}
+                      className="bg-dark-900 rounded-lg p-3 border border-gray-700 hover:border-primary-500 transition-colors group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-mono font-semibold text-white truncate">
+                            {code.code}
+                          </p>
+                          <p className="text-xs text-gray-400 mt-1">
+                            {code.carrier_display_name || 'Sin transportadora'}
+                          </p>
+                          {code.store_name && (
+                            <p className="text-xs text-gray-500 mt-0.5">
+                              {code.store_name}
+                            </p>
+                          )}
+                          <p className="text-xs text-gray-500 mt-1">
+                            {new Date(code.created_at).toLocaleTimeString('es-CO')}
+                          </p>
+                        </div>
+
+                        <button
+                          onClick={() => handleDeleteCode(code.id, code.code)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg"
+                          title="Eliminar código"
+                        >
+                          <Trash2 className="w-4 h-4 text-red-500" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

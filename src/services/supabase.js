@@ -308,6 +308,19 @@ export const codesService = {
   },
 
   /**
+   * Eliminar código por ID
+   */
+  async delete(id) {
+    const { error } = await supabase
+      .from('codes')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
+  },
+
+  /**
    * Suscribirse a cambios en tiempo real
    */
   subscribeToChanges(callback) {
@@ -325,7 +338,7 @@ export const codesService = {
         }
       )
       .subscribe();
-    
+
     return () => {
       supabase.removeChannel(channel);
     };
