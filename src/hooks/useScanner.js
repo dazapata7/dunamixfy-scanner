@@ -288,8 +288,8 @@ export function useScanner() {
         store_id: storeId,                      // V2: UUID foreign key a stores
         operator_id: operatorId,                // UUID foreign key a operators
         raw_scan: rawCode.substring(0, 500),    // V2: QR/Barcode completo (limitado)
-        scan_type: scanType,                    // V2: 'qr' | 'barcode' | 'manual'
-        order_data: orderData                   // NUEVO: Info de la orden desde Dunamixfy
+        scan_type: scanType                     // V2: 'qr' | 'barcode' | 'manual'
+        // Nota: order_data se guarda en tabla 'orders' separadamente, no aquí
       });
 
       // Paso 7: Agregar al cache para validaciones futuras en sesión
