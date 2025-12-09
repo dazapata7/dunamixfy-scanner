@@ -225,39 +225,45 @@ export function useScanner() {
       }
 
       // Paso 5: NUEVO - Consultar información de la orden en Dunamixfy CO
-      console.log('🌐 Consultando orden en Dunamixfy CO...');
-      const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
-
       let orderData = null;
-      if (orderInfo.success) {
-        console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
+      try {
+        console.log('🌐 Consultando orden en Dunamixfy CO...');
+        const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
 
-        // Obtener user_id del usuario autenticado
-        const { data: { user } } = await supabase.auth.getUser();
+        if (orderInfo.success) {
+          console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
 
-        // Guardar información de la orden en BD
-        const orderResult = await ordersService.createOrUpdate(
-          orderInfo.data,
-          codigo,
-          user?.id
-        );
+          // Obtener user_id del usuario autenticado
+          const { data: { user } } = await supabase.auth.getUser();
 
-        if (orderResult.success) {
-          orderData = orderResult.data;
-          console.log('✅ Información de orden guardada:', orderData);
+          // Guardar información de la orden en BD
+          const orderResult = await ordersService.createOrUpdate(
+            orderInfo.data,
+            codigo,
+            user?.id
+          );
 
-          // Mostrar info adicional en el toast
-          const clientName = `${orderInfo.data.firstname || ''} ${orderInfo.data.lastname || ''}`.trim();
-          if (clientName) {
-            toast.success(`Cliente: ${clientName}`, {
-              duration: 3000,
-              icon: '👤'
-            });
+          if (orderResult.success) {
+            orderData = orderResult.data;
+            console.log('✅ Información de orden guardada:', orderData);
+
+            // Mostrar info adicional en el toast
+            const clientName = `${orderInfo.data.firstname || ''} ${orderInfo.data.lastname || ''}`.trim();
+            if (clientName) {
+              toast.success(`Cliente: ${clientName}`, {
+                duration: 3000,
+                icon: '👤'
+              });
+            }
+          } else {
+            console.warn('⚠️ Error guardando orden:', orderResult.error);
           }
+        } else {
+          console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
         }
-      } else {
-        console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
-        // Continuar con el escaneo aunque no se encuentre en Dunamixfy
+      } catch (orderError) {
+        console.error('❌ Error en proceso de orden:', orderError);
+        // Continuar con el escaneo aunque falle la orden
       }
 
       // Paso 6: V2 - Obtener o crear tienda si hay una seleccionada
