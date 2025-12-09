@@ -13,7 +13,7 @@ La integración con Dunamixfy CO está completamente implementada y lista para p
 **SQL a ejecutar:**
 
 ```sql
--- Tabla orders para almacenar información de órdenes
+-- Tabla orders para almacenar informacion de ordenes
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
 
@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS orders (
   order_id TEXT NOT NULL UNIQUE,
   code TEXT NOT NULL,
 
-  -- Información del cliente
+  -- Informacion del cliente
   firstname TEXT,
   lastname TEXT,
 
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS orders (
   transportadora TEXT,
   store TEXT,
 
-  -- Información del escaneo
+  -- Informacion del escaneo
   scanned_by UUID REFERENCES auth.users(id),
   scanned_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   scan_count INTEGER DEFAULT 1,
