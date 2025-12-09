@@ -18,8 +18,8 @@ CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
 
   -- Identificadores
-  order_id TEXT NOT NULL UNIQUE,
-  code TEXT NOT NULL,
+  order_id TEXT,
+  code TEXT NOT NULL UNIQUE,
 
   -- Informacion del cliente
   firstname TEXT,
