@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
+import { DesktopDashboard } from './DesktopDashboard';
 // V2: Cambiado de StoreSelector a StoreSelectorV2 para cargar tiendas desde BD
 import { StoreSelectorV2 as StoreSelector } from './StoreSelectorV2';
 import { Camera, LogOut, BarChart3, RefreshCw, Store } from 'lucide-react';
@@ -12,6 +13,7 @@ export function Dashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [showStoreSelector, setShowStoreSelector] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
   
   const {
     operator,
@@ -24,6 +26,18 @@ export function Dashboard() {
   } = useStore();
 
   const { isConnected, refresh } = useRealtime();
+
+  // Detectar si es desktop
+  useEffect(() => {
+    const checkIsDesktop = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+
+    checkIsDesktop();
+    window.addEventListener('resize', checkIsDesktop);
+
+    return () => window.removeEventListener('resize', checkIsDesktop);
+  }, []);
 
   const handleLogout = () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
@@ -38,6 +52,12 @@ export function Dashboard() {
     toast.success('Sincronizado', { id: 'refresh' });
   };
 
+  // Si es desktop, mostrar DesktopDashboard (panel de administración)
+  if (isDesktop) {
+    return <DesktopDashboard onLogout={logout} />;
+  }
+
+  // Vista mobile normal
   if (showScanner) {
     return <ScannerComponent onBack={() => setShowScanner(false)} />;
   }

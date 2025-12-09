@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, Package, TruckIcon, Store, Trash2, Plus, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, TruckIcon, Store, Trash2, BarChart3, Calendar } from 'lucide-react';
 import { codesService, carriersService, storesService } from '../services/supabase';
 import toast from 'react-hot-toast';
 
-export function AdminPanel({ onBack }) {
+export function AdminPanel({ onBack, hideBackButton = false }) {
   const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers, stores
   const [todayCodes, setTodayCodes] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
@@ -74,17 +74,21 @@ export function AdminPanel({ onBack }) {
       {/* Header */}
       <div className="bg-dark-800 border-b border-gray-700 p-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-            <span>Volver</span>
-          </button>
+          {!hideBackButton ? (
+            <button
+              onClick={onBack}
+              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Volver</span>
+            </button>
+          ) : (
+            <div className="w-20"></div>
+          )}
 
           <div className="flex items-center gap-3">
             <BarChart3 className="w-6 h-6 text-primary-500" />
-            <h1 className="text-2xl font-bold text-white">Panel de Administración</h1>
+            <h1 className="text-2xl font-bold text-white">Estadísticas en Tiempo Real</h1>
           </div>
 
           <div className="w-20"></div>
