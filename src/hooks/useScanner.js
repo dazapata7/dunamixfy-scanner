@@ -2,6 +2,9 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { codesService, carriersService, storesService } from '../services/supabase';
 import { procesarCodigoConCarriers, detectScanType } from '../utils/validators';
 import { useStore } from '../store/useStore';
+import { dunamixfyApi } from '../services/dunamixfyApi';
+import { ordersService } from '../services/ordersService';
+import { supabase } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 /**
@@ -221,7 +224,43 @@ export function useScanner() {
         return { success: false, reason: 'repeated' };
       }
 
-      // Paso 5: V2 - Obtener o crear tienda si hay una seleccionada
+      // Paso 5: NUEVO - Consultar información de la orden en Dunamixfy CO
+      console.log('🌐 Consultando orden en Dunamixfy CO...');
+      const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
+
+      let orderData = null;
+      if (orderInfo.success) {
+        console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
+
+        // Obtener user_id del usuario autenticado
+        const { data: { user } } = await supabase.auth.getUser();
+
+        // Guardar información de la orden en BD
+        const orderResult = await ordersService.createOrUpdate(
+          orderInfo.data,
+          codigo,
+          user?.id
+        );
+
+        if (orderResult.success) {
+          orderData = orderResult.data;
+          console.log('✅ Información de orden guardada:', orderData);
+
+          // Mostrar info adicional en el toast
+          const clientName = `${orderInfo.data.firstname || ''} ${orderInfo.data.lastname || ''}`.trim();
+          if (clientName) {
+            toast.success(`Cliente: ${clientName}`, {
+              duration: 3000,
+              icon: '👤'
+            });
+          }
+        }
+      } else {
+        console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
+        // Continuar con el escaneo aunque no se encuentre en Dunamixfy
+      }
+
+      // Paso 6: V2 - Obtener o crear tienda si hay una seleccionada
       // Esto permite relacionar el código con la tienda desde BD
       let storeId = null;
       if (selectedStore) {
@@ -234,7 +273,7 @@ export function useScanner() {
         }
       }
 
-      // Paso 6: V2 - Código NUEVO - Guardar en base de datos con nuevos campos
+      // Paso 7: V2 - Código NUEVO - Guardar en base de datos con nuevos campos
       console.log('✅ Código NUEVO - Guardando...');
 
       const newCode = await codesService.create({
@@ -243,7 +282,8 @@ export function useScanner() {
         store_id: storeId,                      // V2: UUID foreign key a stores
         operator_id: operatorId,                // UUID foreign key a operators
         raw_scan: rawCode.substring(0, 500),    // V2: QR/Barcode completo (limitado)
-        scan_type: scanType                     // V2: 'qr' | 'barcode' | 'manual'
+        scan_type: scanType,                    // V2: 'qr' | 'barcode' | 'manual'
+        order_data: orderData                   // NUEVO: Info de la orden desde Dunamixfy
       });
 
       // Paso 7: Agregar al cache para validaciones futuras en sesión
