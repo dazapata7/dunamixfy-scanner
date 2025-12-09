@@ -104,6 +104,9 @@ export function ZXingScanner({ onBack }) {
   const drawAdaptiveBox = (resultPoints) => {
     if (!overlayCanvasRef.current || !videoRef.current) return;
 
+    // No dibujar si estamos en cooldown
+    if (scanCooldown.current) return;
+
     const canvas = overlayCanvasRef.current;
     const video = videoRef.current;
     const ctx = canvas.getContext('2d');

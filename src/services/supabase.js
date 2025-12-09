@@ -311,13 +311,21 @@ export const codesService = {
    * Eliminar código por ID
    */
   async delete(id) {
-    const { error } = await supabase
+    console.log('🗑️ Supabase delete - ID:', id);
+
+    const { data, error } = await supabase
       .from('codes')
       .delete()
-      .eq('id', id);
+      .eq('id', id)
+      .select(); // Agregamos select() para confirmar la eliminación
 
-    if (error) throw error;
-    return true;
+    if (error) {
+      console.error('❌ Error de Supabase al eliminar:', error);
+      throw error;
+    }
+
+    console.log('✅ Respuesta de Supabase:', data);
+    return { success: true, data };
   },
 
   /**

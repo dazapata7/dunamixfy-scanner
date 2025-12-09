@@ -60,12 +60,14 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
     if (!confirm(`¿Eliminar código ${code}?`)) return;
 
     try {
-      await codesService.delete(id);
+      console.log('🗑️ Intentando eliminar código:', { id, code });
+      const result = await codesService.delete(id);
+      console.log('✅ Código eliminado exitosamente:', result);
       toast.success('Código eliminado');
-      loadAllData();
+      await loadAllData();
     } catch (error) {
-      console.error('Error eliminando código:', error);
-      toast.error('Error al eliminar');
+      console.error('❌ Error eliminando código:', error);
+      toast.error(`Error al eliminar: ${error.message}`);
     }
   };
 
