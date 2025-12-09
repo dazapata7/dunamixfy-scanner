@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
+import { useRole } from '../hooks/useRole';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 import { DesktopDashboard } from './DesktopDashboard';
 // V2: Cambiado de StoreSelector a StoreSelectorV2 para cargar tiendas desde BD
 import { StoreSelectorV2 as StoreSelector } from './StoreSelectorV2';
-import { Camera, LogOut, BarChart3, RefreshCw, Store } from 'lucide-react';
+import { Camera, LogOut, BarChart3, RefreshCw, Store, ShieldAlert } from 'lucide-react';
 import { useRealtime } from '../hooks/useRealtime';
 import toast from 'react-hot-toast';
 
@@ -14,6 +15,7 @@ export function Dashboard() {
   const [showStats, setShowStats] = useState(false);
   const [showStoreSelector, setShowStoreSelector] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
+  const { isAdmin, loading: loadingRole } = useRole();
   
   const {
     operator,
@@ -52,8 +54,43 @@ export function Dashboard() {
     toast.success('Sincronizado', { id: 'refresh' });
   };
 
-  // Si es desktop, mostrar DesktopDashboard (panel de administración)
+  // Si es desktop, verificar permisos antes de mostrar panel admin
   if (isDesktop) {
+    // Si está cargando roles, mostrar loading
+    if (loadingRole) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center">
+          <div className="text-center">
+            <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-400">Verificando permisos...</p>
+          </div>
+        </div>
+      );
+    }
+
+    // Si NO es admin, mostrar mensaje de acceso denegado
+    if (!isAdmin) {
+      return (
+        <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900 flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-dark-800 rounded-2xl p-8 border border-red-500/30 text-center">
+            <ShieldAlert className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h1 className="text-2xl font-bold text-white mb-2">Acceso Denegado</h1>
+            <p className="text-gray-400 mb-6">
+              El panel de administración solo está disponible para usuarios con rol de administrador.
+            </p>
+            <button
+              onClick={logout}
+              className="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-3 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            >
+              <LogOut className="w-5 h-5" />
+              Cerrar Sesión
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    // Si ES admin, mostrar panel de administración
     return <DesktopDashboard onLogout={logout} />;
   }
 
