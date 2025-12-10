@@ -32,17 +32,12 @@ export const backfillService = {
       // Consultar Dunamixfy
       const orderInfo = await dunamixfyApi.getOrderInfo(code.code);
 
-      if (!orderInfo.success) {
-        // Si canShip es false, NO actualizar - estos códigos no deberían estar en BD
-        if (orderInfo.canShip === false) {
-          console.warn(`⚠️ Código ${code.code}: Pedido no puede despacharse (can_ship=NO)`);
-          return {
-            success: false,
-            code: code.code,
-            error: `No se puede despachar: ${orderInfo.error}`
-          };
-        }
+      // BACKFILL: Si el código está en BD, significa que ya pasó la validación
+      // Por lo tanto, actualizar datos incluso si can_ship = NO actualmente
+      // (puede haber sido guardado antes de la nueva validación)
 
+      if (!orderInfo.success && !orderInfo.data) {
+        // Solo fallar si no hay data en absoluto
         return {
           success: false,
           code: code.code,
@@ -50,15 +45,25 @@ export const backfillService = {
         };
       }
 
+      // Extraer datos (puede ser de success=true o de can_ship=false con data)
+      const data = orderInfo.data;
+      if (!data) {
+        return {
+          success: false,
+          code: code.code,
+          error: 'No hay datos disponibles para actualizar'
+        };
+      }
+
       // Preparar datos para actualizar
-      const firstName = orderInfo.data.firstname || '';
-      const lastName = orderInfo.data.lastname || '';
+      const firstName = data.firstname || '';
+      const lastName = data.lastname || '';
       const customerName = `${firstName} ${lastName}`.trim();
 
       const updateData = {
-        order_id: orderInfo.data.order_id || null,
+        order_id: data.order_id || null,
         customer_name: customerName || null,
-        store_name: orderInfo.data.store || null
+        store_name: data.store || null
       };
 
       // Actualizar en Supabase
