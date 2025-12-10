@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
 import { useScanner } from '../hooks/useScanner';
-import { ArrowLeft, Camera, CheckCircle2, XCircle } from 'lucide-react';
+import { useStore } from '../store/useStore';
+import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
 import '../scanner-custom.css'; // V2: CSS personalizado para limitar altura del scanner
 
 export function Scanner({ onBack }) {
-  const scannerRef = useRef(null);
   const html5QrcodeRef = useRef(null);
-  const [isScanning, setIsScanning] = useState(false);
   const [scanAnimation, setScanAnimation] = useState(null); // V2: 'success' | 'error' | null
   const lastScannedCode = useRef(null); // V2: Para evitar escaneos duplicados rápidos
   const scanCooldown = useRef(false); // V2: Cooldown entre escaneos
 
   // V2: Obtener carriers e isLoadingCarriers para mostrar estado
   const { processScan, isProcessing, lastScan, carriers, isLoadingCarriers } = useScanner();
+
+  // Obtener contadores de sesión del store
+  const { sessionScans, sessionRepeated } = useStore();
 
   // V2: Log de depuración para ver estado de carriers
   useEffect(() => {
@@ -201,97 +203,114 @@ export function Scanner({ onBack }) {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Header - V3.3: Más compacto */}
-      <div className="bg-dark-800 border-b border-gray-700 p-2">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+    <div className="fixed inset-0 bg-black flex flex-col">
+      {/* Header flotante minimalista */}
+      <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-3">
+        <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-1 text-gray-300 hover:text-white transition-colors"
+            className="flex items-center gap-2 text-white/90 hover:text-white transition-colors backdrop-blur-sm bg-black/30 px-3 py-2 rounded-full"
           >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Volver</span>
+            <ArrowLeft className="w-5 h-5" />
+            <span className="text-sm font-medium">Salir</span>
           </button>
 
-          <div className="flex items-center gap-1">
-            <Camera className="w-4 h-4 text-primary-500" />
-            <h1 className="text-lg font-bold text-white">Scanner</h1>
+          {/* Contador de sesión flotante */}
+          <div className="backdrop-blur-md bg-black/50 px-4 py-2 rounded-full border border-white/20 shadow-lg">
+            <div className="flex items-center gap-3 text-white">
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-green-400" />
+                <span className="text-base font-bold">{sessionScans}</span>
+              </div>
+              <div className="w-px h-4 bg-white/30"></div>
+              <div className="flex items-center gap-1.5">
+                <XCircle className="w-4 h-4 text-red-400" />
+                <span className="text-base font-bold">{sessionRepeated}</span>
+              </div>
+            </div>
           </div>
-
-          <div className="w-16"></div>
         </div>
       </div>
 
-      {/* Scanner Area */}
-      <div className="max-w-4xl mx-auto p-2">
-        <div className="space-y-2">
-          {/* Camera */}
-          <div className={`bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-500 ${
-            scanAnimation === 'success'
-              ? 'border-green-500 shadow-green-500/80 scale-[1.02] animate-pulse-success'
-              : scanAnimation === 'error'
-              ? 'border-red-500 shadow-red-500/80 scale-[0.98] animate-pulse-error'
-              : 'border-primary-500/30'
-          }`}>
-            <div id="reader" className="w-full"></div>
-          </div>
+      {/* Scanner Area - Pantalla completa */}
+      <div className="flex-1 relative">
+        {/* Camera - Ocupa toda la pantalla */}
+        <div className={`absolute inset-0 transition-all duration-300 ${
+          scanAnimation === 'success'
+            ? 'ring-4 ring-green-500 ring-inset'
+            : scanAnimation === 'error'
+            ? 'ring-4 ring-red-500 ring-inset'
+            : ''
+        }`}>
+          <div id="reader" className="w-full h-full"></div>
+        </div>
 
-          {/* Instrucciones */}
-          <div className="bg-dark-800 rounded-xl p-2 border border-gray-700">
-            <div className="text-center text-gray-300 text-xs">
-              {isLoadingCarriers ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                  Cargando transportadoras...
-                </div>
-              ) : carriers.length === 0 ? (
-                <div className="text-red-400">
-                  ⚠️ Error: No se cargaron transportadoras. Verifica conexión a Supabase.
-                </div>
-              ) : isProcessing ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                  Procesando código...
-                </div>
-              ) : (
-                <div>
-                  <div>✅ {carriers.length} transportadoras listas</div>
-                  <div className="mt-1">📷 Apunta la cámara al código QR o de barras</div>
-                </div>
-              )}
+        {/* Indicador de estado - Flotante arriba */}
+        <div className="absolute top-20 left-0 right-0 z-10 px-4">
+          {isLoadingCarriers ? (
+            <div className="backdrop-blur-md bg-yellow-500/90 text-black px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-5 h-5 border-3 border-black border-t-transparent rounded-full animate-spin"></div>
+                <span className="font-bold">Cargando transportadoras...</span>
+              </div>
+            </div>
+          ) : carriers.length === 0 ? (
+            <div className="backdrop-blur-md bg-red-500/90 text-white px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
+              <div className="font-bold">⚠️ Error: Sin transportadoras</div>
+            </div>
+          ) : isProcessing ? (
+            <div className="backdrop-blur-md bg-blue-500/90 text-white px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
+              <div className="flex items-center justify-center gap-3">
+                <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
+                <span className="font-bold">Procesando...</span>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        {/* Instrucciones - Flotante en el centro */}
+        {!isProcessing && !isLoadingCarriers && carriers.length > 0 && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div className="backdrop-blur-sm bg-black/40 px-6 py-3 rounded-2xl border-2 border-white/30">
+              <div className="text-center text-white">
+                <div className="text-xl font-bold mb-1">📷 Escanea tu código</div>
+                <div className="text-sm opacity-80">{carriers.length} transportadoras listas</div>
+              </div>
             </div>
           </div>
+        )}
 
-          {/* Último escaneo */}
-          {lastScan && (
-            <div className={`rounded-xl p-3 border-2 ${
-              lastScan.isRepeated 
-                ? 'bg-red-500/10 border-red-500' 
-                : 'bg-green-500/10 border-green-500'
+        {/* Último escaneo - Flotante abajo */}
+        {lastScan && (
+          <div className="absolute bottom-4 left-4 right-4 z-10">
+            <div className={`backdrop-blur-md rounded-2xl p-4 shadow-2xl border-2 ${
+              lastScan.isRepeated
+                ? 'bg-red-500/90 border-red-300'
+                : 'bg-green-500/90 border-green-300'
             }`}>
               <div className="flex items-start gap-3">
                 {lastScan.isRepeated ? (
-                  <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
+                  <XCircle className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
                 ) : (
-                  <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
+                  <CheckCircle2 className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
                 )}
-                <div className="flex-1">
-                  <p className="font-mono text-lg font-semibold text-white">
+                <div className="flex-1 min-w-0">
+                  <p className="font-mono text-xl font-bold text-white truncate">
                     {lastScan.code}
                   </p>
-                  <p className="text-sm text-gray-300 mt-1">
+                  <p className="text-base text-white/90 mt-1 font-medium">
                     {lastScan.carrier}
                   </p>
-                  <p className={`text-sm font-semibold mt-1 ${
-                    lastScan.isRepeated ? 'text-red-400' : 'text-green-400'
+                  <p className={`text-base font-bold mt-1.5 ${
+                    lastScan.isRepeated ? 'text-white' : 'text-white'
                   }`}>
-                    {lastScan.isRepeated ? '⚠️ REPETIDO (NO GUARDADO)' : '✅ GUARDADO'}
+                    {lastScan.isRepeated ? '⚠️ REPETIDO - NO GUARDADO' : '✅ GUARDADO EXITOSAMENTE'}
                   </p>
                 </div>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

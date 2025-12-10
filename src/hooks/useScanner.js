@@ -192,9 +192,17 @@ export function useScanner() {
           isRepeated: true
         });
 
-        toast.error(`${codigo} - ${carrierName}\n⚠️ REPETIDO`, {
-          duration: 2000,
-          icon: '⚠️'
+        toast.error(`${carrierName} - REPETIDO`, {
+          duration: 4000,
+          icon: '⚠️',
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '16px 24px',
+            borderRadius: '12px',
+          }
         });
 
         setTimeout(() => setIsProcessing(false), 1500);
@@ -215,9 +223,17 @@ export function useScanner() {
           isRepeated: true
         });
 
-        toast.error(`${codigo} - ${carrierName}\n⚠️ REPETIDO (YA EN BD)`, {
-          duration: 2000,
-          icon: '⚠️'
+        toast.error(`${carrierName} - REPETIDO`, {
+          duration: 4000,
+          icon: '⚠️',
+          style: {
+            background: '#ef4444',
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '16px 24px',
+            borderRadius: '12px',
+          }
         });
 
         setTimeout(() => setIsProcessing(false), 1500);
@@ -250,9 +266,18 @@ export function useScanner() {
             // Mostrar info adicional en el toast
             const clientName = `${orderInfo.data.firstname || ''} ${orderInfo.data.lastname || ''}`.trim();
             if (clientName) {
-              toast.success(`Cliente: ${clientName}`, {
-                duration: 3000,
-                icon: '👤'
+              toast.success(`👤 ${clientName}`, {
+                duration: 5000,
+                icon: '📦',
+                style: {
+                  background: '#3b82f6',
+                  color: '#fff',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  padding: '20px 28px',
+                  borderRadius: '16px',
+                  maxWidth: '90vw',
+                }
               });
             }
           } else {
@@ -305,9 +330,17 @@ export function useScanner() {
         isRepeated: false
       });
 
-      toast.success(`${codigo} - ${carrierName}\n✅ GUARDADO`, {
-        duration: 2000,
-        icon: '✅'
+      toast.success(`${carrierName}`, {
+        duration: 4000,
+        icon: '✅',
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontSize: '16px',
+          fontWeight: 'bold',
+          padding: '16px 24px',
+          borderRadius: '12px',
+        }
       });
 
       console.log('✅ Código guardado exitosamente:', newCode);
