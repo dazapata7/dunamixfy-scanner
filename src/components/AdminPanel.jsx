@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar } from 'lucide-react';
+import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart } from 'lucide-react';
 import { codesService, carriersService } from '../services/supabase';
 import toast from 'react-hot-toast';
 
@@ -236,52 +236,73 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
               <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
                 <h2 className="text-xl font-bold text-white mb-4">Historial Completo</h2>
 
-                <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
                     return (
                       <div
                         key={code.id}
                         className="bg-dark-900 rounded-lg p-4 border border-gray-700 group hover:border-primary-500 transition-colors"
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            {/* Código y badges */}
-                            <div className="flex items-center gap-3 mb-2">
-                              <p className="font-mono font-bold text-white">{code.code}</p>
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 space-y-3">
+                            {/* Código y badges principales */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-mono font-bold text-white text-base">{code.code}</p>
                               <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
+                                <TruckIcon className="w-3 h-3 inline mr-1" />
                                 {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
                               </span>
                               {code.store_name && (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
+                                  <Store className="w-3 h-3 inline mr-1" />
                                   {code.store_name}
                                 </span>
                               )}
                             </div>
 
-                            {/* Información del cache */}
-                            {code.customer_name && (
-                              <div className="bg-dark-800 rounded p-2 border border-gray-600 space-y-1.5 mb-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm text-white font-medium">
-                                    👤 {code.customer_name}
-                                  </span>
-                                  {code.order_id && (
-                                    <span className="text-xs text-gray-400">
-                                      (#{code.order_id})
-                                    </span>
-                                  )}
+                            {/* Detalles de la orden */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {/* Cliente */}
+                              {code.customer_name && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <User className="w-4 h-4 text-primary-400 flex-shrink-0" />
+                                  <span className="text-white font-medium">{code.customer_name}</span>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            <p className="text-xs text-gray-500">
-                              {new Date(code.created_at).toLocaleString('es-CO')}
-                            </p>
+                              {/* Order ID */}
+                              {code.order_id && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <ShoppingCart className="w-4 h-4 text-yellow-400 flex-shrink-0" />
+                                  <span className="text-gray-300">Pedido #{code.order_id}</span>
+                                </div>
+                              )}
+
+                              {/* Tipo de escaneo */}
+                              {code.scan_type && (
+                                <div className="flex items-center gap-2 text-sm">
+                                  <Package className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                  <span className="text-gray-300 capitalize">{code.scan_type}</span>
+                                </div>
+                              )}
+
+                              {/* Fecha */}
+                              <div className="flex items-center gap-2 text-sm">
+                                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                                <span className="text-gray-400">
+                                  {new Date(code.created_at).toLocaleString('es-CO', {
+                                    dateStyle: 'short',
+                                    timeStyle: 'short'
+                                  })}
+                                </span>
+                              </div>
+                            </div>
                           </div>
 
                           <button
                             onClick={() => handleDeleteCode(code.id, code.code)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg ml-2"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg flex-shrink-0"
+                            title="Eliminar código"
                           >
                             <Trash2 className="w-4 h-4 text-red-500" />
                           </button>
