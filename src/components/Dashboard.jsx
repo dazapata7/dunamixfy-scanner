@@ -4,22 +4,18 @@ import { useRole } from '../hooks/useRole';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 import { DesktopDashboard } from './DesktopDashboard';
-// V2: Cambiado de StoreSelector a StoreSelectorV2 para cargar tiendas desde BD
-import { StoreSelectorV2 as StoreSelector } from './StoreSelectorV2';
-import { Camera, LogOut, BarChart3, RefreshCw, Store, ShieldAlert } from 'lucide-react';
+import { Camera, LogOut, BarChart3, RefreshCw, ShieldAlert } from 'lucide-react';
 import { useRealtime } from '../hooks/useRealtime';
 import toast from 'react-hot-toast';
 
 export function Dashboard() {
   const [showScanner, setShowScanner] = useState(false);
   const [showStats, setShowStats] = useState(false);
-  const [showStoreSelector, setShowStoreSelector] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const { isAdmin, isOperator, loading: loadingRole } = useRole();
-  
+
   const {
     operator,
-    selectedStore,
     logout,
     sessionScans,
     sessionRepeated,
@@ -143,46 +139,6 @@ export function Dashboard() {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto p-4 space-y-4">
-        {/* Tienda seleccionada */}
-        {selectedStore && (
-          <div className="bg-dark-800 rounded-xl p-4 border border-primary-500/30 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary-500/20 rounded-lg">
-                <Store className="w-5 h-5 text-primary-500" />
-              </div>
-              <div>
-                <p className="text-sm text-gray-400">Tienda actual</p>
-                <p className="text-white font-semibold">{selectedStore}</p>
-              </div>
-            </div>
-            <button
-              onClick={() => setShowStoreSelector(true)}
-              className="text-sm text-primary-500 hover:text-primary-400 font-medium"
-            >
-              Cambiar
-            </button>
-          </div>
-        )}
-
-        {/* Si no hay tienda, mostrar aviso */}
-        {!selectedStore && (
-          <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-xl p-4">
-            <div className="flex items-start gap-3">
-              <Store className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <p className="text-sm text-yellow-200 font-medium">Sin tienda seleccionada</p>
-                <p className="text-xs text-yellow-300/70 mt-1">Los códigos se guardarán sin tienda</p>
-              </div>
-              <button
-                onClick={() => setShowStoreSelector(true)}
-                className="text-sm text-yellow-400 hover:text-yellow-300 font-medium whitespace-nowrap"
-              >
-                Seleccionar
-              </button>
-            </div>
-          </div>
-        )}
-
         {/* Estadísticas de la sesión */}
         <div className="bg-dark-800 rounded-2xl p-6 border border-gray-700 shadow-xl">
           <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
@@ -231,21 +187,6 @@ export function Dashboard() {
               </div>
             </div>
           </div>
-
-          {/* Estadísticas por tienda */}
-          {todayStats.byStore && Object.keys(todayStats.byStore).length > 0 && (
-            <div className="mt-4 pt-4 border-t border-gray-600">
-              <p className="text-sm text-gray-400 mb-3">Por Tienda:</p>
-              <div className="grid grid-cols-2 gap-2">
-                {Object.entries(todayStats.byStore).map(([store, count]) => (
-                  <div key={store} className="bg-dark-600 rounded-lg p-3">
-                    <p className="text-xs text-gray-400 truncate">{store}</p>
-                    <p className="text-lg font-bold text-white">{count}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Botones de acción */}
@@ -273,11 +214,6 @@ export function Dashboard() {
           <p className="mt-1">React + Supabase • Tiempo Real</p>
         </div>
       </div>
-
-      {/* Modal de selección de tienda */}
-      {showStoreSelector && (
-        <StoreSelector onClose={() => setShowStoreSelector(false)} />
-      )}
     </div>
   );
 }
