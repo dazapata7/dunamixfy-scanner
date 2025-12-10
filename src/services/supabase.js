@@ -206,24 +206,75 @@ export const codesService = {
 
     const { data, error } = await supabase
       .from('codes')
-      .select('carrier_name')
+      .select('carrier_name, store_name')
       .gte('created_at', today.toISOString());
 
     if (error) throw error;
 
     const stats = {
       total: data.length,
-      byCarrier: {}
+      byCarrier: {},
+      byStore: {}
     };
 
-    // Contar por transportadora dinámicamente
+    // Contar por transportadora y tienda dinámicamente
     data.forEach(item => {
       if (item.carrier_name) {
         stats.byCarrier[item.carrier_name] = (stats.byCarrier[item.carrier_name] || 0) + 1;
       }
+      if (item.store_name) {
+        stats.byStore[item.store_name] = (stats.byStore[item.store_name] || 0) + 1;
+      }
     });
 
     return stats;
+  },
+
+  /**
+   * Obtener estadísticas por rango de fechas
+   * Incluye totales por transportadora y tienda
+   */
+  async getStatsByDateRange(startDate, endDate) {
+    const { data, error } = await supabase
+      .from('codes')
+      .select('carrier_name, store_name, created_at')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate);
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      byCarrier: {},
+      byStore: {}
+    };
+
+    // Contar por transportadora y tienda dinámicamente
+    data.forEach(item => {
+      if (item.carrier_name) {
+        stats.byCarrier[item.carrier_name] = (stats.byCarrier[item.carrier_name] || 0) + 1;
+      }
+      if (item.store_name) {
+        stats.byStore[item.store_name] = (stats.byStore[item.store_name] || 0) + 1;
+      }
+    });
+
+    return stats;
+  },
+
+  /**
+   * Obtener códigos filtrados por rango de fechas
+   */
+  async getByDateRange(startDate, endDate) {
+    const { data, error } = await supabase
+      .from('codes')
+      .select('*, carriers(display_name, code)')
+      .gte('created_at', startDate)
+      .lte('created_at', endDate)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
   },
 
   /**

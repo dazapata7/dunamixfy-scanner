@@ -8,7 +8,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers
   const [todayCodes, setTodayCodes] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
-  const [stats, setStats] = useState({ total: 0, byCarrier: {} });
+  const [stats, setStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
   const [carriers, setCarriers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -16,6 +16,12 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const [isBackfilling, setIsBackfilling] = useState(false);
   const [backfillProgress, setBackfillProgress] = useState(null);
   const [showBackfillModal, setShowBackfillModal] = useState(false);
+
+  // Filtros de fecha para historial
+  const [dateFilter, setDateFilter] = useState('today'); // today, yesterday, week, month, custom
+  const [customStartDate, setCustomStartDate] = useState('');
+  const [customEndDate, setCustomEndDate] = useState('');
+  const [filteredStats, setFilteredStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -58,6 +64,83 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
       toast.error('Error cargando historial');
     }
   };
+
+  // Función para obtener rango de fechas según filtro
+  const getDateRange = () => {
+    const now = new Date();
+    let startDate, endDate;
+
+    switch (dateFilter) {
+      case 'today':
+        startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        break;
+      case 'yesterday':
+        const yesterday = new Date(now);
+        yesterday.setDate(yesterday.getDate() - 1);
+        startDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate());
+        endDate = new Date(yesterday.getFullYear(), yesterday.getMonth(), yesterday.getDate(), 23, 59, 59);
+        break;
+      case 'week':
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 7);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        break;
+      case 'month':
+        startDate = new Date(now);
+        startDate.setDate(startDate.getDate() - 30);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        break;
+      case 'custom':
+        if (!customStartDate || !customEndDate) return null;
+        startDate = new Date(customStartDate);
+        startDate.setHours(0, 0, 0, 0);
+        endDate = new Date(customEndDate);
+        endDate.setHours(23, 59, 59, 999);
+        break;
+      default:
+        return null;
+    }
+
+    return {
+      start: startDate.toISOString(),
+      end: endDate.toISOString()
+    };
+  };
+
+  // Aplicar filtro de fecha
+  const applyDateFilter = async () => {
+    const dateRange = getDateRange();
+    if (!dateRange) {
+      toast.error('Selecciona un rango de fechas válido');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const [codes, statistics] = await Promise.all([
+        codesService.getByDateRange(dateRange.start, dateRange.end),
+        codesService.getStatsByDateRange(dateRange.start, dateRange.end)
+      ]);
+
+      setAllCodes(codes);
+      setFilteredStats(statistics);
+    } catch (error) {
+      console.error('Error aplicando filtro:', error);
+      toast.error('Error aplicando filtro de fecha');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Efecto para aplicar filtro cuando cambia
+  useEffect(() => {
+    if (activeTab === 'history') {
+      applyDateFilter();
+    }
+  }, [dateFilter, activeTab]);
 
   const handleDeleteCode = async (id, code) => {
     if (!confirm(`¿Eliminar código ${code}?`)) return;
@@ -232,6 +315,26 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                   </div>
                 </div>
 
+                {/* Estadísticas por Tienda */}
+                {stats.byStore && Object.keys(stats.byStore).length > 0 && (
+                  <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
+                    <h2 className="text-xl font-bold text-white mb-4">
+                      📊 Guías por Tienda (Hoy)
+                    </h2>
+
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {Object.entries(stats.byStore)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([store, count]) => (
+                          <div key={store} className="bg-dark-900 rounded-lg p-6 text-center border border-gray-700">
+                            <div className="text-4xl font-bold text-blue-500">{count}</div>
+                            <div className="text-sm text-gray-400 mt-2">{store}</div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
                 {/* Códigos recientes */}
                 <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
                   <h2 className="text-xl font-bold text-white mb-4">Últimos Escaneos de Hoy</h2>
@@ -296,10 +399,125 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
             {/* Tab: Historial Completo */}
             {activeTab === 'history' && (
-              <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                <h2 className="text-xl font-bold text-white mb-4">Historial Completo</h2>
+              <div className="space-y-6">
+                {/* Filtros de Fecha */}
+                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
+                  <h2 className="text-xl font-bold text-white mb-4">Filtros de Fecha</h2>
 
-                <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                  <div className="space-y-4">
+                    {/* Atajos de fecha */}
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => setDateFilter('today')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          dateFilter === 'today'
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                        }`}
+                      >
+                        Hoy
+                      </button>
+                      <button
+                        onClick={() => setDateFilter('yesterday')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          dateFilter === 'yesterday'
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                        }`}
+                      >
+                        Ayer
+                      </button>
+                      <button
+                        onClick={() => setDateFilter('week')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          dateFilter === 'week'
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                        }`}
+                      >
+                        7 días
+                      </button>
+                      <button
+                        onClick={() => setDateFilter('month')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          dateFilter === 'month'
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                        }`}
+                      >
+                        Mes
+                      </button>
+                      <button
+                        onClick={() => setDateFilter('custom')}
+                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                          dateFilter === 'custom'
+                            ? 'bg-primary-500 text-white'
+                            : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                        }`}
+                      >
+                        Personalizado
+                      </button>
+                    </div>
+
+                    {/* Selector de rango personalizado */}
+                    {dateFilter === 'custom' && (
+                      <div className="flex gap-3 items-end">
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-400 mb-2">Desde</label>
+                          <input
+                            type="date"
+                            value={customStartDate}
+                            onChange={(e) => setCustomStartDate(e.target.value)}
+                            className="w-full bg-dark-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-primary-500 focus:outline-none"
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-sm text-gray-400 mb-2">Hasta</label>
+                          <input
+                            type="date"
+                            value={customEndDate}
+                            onChange={(e) => setCustomEndDate(e.target.value)}
+                            className="w-full bg-dark-700 text-white px-4 py-2 rounded-lg border border-gray-600 focus:border-primary-500 focus:outline-none"
+                          />
+                        </div>
+                        <button
+                          onClick={applyDateFilter}
+                          className="px-6 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg font-medium transition-colors"
+                        >
+                          Aplicar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Estadísticas por Tienda */}
+                {filteredStats.byStore && Object.keys(filteredStats.byStore).length > 0 && (
+                  <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
+                    <h2 className="text-xl font-bold text-white mb-4">
+                      📊 Guías por Tienda ({filteredStats.total} total)
+                    </h2>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {Object.entries(filteredStats.byStore)
+                        .sort(([, a], [, b]) => b - a)
+                        .map(([store, count]) => (
+                          <div key={store} className="bg-dark-900 rounded-lg p-4 border border-gray-700">
+                            <p className="text-gray-400 text-sm mb-1">{store}</p>
+                            <p className="text-3xl font-bold text-primary-500">{count}</p>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Listado de códigos */}
+                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
+                  <h2 className="text-xl font-bold text-white mb-4">
+                    Códigos Escaneados ({allCodes.length})
+                  </h2>
+
+                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
                     return (
                       <div
@@ -375,6 +593,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                   })}
                 </div>
               </div>
+            </div>
             )}
 
             {/* Tab: Transportadoras */}

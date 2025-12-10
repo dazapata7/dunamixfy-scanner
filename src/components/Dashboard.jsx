@@ -164,13 +164,13 @@ export function Dashboard() {
           <h2 className="text-lg font-semibold text-white mb-4">
             Resumen de Hoy
           </h2>
-          
+
           <div className="space-y-3">
             <div className="bg-dark-700 rounded-xl p-4">
               <p className="text-sm text-gray-400 mb-1">Total del Día</p>
               <p className="text-3xl font-bold text-white">{todayScans}</p>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-dark-700 rounded-xl p-4">
                 <p className="text-sm text-gray-400 mb-1">📦 Coordinadora</p>
@@ -178,7 +178,7 @@ export function Dashboard() {
                   {todayStats.coordinadora}
                 </p>
               </div>
-              
+
               <div className="bg-dark-700 rounded-xl p-4">
                 <p className="text-sm text-gray-400 mb-1">⚡ Interrápidisimo</p>
                 <p className="text-2xl font-bold text-purple-400">
@@ -188,6 +188,26 @@ export function Dashboard() {
             </div>
           </div>
         </div>
+
+        {/* Estadísticas por Tienda */}
+        {todayStats.byStore && Object.keys(todayStats.byStore).length > 0 && (
+          <div className="bg-dark-800 rounded-2xl p-6 border border-gray-700 shadow-xl">
+            <h2 className="text-lg font-semibold text-white mb-4">
+              📊 Guías por Tienda (Hoy)
+            </h2>
+
+            <div className="space-y-2">
+              {Object.entries(todayStats.byStore)
+                .sort(([, a], [, b]) => b - a)
+                .map(([store, count]) => (
+                  <div key={store} className="bg-dark-700 rounded-lg p-3 flex items-center justify-between">
+                    <span className="text-gray-300 font-medium">{store}</span>
+                    <span className="text-xl font-bold text-primary-500">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Botones de acción */}
         <div className="space-y-3">
