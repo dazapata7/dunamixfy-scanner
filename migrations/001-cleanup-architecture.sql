@@ -34,8 +34,8 @@ ALTER TABLE codes ADD COLUMN IF NOT EXISTS store_name TEXT;
 -- Índice en order_id para búsquedas rápidas
 CREATE INDEX IF NOT EXISTS idx_codes_order_id ON codes(order_id);
 
--- Índice en scanned_at para limpieza de datos antiguos (7 días)
-CREATE INDEX IF NOT EXISTS idx_codes_scanned_at ON codes(scanned_at);
+-- Índice en created_at para limpieza de datos antiguos (7 días)
+CREATE INDEX IF NOT EXISTS idx_codes_created_at ON codes(created_at);
 
 -- PASO 5: Función para auto-limpieza de datos antiguos (7 días)
 -- ============================================
@@ -43,7 +43,7 @@ CREATE OR REPLACE FUNCTION cleanup_old_codes()
 RETURNS void AS $$
 BEGIN
   DELETE FROM codes
-  WHERE scanned_at < NOW() - INTERVAL '7 days';
+  WHERE created_at < NOW() - INTERVAL '7 days';
 END;
 $$ LANGUAGE plpgsql;
 
