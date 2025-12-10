@@ -1,18 +1,15 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, TruckIcon, Store, Trash2, BarChart3, Calendar, Package, User, CreditCard } from 'lucide-react';
-import { codesService, carriersService, storesService } from '../services/supabase';
-import { ordersService } from '../services/ordersService';
+import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar } from 'lucide-react';
+import { codesService, carriersService } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 export function AdminPanel({ onBack, hideBackButton = false }) {
-  const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers, stores
+  const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers
   const [todayCodes, setTodayCodes] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
-  const [stats, setStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
+  const [stats, setStats] = useState({ total: 0, byCarrier: {} });
   const [carriers, setCarriers] = useState([]);
-  const [stores, setStores] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [ordersMap, setOrdersMap] = useState({}); // Mapa de código -> orden
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -29,25 +26,15 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const loadAllData = async () => {
     try {
       setIsLoading(true);
-      const [codes, statistics, carriersList, storesList, orders] = await Promise.all([
+      const [codes, statistics, carriersList] = await Promise.all([
         codesService.getToday(),
         codesService.getTodayStats(),
-        carriersService.getAll(),
-        storesService.getAll(),
-        ordersService.getToday()
+        carriersService.getAll()
       ]);
 
       setTodayCodes(codes);
       setStats(statistics);
       setCarriers(carriersList);
-      setStores(storesList);
-
-      // Crear mapa de código -> orden para acceso rápido
-      const ordersMapping = {};
-      orders.forEach(order => {
-        ordersMapping[order.code] = order;
-      });
-      setOrdersMap(ordersMapping);
     } catch (error) {
       console.error('Error cargando datos:', error);
       toast.error('Error cargando datos');
@@ -58,18 +45,8 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
   const loadAllHistory = async () => {
     try {
-      const [codes, orders] = await Promise.all([
-        codesService.getAll(),
-        ordersService.getAll()
-      ]);
+      const codes = await codesService.getAll();
       setAllCodes(codes);
-
-      // Actualizar mapa de órdenes con todos los datos
-      const ordersMapping = {};
-      orders.forEach(order => {
-        ordersMapping[order.code] = order;
-      });
-      setOrdersMap(ordersMapping);
     } catch (error) {
       console.error('Error cargando historial:', error);
       toast.error('Error cargando historial');
@@ -158,18 +135,6 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
             <TruckIcon className="w-4 h-4" />
             Transportadoras ({carriers.length})
           </button>
-
-          <button
-            onClick={() => setActiveTab('stores')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-              activeTab === 'stores'
-                ? 'bg-primary-500 text-white'
-                : 'text-gray-400 hover:text-white hover:bg-dark-700'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            Tiendas ({stores.length})
-          </button>
         </div>
       </div>
 
@@ -204,32 +169,12 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                   </div>
                 </div>
 
-                {/* Desglose por tienda */}
-                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <h2 className="text-xl font-bold text-white mb-4">Por Tienda</h2>
-
-                  <div className="grid grid-cols-3 gap-4">
-                    {Object.entries(stats.byStore).map(([store, count]) => (
-                      <div key={store} className="bg-dark-900 rounded-lg p-4 border border-gray-700">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className="text-2xl font-bold text-white">{count}</div>
-                            <div className="text-sm text-gray-400 mt-1">{store}</div>
-                          </div>
-                          <Store className="w-8 h-8 text-gray-600" />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Códigos recientes */}
                 <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
                   <h2 className="text-xl font-bold text-white mb-4">Últimos Escaneos de Hoy</h2>
 
                   <div className="space-y-3">
                     {todayCodes.slice(0, 10).map((code) => {
-                      const order = ordersMap[code.code];
                       return (
                         <div
                           key={code.id}
@@ -241,7 +186,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                               <div className="flex items-center gap-3 mb-3">
                                 <p className="font-mono font-bold text-white text-lg">{code.code}</p>
                                 <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
-                                  {code.carrier_display_name}
+                                  {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
                                 </span>
                                 {code.store_name && (
                                   <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
@@ -250,38 +195,16 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                                 )}
                               </div>
 
-                              {/* Información de la orden */}
-                              {order && (
+                              {/* Información del cache */}
+                              {code.customer_name && (
                                 <div className="bg-dark-800 rounded-lg p-3 border border-gray-600 space-y-2">
                                   <div className="flex items-center gap-2">
-                                    <User className="w-4 h-4 text-primary-400" />
                                     <span className="text-white font-semibold">
-                                      {order.firstname} {order.lastname}
+                                      👤 {code.customer_name}
                                     </span>
-                                    {order.order_id && (
+                                    {code.order_id && (
                                       <span className="text-xs text-gray-400">
-                                        (Pedido #{order.order_id})
-                                      </span>
-                                    )}
-                                  </div>
-
-                                  {order.order_items && (
-                                    <div className="flex items-start gap-2">
-                                      <Package className="w-4 h-4 text-blue-400 mt-0.5 flex-shrink-0" />
-                                      <span className="text-sm text-gray-300">{order.order_items}</span>
-                                    </div>
-                                  )}
-
-                                  <div className="flex items-center gap-4">
-                                    {order.pay_type && (
-                                      <div className="flex items-center gap-1.5">
-                                        <CreditCard className="w-4 h-4 text-yellow-400" />
-                                        <span className="text-xs text-gray-300">{order.pay_type}</span>
-                                      </div>
-                                    )}
-                                    {order.scan_count > 1 && (
-                                      <span className="text-xs text-orange-400">
-                                        Escaneado {order.scan_count} veces
+                                        (Pedido #{code.order_id})
                                       </span>
                                     )}
                                   </div>
@@ -315,7 +238,6 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
                 <div className="space-y-2 max-h-[600px] overflow-y-auto">
                   {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
-                    const order = ordersMap[code.code];
                     return (
                       <div
                         key={code.id}
@@ -327,7 +249,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                             <div className="flex items-center gap-3 mb-2">
                               <p className="font-mono font-bold text-white">{code.code}</p>
                               <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                                {code.carrier_display_name}
+                                {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
                               </span>
                               {code.store_name && (
                                 <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
@@ -336,38 +258,16 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                               )}
                             </div>
 
-                            {/* Información de la orden */}
-                            {order && (
+                            {/* Información del cache */}
+                            {code.customer_name && (
                               <div className="bg-dark-800 rounded p-2 border border-gray-600 space-y-1.5 mb-2">
                                 <div className="flex items-center gap-2">
-                                  <User className="w-3.5 h-3.5 text-primary-400" />
                                   <span className="text-sm text-white font-medium">
-                                    {order.firstname} {order.lastname}
+                                    👤 {code.customer_name}
                                   </span>
-                                  {order.order_id && (
+                                  {code.order_id && (
                                     <span className="text-xs text-gray-400">
-                                      (#  {order.order_id})
-                                    </span>
-                                  )}
-                                </div>
-
-                                {order.order_items && (
-                                  <div className="flex items-start gap-2">
-                                    <Package className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-shrink-0" />
-                                    <span className="text-xs text-gray-300 line-clamp-1">{order.order_items}</span>
-                                  </div>
-                                )}
-
-                                <div className="flex items-center gap-3">
-                                  {order.pay_type && (
-                                    <div className="flex items-center gap-1">
-                                      <CreditCard className="w-3.5 h-3.5 text-yellow-400" />
-                                      <span className="text-xs text-gray-300">{order.pay_type}</span>
-                                    </div>
-                                  )}
-                                  {order.scan_count > 1 && (
-                                    <span className="text-xs text-orange-400">
-                                      {order.scan_count}x escaneado
+                                      (#{code.order_id})
                                     </span>
                                   )}
                                 </div>
@@ -433,33 +333,6 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
               </div>
             )}
 
-            {/* Tab: Tiendas */}
-            {activeTab === 'stores' && (
-              <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-white">Tiendas Activas</h2>
-                  <button className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-lg transition-colors">
-                    <Plus className="w-4 h-4" />
-                    Agregar Tienda
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4">
-                  {stores.map((store) => (
-                    <div
-                      key={store.id}
-                      className="bg-dark-900 rounded-lg p-6 border border-gray-700 text-center"
-                    >
-                      <Store className="w-12 h-12 text-primary-500 mx-auto mb-3" />
-                      <h3 className="text-lg font-bold text-white">{store.name}</h3>
-                      <p className="text-sm text-gray-500 mt-2">
-                        Creada: {new Date(store.created_at).toLocaleDateString('es-CO')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
           </>
         )}
       </div>

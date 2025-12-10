@@ -1,27 +1,27 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { codesService, carriersService, storesService } from '../services/supabase';
+import { codesService, carriersService } from '../services/supabase';
 import { procesarCodigoConCarriers, detectScanType } from '../utils/validators';
 import { useStore } from '../store/useStore';
 import { dunamixfyApi } from '../services/dunamixfyApi';
-import { ordersService } from '../services/ordersService';
-import { supabase } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 /**
  * ============================================================================
- * HOOK: useScanner - V2
+ * HOOK: useScanner - V3
  * ============================================================================
  * Hook personalizado para manejar la lógica del scanner de códigos QR/Barcode
  *
- * Cambios V2 respecto a V1:
- * - V1: Validaba contra 2 transportadoras hardcoded (coordinadora, interrapidisimo)
- * - V2: Carga transportadoras dinámicamente desde BD y valida contra todas
+ * Cambios V3 respecto a V2:
+ * - V2: Guardaba datos en tablas separadas (codes, orders, stores)
+ * - V3: Cache mínimo en tabla codes (order_id, customer_name, carrier_name, store_name)
+ * - V3: Dunamixfy es fuente única de verdad - consulta real-time
+ * - V3: Retención 7 días con auto-limpieza programada
  *
- * Ventajas V2:
- * - Agregar nuevas transportadoras sin modificar código (solo SQL INSERT)
- * - Validación dinámica basada en reglas JSON de cada transportadora
- * - Soporte para store_id, carrier_id y scan_type
- * - Escalabilidad ilimitada
+ * Ventajas V3:
+ * - Arquitectura simplificada: 1 tabla vs 3 tablas
+ * - Datos frescos: siempre consulta Dunamixfy en tiempo real
+ * - Sin redundancia: Dunamixfy maneja states, orders, stores
+ * - Transitorio: Scanner es solo log temporal (7 días)
  *
  * Estado retornado:
  * - processScan: Función para procesar códigos escaneados
@@ -104,27 +104,26 @@ export function useScanner() {
 
   /**
    * ============================================================================
-   * FUNCIÓN: processScan
+   * FUNCIÓN: processScan - V3
    * ============================================================================
    * Procesa un código escaneado (QR o Barcode)
    *
-   * Flujo completo:
+   * Flujo V3 simplificado:
    * 1. Validar que no esté procesando otro código
-   * 2. V2: Validar contra todas las transportadoras usando procesarCodigoConCarriers()
+   * 2. Validar contra todas las transportadoras
    * 3. Verificar duplicado en cache (rápido)
    * 4. Verificar duplicado en BD (definitivo)
-   * 5. V2: Obtener o crear tienda si hay una seleccionada
-   * 6. V2: Guardar con carrier_id, store_id, operator_id, raw_scan, scan_type
+   * 5. V3: Consultar Dunamixfy CO en tiempo real
+   * 6. V3: Guardar código con cache mínimo (order_id, customer_name, carrier_name, store_name)
    * 7. Agregar al cache para futuras validaciones
    * 8. Mostrar feedback al usuario
    *
-   * Diferencias V2 vs V1:
-   * - V1: procesarCodigo() validaba solo contra 2 carriers hardcoded
-   * - V2: procesarCodigoConCarriers(carriers) valida contra N carriers desde BD
-   * - V1: Guardaba carrier como string ('coordinadora')
-   * - V2: Guarda carrier_id (UUID foreign key)
-   * - V2: Agrega scan_type ('qr' | 'barcode' | 'manual')
-   * - V2: Agrega raw_scan (código completo antes de extraer)
+   * Diferencias V3 vs V2:
+   * - V2: Guardaba orden completa en tabla 'orders' separada
+   * - V3: Cachea solo campos básicos en tabla 'codes'
+   * - V2: Guardaba store_id como foreign key a tabla 'stores'
+   * - V3: Cachea store_name como TEXT (Dunamixfy es fuente de verdad)
+   * - V3: Elimina dependencias de ordersService y storesService
    *
    * @param {string} rawCode - Código raw del scanner (QR o Barcode completo)
    * @returns {object} { success: boolean, reason?: string, data?: object }
@@ -168,16 +167,16 @@ export function useScanner() {
         return { success: false, reason: 'invalid', error: resultado.error };
       }
 
-      // V2: Extraer información de la transportadora detectada
-      const { codigo, carrier, carrierId, carrierName } = resultado;
+      // V3: Extraer información de la transportadora detectada
+      const { codigo, carrierId, carrierName } = resultado;
 
-      // V2: Detectar tipo de escaneo (QR vs Barcode)
+      // V3: Detectar tipo de escaneo (QR vs Barcode)
       const scanType = detectScanType(rawCode);
 
       console.log('✅ Código válido:', {
         codigo,
         carrier: carrierName,
-        scanType, // V2: Nuevo campo
+        scanType,
         original: rawCode.substring(0, 50)
       });
 
@@ -240,8 +239,13 @@ export function useScanner() {
         return { success: false, reason: 'repeated' };
       }
 
-      // Paso 5: NUEVO - Consultar información de la orden en Dunamixfy CO
-      let orderData = null;
+      // Paso 5: V3 - Consultar información de la orden en Dunamixfy CO (tiempo real)
+      let orderCache = {
+        order_id: null,
+        customer_name: null,
+        store_name: null
+      };
+
       try {
         console.log('🌐 Consultando orden en Dunamixfy CO...');
         const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
@@ -249,72 +253,55 @@ export function useScanner() {
         if (orderInfo.success) {
           console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
 
-          // Obtener user_id del usuario autenticado
-          const { data: { user } } = await supabase.auth.getUser();
+          // V3: Extraer campos para cache mínimo
+          const firstName = orderInfo.data.firstname || '';
+          const lastName = orderInfo.data.lastname || '';
+          const customerName = `${firstName} ${lastName}`.trim();
 
-          // Guardar información de la orden en BD
-          const orderResult = await ordersService.createOrUpdate(
-            orderInfo.data,
-            codigo,
-            user?.id
-          );
+          orderCache = {
+            order_id: orderInfo.data.order_id || null,
+            customer_name: customerName || null,
+            store_name: orderInfo.data.store || null
+          };
 
-          if (orderResult.success) {
-            orderData = orderResult.data;
-            console.log('✅ Información de orden guardada:', orderData);
-
-            // Mostrar info adicional en el toast
-            const clientName = `${orderInfo.data.firstname || ''} ${orderInfo.data.lastname || ''}`.trim();
-            if (clientName) {
-              toast.success(`👤 ${clientName}`, {
-                duration: 5000,
-                icon: '📦',
-                style: {
-                  background: '#3b82f6',
-                  color: '#fff',
-                  fontSize: '18px',
-                  fontWeight: 'bold',
-                  padding: '20px 28px',
-                  borderRadius: '16px',
-                  maxWidth: '90vw',
-                }
-              });
-            }
-          } else {
-            console.warn('⚠️ Error guardando orden:', orderResult.error);
+          // Mostrar info del cliente en toast
+          if (customerName) {
+            toast.success(`👤 ${customerName}`, {
+              duration: 5000,
+              icon: '📦',
+              style: {
+                background: '#3b82f6',
+                color: '#fff',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                padding: '20px 28px',
+                borderRadius: '16px',
+                maxWidth: '90vw',
+              }
+            });
           }
         } else {
           console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
         }
       } catch (orderError) {
-        console.error('❌ Error en proceso de orden:', orderError);
-        // Continuar con el escaneo aunque falle la orden
+        console.error('❌ Error consultando Dunamixfy CO:', orderError);
+        // Continuar con el escaneo aunque falle la consulta
       }
 
-      // Paso 6: V2 - Obtener o crear tienda si hay una seleccionada
-      // Esto permite relacionar el código con la tienda desde BD
-      let storeId = null;
-      if (selectedStore) {
-        try {
-          const store = await storesService.getOrCreate(selectedStore);
-          storeId = store.id; // V2: UUID de la tienda
-        } catch (error) {
-          console.warn('⚠️ Error obteniendo tienda:', error);
-          // Continuar sin tienda (storeId será null)
-        }
-      }
-
-      // Paso 7: V2 - Código NUEVO - Guardar en base de datos con nuevos campos
-      console.log('✅ Código NUEVO - Guardando...');
+      // Paso 6: V3 - Guardar código con cache mínimo de Dunamixfy
+      console.log('✅ Código NUEVO - Guardando con cache...');
 
       const newCode = await codesService.create({
         code: codigo,                           // Código normalizado
-        carrier_id: carrierId,                  // V2: UUID foreign key a carriers
-        store_id: storeId,                      // V2: UUID foreign key a stores
+        carrier_id: carrierId,                  // UUID foreign key a carriers
         operator_id: operatorId,                // UUID foreign key a operators
-        raw_scan: rawCode.substring(0, 500),    // V2: QR/Barcode completo (limitado)
-        scan_type: scanType                     // V2: 'qr' | 'barcode' | 'manual'
-        // Nota: order_data se guarda en tabla 'orders' separadamente, no aquí
+        raw_scan: rawCode.substring(0, 500),    // QR/Barcode completo (limitado)
+        scan_type: scanType,                    // 'qr' | 'barcode' | 'manual'
+        // V3: Cache mínimo de Dunamixfy (evitar re-consultas innecesarias)
+        order_id: orderCache.order_id,
+        customer_name: orderCache.customer_name,
+        carrier_name: carrierName,
+        store_name: orderCache.store_name
       });
 
       // Paso 7: Agregar al cache para validaciones futuras en sesión

@@ -85,78 +85,6 @@ export const carriersService = {
 
 /**
  * ============================================================================
- * SERVICIO DE TIENDAS (STORES) - V2
- * ============================================================================
- * Gestiona tiendas desde la base de datos.
- * Reemplaza la lista hardcoded de tiendas por carga dinámica desde BD.
- *
- * Ventajas V2:
- * - Agregar/editar tiendas sin modificar código
- * - CRUD completo desde la UI
- * - Escalabilidad ilimitada
- */
-export const storesService = {
-  /**
-   * Obtener todas las tiendas activas
-   * Usado en StoreSelectorV2 para mostrar opciones disponibles
-   */
-  async getAll() {
-    const { data, error } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('is_active', true)
-      .order('name');
-
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Obtener o crear tienda por nombre
-   * Si no existe, la crea automáticamente (útil para migración)
-   */
-  async getOrCreate(name) {
-    // Primero intentar obtener
-    let { data, error } = await supabase
-      .from('stores')
-      .select('*')
-      .eq('name', name)
-      .single();
-
-    // Si no existe, crear
-    if (error && error.code === 'PGRST116') {
-      const { data: newData, error: createError } = await supabase
-        .from('stores')
-        .insert([{ name, is_active: true }])
-        .select()
-        .single();
-
-      if (createError) throw createError;
-      return newData;
-    }
-
-    if (error) throw error;
-    return data;
-  },
-
-  /**
-   * Crear nueva tienda
-   * Para uso en panel de administración
-   */
-  async create(storeData) {
-    const { data, error } = await supabase
-      .from('stores')
-      .insert([storeData])
-      .select()
-      .single();
-
-    if (error) throw error;
-    return data;
-  }
-};
-
-/**
- * ============================================================================
  * SERVICIO DE OPERARIOS (OPERATORS) - V2
  * ============================================================================
  * Gestiona operarios del sistema.
@@ -194,24 +122,25 @@ export const operatorsService = {
 
 /**
  * ============================================================================
- * SERVICIO DE CÓDIGOS ESCANEADOS (CODES) - V2
+ * SERVICIO DE CÓDIGOS ESCANEADOS (CODES) - V3
  * ============================================================================
- * Gestiona códigos escaneados con relaciones a transportadoras, tiendas y operarios.
+ * Gestiona códigos escaneados con caché mínimo de Dunamixfy.
  *
- * Cambios V2:
- * - Usa vista 'codes_detailed' para obtener información completa con JOINs
- * - getTodayStats() ahora genera byCarrier dinámicamente (no hardcoded)
- * - Soporte para múltiples transportadoras sin límite
+ * Cambios V3:
+ * - Tabla codes simplificada: solo log transitorio + cache básico
+ * - Dunamixfy es fuente única de verdad para orders/stores
+ * - Retención 7 días (auto-limpieza programada)
+ * - Cache: order_id, customer_name, carrier_name, store_name
  */
 export const codesService = {
   /**
    * Obtener todos los códigos con información detallada
-   * V2: Usa la vista 'codes_detailed' que incluye JOINs con carriers, stores y operators
+   * V3: Solo tabla codes con cache de Dunamixfy
    */
   async getAll() {
     const { data, error } = await supabase
-      .from('codes_detailed')
-      .select('*')
+      .from('codes')
+      .select('*, carriers(display_name, code)')
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -220,15 +149,15 @@ export const codesService = {
 
   /**
    * Obtener códigos del día actual
-   * V2: Usa la vista 'codes_detailed' para tener información completa
+   * V3: Solo tabla codes con cache de Dunamixfy
    */
   async getToday() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
-      .from('codes_detailed')
-      .select('*')
+      .from('codes')
+      .select('*, carriers(display_name, code)')
       .gte('created_at', today.toISOString())
       .order('created_at', { ascending: false });
 
@@ -269,38 +198,28 @@ export const codesService = {
 
   /**
    * Obtener estadísticas del día
-   * V2: Genera byCarrier dinámicamente en lugar de hardcoded (coordinadora, interrapidisimo)
-   * Ahora soporta cualquier cantidad de transportadoras sin modificar código
+   * V3: Solo transportadoras (stores eliminado)
    */
   async getTodayStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
     const { data, error } = await supabase
-      .from('codes_detailed')
-      .select('carrier_code, carrier_display_name, store_name')
+      .from('codes')
+      .select('carrier_name')
       .gte('created_at', today.toISOString());
 
     if (error) throw error;
 
     const stats = {
       total: data.length,
-      byCarrier: {}, // V2: Dinámico en lugar de hardcoded
-      byStore: {}
+      byCarrier: {}
     };
 
-    // V2: Contar por transportadora dinámicamente
+    // Contar por transportadora dinámicamente
     data.forEach(item => {
-      if (item.carrier_display_name) {
-        const key = item.carrier_code;
-        stats.byCarrier[key] = (stats.byCarrier[key] || 0) + 1;
-      }
-    });
-
-    // Contar por tienda
-    data.forEach(item => {
-      if (item.store_name) {
-        stats.byStore[item.store_name] = (stats.byStore[item.store_name] || 0) + 1;
+      if (item.carrier_name) {
+        stats.byCarrier[item.carrier_name] = (stats.byCarrier[item.carrier_name] || 0) + 1;
       }
     });
 
