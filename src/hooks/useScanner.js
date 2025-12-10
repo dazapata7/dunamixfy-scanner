@@ -282,20 +282,9 @@ export function useScanner() {
           }
         } else if (orderInfo.canShip === false) {
           // ALERTA: El pedido NO puede ser despachado (can_ship = NO)
+          // NO GUARDAR EN BASE DE DATOS - Solo pedidos listos para despacho
           console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
-
-          // Extraer datos básicos si están disponibles
-          if (orderInfo.data) {
-            const firstName = orderInfo.data.firstname || '';
-            const lastName = orderInfo.data.lastname || '';
-            const customerName = `${firstName} ${lastName}`.trim();
-
-            orderCache = {
-              order_id: orderInfo.data.order_id || null,
-              customer_name: customerName || null,
-              store_name: orderInfo.data.store || null
-            };
-          }
+          console.warn('⚠️ Código NO guardado - Pedido no listo para despacho');
 
           // Mostrar alerta PROMINENTE al usuario
           toast.error(orderInfo.error, {
@@ -318,6 +307,14 @@ export function useScanner() {
           if (navigator.vibrate) {
             navigator.vibrate([200, 100, 200, 100, 200]);
           }
+
+          // NO continuar con el guardado - salir del proceso
+          setTimeout(() => setIsProcessing(false), 2000);
+          return {
+            success: false,
+            reason: 'cannot_ship',
+            error: orderInfo.error
+          };
         } else {
           console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
         }
