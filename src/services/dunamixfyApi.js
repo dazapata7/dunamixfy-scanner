@@ -35,10 +35,27 @@ export const dunamixfyApi = {
 
       console.log('✅ Respuesta de Dunamixfy CO:', data);
 
+      // Validar si hay error_response (can_ship = NO)
+      if (data && data.error_response) {
+        console.warn('⚠️ Can Ship = NO:', data.error_response);
+        return {
+          success: false,
+          canShip: false,
+          error: data.error_response,
+          data: data.response ? {
+            order_id: data.response.order_id,
+            firstname: data.response.firstname,
+            lastname: data.response.lastname,
+            store: data.response.store
+          } : null
+        };
+      }
+
       // Validar que la orden existe
       if (!data || !data.response) {
         return {
           success: false,
+          canShip: null,
           error: 'Orden no encontrada en Dunamixfy CO'
         };
       }
@@ -46,6 +63,7 @@ export const dunamixfyApi = {
       // Transformar respuesta al formato esperado
       return {
         success: true,
+        canShip: true,
         data: {
           order_id: data.response.order_id,
           firstname: data.response.firstname,

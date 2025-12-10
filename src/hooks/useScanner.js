@@ -280,6 +280,44 @@ export function useScanner() {
               }
             });
           }
+        } else if (orderInfo.canShip === false) {
+          // ALERTA: El pedido NO puede ser despachado (can_ship = NO)
+          console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
+
+          // Extraer datos básicos si están disponibles
+          if (orderInfo.data) {
+            const firstName = orderInfo.data.firstname || '';
+            const lastName = orderInfo.data.lastname || '';
+            const customerName = `${firstName} ${lastName}`.trim();
+
+            orderCache = {
+              order_id: orderInfo.data.order_id || null,
+              customer_name: customerName || null,
+              store_name: orderInfo.data.store || null
+            };
+          }
+
+          // Mostrar alerta PROMINENTE al usuario
+          toast.error(orderInfo.error, {
+            duration: 10000,
+            icon: '🚫',
+            style: {
+              background: '#ef4444',
+              color: '#fff',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              padding: '24px 32px',
+              borderRadius: '16px',
+              maxWidth: '90vw',
+              border: '3px solid #dc2626',
+              boxShadow: '0 10px 40px rgba(239, 68, 68, 0.5)',
+            }
+          });
+
+          // Vibración de alerta (si el dispositivo lo soporta)
+          if (navigator.vibrate) {
+            navigator.vibrate([200, 100, 200, 100, 200]);
+          }
         } else {
           console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
         }

@@ -33,6 +33,30 @@ export const backfillService = {
       const orderInfo = await dunamixfyApi.getOrderInfo(code.code);
 
       if (!orderInfo.success) {
+        // Si canShip es false, aún intentar guardar datos básicos si existen
+        if (orderInfo.canShip === false && orderInfo.data) {
+          const firstName = orderInfo.data.firstname || '';
+          const lastName = orderInfo.data.lastname || '';
+          const customerName = `${firstName} ${lastName}`.trim();
+
+          const updateData = {
+            order_id: orderInfo.data.order_id || null,
+            customer_name: customerName || null,
+            store_name: orderInfo.data.store || null
+          };
+
+          await supabase
+            .from('codes')
+            .update(updateData)
+            .eq('id', code.id);
+
+          return {
+            success: true,
+            code: code.code,
+            warning: `Actualizado con advertencia: ${orderInfo.error}`
+          };
+        }
+
         return {
           success: false,
           code: code.code,
