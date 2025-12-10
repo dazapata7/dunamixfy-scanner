@@ -39,12 +39,14 @@ export function Stats({ onBack }) {
   };
 
   const exportToCSV = () => {
-    const headers = ['Fecha', 'Código', 'Transportadora', 'Tienda', 'Operario'];
+    const headers = ['Fecha', 'Código', 'Transportadora', 'Tienda', 'Cliente', 'Pedido', 'Operario'];
     const rows = codes.map(code => [
       format(new Date(code.created_at), 'yyyy-MM-dd HH:mm:ss'),
       code.code,
-      code.carrier === 'coordinadora' ? 'Coordinadora' : 'Interrápidisimo',
+      code.carrier_name || code.carriers?.display_name || 'N/A',
       code.store_name || 'Sin tienda',
+      code.customer_name || 'N/A',
+      code.order_id || 'N/A',
       code.operators?.name || 'N/A'
     ]);
     
@@ -60,11 +62,22 @@ export function Stats({ onBack }) {
     link.click();
   };
 
+  // Calcular estadísticas dinámicamente por transportadora
   const stats = {
     total: codes.length,
-    coordinadora: codes.filter(c => c.carrier === 'coordinadora').length,
-    interrapidisimo: codes.filter(c => c.carrier === 'interrapidisimo').length
+    byCarrier: {},
+    byStore: {}
   };
+
+  codes.forEach(code => {
+    const carrier = code.carrier_name || code.carriers?.display_name;
+    if (carrier) {
+      stats.byCarrier[carrier] = (stats.byCarrier[carrier] || 0) + 1;
+    }
+    if (code.store_name) {
+      stats.byStore[code.store_name] = (stats.byStore[code.store_name] || 0) + 1;
+    }
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
@@ -114,23 +127,45 @@ export function Stats({ onBack }) {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto p-4 space-y-4">
-        {/* Resumen */}
-        <div className="grid grid-cols-3 gap-3">
-          <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
-            <p className="text-sm text-gray-400 mb-1">Total</p>
-            <p className="text-2xl font-bold text-white">{stats.total}</p>
-          </div>
-          
-          <div className="bg-dark-800 rounded-xl p-4 border border-blue-500/30">
-            <p className="text-sm text-gray-400 mb-1">📦 Coord.</p>
-            <p className="text-2xl font-bold text-blue-400">{stats.coordinadora}</p>
-          </div>
-          
-          <div className="bg-dark-800 rounded-xl p-4 border border-purple-500/30">
-            <p className="text-sm text-gray-400 mb-1">⚡ Inter.</p>
-            <p className="text-2xl font-bold text-purple-400">{stats.interrapidisimo}</p>
-          </div>
+        {/* Resumen Total */}
+        <div className="bg-dark-800 rounded-xl p-6 border border-gray-700 text-center">
+          <p className="text-sm text-gray-400 mb-2">Total Escaneado</p>
+          <p className="text-4xl font-bold text-primary-500">{stats.total}</p>
         </div>
+
+        {/* Estadísticas por Transportadora */}
+        {Object.keys(stats.byCarrier).length > 0 && (
+          <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-3">Por Transportadora</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {Object.entries(stats.byCarrier)
+                .sort(([, a], [, b]) => b - a)
+                .map(([carrier, count]) => (
+                  <div key={carrier} className="bg-dark-900 rounded-lg p-3 border border-gray-700">
+                    <p className="text-xs text-gray-400 mb-1">{carrier}</p>
+                    <p className="text-2xl font-bold text-blue-400">{count}</p>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Estadísticas por Tienda */}
+        {Object.keys(stats.byStore).length > 0 && (
+          <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+            <h3 className="text-lg font-semibold text-white mb-3">Por Tienda</h3>
+            <div className="space-y-2">
+              {Object.entries(stats.byStore)
+                .sort(([, a], [, b]) => b - a)
+                .map(([store, count]) => (
+                  <div key={store} className="bg-dark-900 rounded-lg p-3 flex items-center justify-between border border-gray-700">
+                    <span className="text-gray-300 font-medium">{store}</span>
+                    <span className="text-xl font-bold text-primary-500">{count}</span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
 
         {/* Listado */}
         <div className="bg-dark-800 rounded-2xl border border-gray-700 overflow-hidden">
@@ -154,36 +189,47 @@ export function Stats({ onBack }) {
             <div className="divide-y divide-gray-700 max-h-[600px] overflow-y-auto">
               {codes.map((code) => (
                 <div key={code.id} className="p-4 hover:bg-dark-700 transition-colors">
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
+                  <div className="space-y-3">
+                    {/* Código y badges */}
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-mono text-lg font-semibold text-white">
                         {code.code}
                       </p>
-                      <div className="flex items-center gap-3 mt-2 text-sm text-gray-400 flex-wrap">
-                        <span className={`px-2 py-1 rounded text-xs font-medium ${
-                          code.carrier === 'coordinadora'
-                            ? 'bg-blue-500/20 text-blue-400'
-                            : 'bg-purple-500/20 text-purple-400'
-                        }`}>
-                          {code.carrier === 'coordinadora' ? '📦 Coordinadora' : '⚡ Interrápidisimo'}
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-green-500/20 text-green-400">
+                        {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
+                      </span>
+                      {code.store_name && (
+                        <span className="px-2 py-1 rounded text-xs font-medium bg-blue-500/20 text-blue-400">
+                          {code.store_name}
                         </span>
-                        
-                        {code.store_name && (
-                          <span className="px-2 py-1 rounded text-xs font-medium bg-primary-500/20 text-primary-400 flex items-center gap-1">
-                            <Package className="w-3 h-3" />
-                            {code.store_name}
-                          </span>
+                      )}
+                    </div>
+
+                    {/* Detalles del pedido */}
+                    {(code.customer_name || code.order_id) && (
+                      <div className="bg-dark-900 rounded-lg p-3 space-y-1">
+                        {code.customer_name && (
+                          <p className="text-sm text-white">
+                            👤 {code.customer_name}
+                          </p>
                         )}
-                        
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-4 h-4" />
-                          {format(new Date(code.created_at), 'dd MMM yyyy', { locale: es })}
-                        </span>
-                        
-                        <span>
-                          {format(new Date(code.created_at), 'HH:mm')}
-                        </span>
+                        {code.order_id && (
+                          <p className="text-xs text-gray-400">
+                            Pedido #{code.order_id}
+                          </p>
+                        )}
                       </div>
+                    )}
+
+                    {/* Fecha y hora */}
+                    <div className="flex items-center gap-3 text-sm text-gray-400">
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-4 h-4" />
+                        {format(new Date(code.created_at), 'dd MMM yyyy', { locale: es })}
+                      </span>
+                      <span>
+                        {format(new Date(code.created_at), 'HH:mm')}
+                      </span>
                     </div>
                   </div>
                 </div>
