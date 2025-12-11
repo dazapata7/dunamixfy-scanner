@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart, RefreshCw, Download, X } from 'lucide-react';
+import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart, RefreshCw, Download, X, Plus } from 'lucide-react';
 import { codesService, carriersService } from '../services/supabase';
 import { backfillService } from '../services/backfillService';
 import toast from 'react-hot-toast';
@@ -132,6 +132,59 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
       toast.error('Error aplicando filtro de fecha');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Exportar códigos a CSV
+  const exportToCSV = () => {
+    try {
+      const codesToExport = allCodes.length > 0 ? allCodes : todayCodes;
+
+      if (codesToExport.length === 0) {
+        toast.error('No hay códigos para exportar');
+        return;
+      }
+
+      // Crear CSV con headers
+      const headers = ['Código', 'Transportadora', 'Tienda', 'Cliente', 'Pedido', 'Tipo', 'Fecha'];
+      const rows = codesToExport.map(code => [
+        code.code,
+        code.carrier_name || code.carriers?.display_name || 'N/A',
+        code.store_name || 'N/A',
+        code.customer_name || 'N/A',
+        code.order_id || 'N/A',
+        code.scan_type || 'N/A',
+        new Date(code.created_at).toLocaleString('es-CO')
+      ]);
+
+      // Combinar headers y rows
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      // Crear Blob y descargar
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+
+      const filterLabel = dateFilter === 'today' ? 'hoy' :
+                         dateFilter === 'yesterday' ? 'ayer' :
+                         dateFilter === 'week' ? 'semana' :
+                         dateFilter === 'month' ? 'mes' :
+                         'custom';
+
+      link.setAttribute('href', url);
+      link.setAttribute('download', `dunamix-codigos-${filterLabel}-${new Date().toISOString().split('T')[0]}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast.success(`✅ Exportados ${codesToExport.length} códigos a CSV`);
+    } catch (error) {
+      console.error('Error exportando CSV:', error);
+      toast.error('Error al exportar CSV');
     }
   };
 
@@ -513,9 +566,19 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
                 {/* Listado de códigos */}
                 <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <h2 className="text-xl font-bold text-white mb-4">
-                    Códigos Escaneados ({allCodes.length})
-                  </h2>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-white">
+                      Códigos Escaneados ({allCodes.length > 0 ? allCodes.length : todayCodes.length})
+                    </h2>
+                    <button
+                      onClick={exportToCSV}
+                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      title="Exportar a CSV"
+                    >
+                      <Download className="w-4 h-4" />
+                      Exportar CSV
+                    </button>
+                  </div>
 
                   <div className="space-y-3 max-h-[600px] overflow-y-auto">
                   {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
