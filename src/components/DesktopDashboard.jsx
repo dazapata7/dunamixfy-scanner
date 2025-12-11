@@ -55,16 +55,19 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
               </div>
 
               <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
-                {/* V5: Indicador de usuario conectado */}
+                {/* Badge de usuario circular - compacto al lado derecho */}
                 {user && (
-                  <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3 flex-shrink-0">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30 flex-shrink-0">
-                      <User className="w-5 h-5 text-primary-400" />
+                  <div className="relative">
+                    {/* Círculo con borde gradiente */}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-cyan-500 p-0.5 shadow-lg shadow-primary-500/30">
+                      {/* Círculo interior oscuro */}
+                      <div className="w-full h-full rounded-full bg-dark-900 flex items-center justify-center">
+                        <User className="w-6 h-6 text-primary-400" />
+                      </div>
                     </div>
-                    <div className="text-left flex-shrink-0">
-                      <p className="text-sm font-semibold text-white whitespace-nowrap">{user.email}</p>
-                      <p className="text-xs text-gray-400 whitespace-nowrap">{isAdmin ? 'Administrador' : 'Operador'}</p>
-                    </div>
+
+                    {/* Indicador de estado online - punto pequeño */}
+                    <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-dark-900 shadow-lg shadow-green-500/50 animate-pulse"></div>
                   </div>
                 )}
                 {isAdmin && (
