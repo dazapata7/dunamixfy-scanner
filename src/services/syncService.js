@@ -12,6 +12,7 @@
  */
 
 import { supabase } from './supabase';
+import { dunamixfyApi } from './dunamixfyApi'; // V4.1: Para enriquecer datos
 import {
   getQueue,
   getQueueSorted,
@@ -29,24 +30,59 @@ let isSyncing = false;
 
 /**
  * Procesar un solo item de la cola
+ * V4.1: Ahora enriquece con Dunamixfy antes de guardar
  */
 async function processQueueItem(item) {
   try {
     console.log(`🔄 Procesando item de cola: ${item.code}`);
 
-    // Intentar guardar en Supabase
+    // V4.1: BACKFILL - Enriquecer con Dunamixfy si hay datos faltantes
+    let enrichedData = {
+      code: item.code,
+      carrier_id: item.carrier_id,
+      carrier_name: item.carrier_name,
+      operator_id: item.operator_id,
+      store_name: item.store_name,
+      customer_name: item.customer_name,
+      order_id: item.order_id,
+      created_at: new Date(item.timestamp).toISOString()
+    };
+
+    // Si faltan datos (order_id, customer_name, store_name), intentar consultar Dunamixfy
+    const needsEnrichment = !item.order_id || !item.customer_name || !item.store_name;
+
+    if (needsEnrichment) {
+      try {
+        console.log(`🔍 Backfill: Consultando Dunamixfy para ${item.code}...`);
+        const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
+
+        if (orderInfo && orderInfo.canShip !== false) {
+          // Enriquecer con datos de Dunamixfy
+          enrichedData.order_id = orderInfo.order_id || item.order_id;
+          enrichedData.customer_name = orderInfo.customer_name || item.customer_name;
+          enrichedData.store_name = orderInfo.store_name || item.store_name;
+
+          console.log(`✅ Backfill exitoso: ${item.code}`, {
+            order_id: enrichedData.order_id,
+            customer: enrichedData.customer_name,
+            store: enrichedData.store_name
+          });
+        } else if (orderInfo && orderInfo.canShip === false) {
+          // Si el pedido NO puede ser despachado, no sincronizar
+          console.warn(`🚫 Backfill: Pedido ${item.code} no puede ser despachado - Removiendo de cola`);
+          removeFromQueue(item.id);
+          return { success: false, reason: 'cannot_ship' };
+        }
+      } catch (dunamixfyError) {
+        console.warn(`⚠️ Backfill: Error consultando Dunamixfy para ${item.code}:`, dunamixfyError);
+        // Continuar con datos originales si falla consulta
+      }
+    }
+
+    // Intentar guardar en Supabase (con datos enriquecidos)
     const { data, error } = await supabase
       .from('codes')
-      .insert([{
-        code: item.code,
-        carrier_id: item.carrier_id,
-        carrier_name: item.carrier_name,
-        operator_id: item.operator_id,
-        store_name: item.store_name,
-        customer_name: item.customer_name,
-        order_id: item.order_id,
-        created_at: new Date(item.timestamp).toISOString() // Usar timestamp original
-      }])
+      .insert([enrichedData])
       .select()
       .single();
 

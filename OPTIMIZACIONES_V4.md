@@ -104,6 +104,11 @@ DESPUÉS:
    - Event listeners para online/offline
    - Manejo de duplicados automático
    - Max 3 reintentos por item
+   - **V4.1: Backfill con Dunamixfy** 🆕
+     - Consulta Dunamixfy al sincronizar si faltan datos
+     - Enriquece `order_id`, `customer_name`, `store_name`
+     - Valida `can_ship` antes de guardar
+     - Logs detallados de backfill
 
 3. **Feedback Visual**:
    ```javascript
@@ -120,6 +125,83 @@ DESPUÉS:
 
 ### Archivos modificados:
 - `src/hooks/useScanner.js` - Integración con offline queue
+- `src/services/syncService.js` - Backfill con Dunamixfy (V4.1)
+
+---
+
+## 🔄 V4.1: Backfill Inteligente (NUEVO)
+
+### ¿Qué es el Backfill?
+
+**Problema anterior:**
+Si escaneas offline, no puedes consultar Dunamixfy (sin internet), entonces se guardaba con datos vacíos:
+```javascript
+{
+  code: "123456789",
+  carrier_name: "Coordinadora",
+  order_id: null,        // ❌ No disponible offline
+  customer_name: null,   // ❌ No disponible offline
+  store_name: null       // ❌ No disponible offline
+}
+```
+
+**Solución V4.1:**
+Al sincronizar (cuando vuelve internet), **automáticamente consulta Dunamixfy** para completar datos:
+```javascript
+// Detecta que faltan datos
+if (!item.order_id || !item.customer_name || !item.store_name) {
+  // Consulta Dunamixfy
+  const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
+
+  // Enriquece antes de guardar
+  enrichedData.order_id = orderInfo.order_id;
+  enrichedData.customer_name = orderInfo.customer_name;
+  enrichedData.store_name = orderInfo.store_name;
+}
+```
+
+### Flujo Completo:
+
+```
+Usuario offline → Escanea código → Guarda en cola (sin datos Dunamixfy)
+                                         ↓
+                             Vuelve conexión (30s después)
+                                         ↓
+                            Sincronización automática
+                                         ↓
+                      ¿Faltan order_id/customer/store? → SÍ
+                                         ↓
+                         Consulta Dunamixfy (backfill)
+                                         ↓
+                              ¿canShip = NO? → Descarta item
+                              ¿canShip = YES? → Enriquece datos
+                                         ↓
+                           Guarda en Supabase (completo) ✅
+```
+
+### Beneficios:
+
+✅ **Datos completos** siempre (incluso si escaneaste offline)
+✅ **Validación canShip** en sincronización (no guarda pedidos no listos)
+✅ **Transparente** para el usuario (automático)
+✅ **Logs detallados** para debugging
+
+### Logs en Consola:
+
+```javascript
+// Cuando detecta datos faltantes
+🔍 Backfill: Consultando Dunamixfy para 123456789...
+
+// Éxito
+✅ Backfill exitoso: 123456789 {order_id: "ORD-123", customer: "Juan Pérez", store: "Tienda Centro"}
+
+// Error canShip
+🚫 Backfill: Pedido 123456789 no puede ser despachado - Removiendo de cola
+
+// Error de conexión
+⚠️ Backfill: Error consultando Dunamixfy para 123456789: Network error
+// (Continúa con datos originales y reintenta en próximo sync)
+```
 
 ---
 
@@ -302,7 +384,14 @@ clearQueue();
 
 ## 📝 Changelog
 
-### V4 (2025-01-XX)
+### V4.1 (2025-01-XX) - ACTUAL
+- ✅ **Backfill inteligente con Dunamixfy en sincronización**
+  - Consulta automática de Dunamixfy al sincronizar
+  - Enriquece order_id, customer_name, store_name
+  - Valida can_ship antes de guardar
+  - Logs detallados para debugging
+
+### V4.0 (2025-01-XX)
 - ✅ Code-splitting con lazy loading (-58% bundle inicial)
 - ✅ PWA offline-first con queue + auto-sync
 - ✅ html5-qrcode dynamic import
