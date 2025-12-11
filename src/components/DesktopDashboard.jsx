@@ -54,34 +54,34 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
                 <p className="text-sm text-gray-400 mt-2">Gestión y estadísticas del sistema en tiempo real</p>
               </div>
 
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
                 {/* V5: Indicador de usuario conectado */}
                 {user && (
-                  <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                  <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3 flex-shrink-0">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30 flex-shrink-0">
                       <User className="w-5 h-5 text-primary-400" />
                     </div>
-                    <div className="text-left">
-                      <p className="text-sm font-semibold text-white">{user.email}</p>
-                      <p className="text-xs text-gray-400">{isAdmin ? 'Administrador' : 'Operador'}</p>
+                    <div className="text-left flex-shrink-0">
+                      <p className="text-sm font-semibold text-white whitespace-nowrap">{user.email}</p>
+                      <p className="text-xs text-gray-400 whitespace-nowrap">{isAdmin ? 'Administrador' : 'Operador'}</p>
                     </div>
                   </div>
                 )}
                 {isAdmin && (
                   <button
                     onClick={() => setActiveView('config')}
-                    className="flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 text-white rounded-2xl transition-all border border-white/20 shadow-glass hover:scale-105 active:scale-95"
+                    className="flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 text-white rounded-2xl transition-colors border border-white/20 shadow-glass flex-shrink-0"
                   >
-                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center flex-shrink-0">
                       <Settings className="w-5 h-5" />
                     </div>
-                    <span className="font-semibold">Configuración del Sistema</span>
+                    <span className="font-semibold whitespace-nowrap">Configuración del Sistema</span>
                   </button>
                 )}
 
                 <button
                   onClick={handleLogout}
-                  className="p-3 rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                  className="p-3 rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-colors shadow-glass flex-shrink-0"
                   title="Cerrar sesión"
                 >
                   <LogOut className="w-6 h-6" />
