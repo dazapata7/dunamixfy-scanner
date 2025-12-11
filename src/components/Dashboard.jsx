@@ -171,21 +171,19 @@ export function Dashboard() {
               <p className="text-3xl font-bold text-white">{todayScans}</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div className="bg-dark-700 rounded-xl p-4">
-                <p className="text-sm text-gray-400 mb-1">📦 Coordinadora</p>
-                <p className="text-2xl font-bold text-blue-400">
-                  {todayStats.coordinadora}
-                </p>
+            {/* Estadísticas por Transportadora - Dinámico */}
+            {todayStats.byCarrier && Object.keys(todayStats.byCarrier).length > 0 && (
+              <div className="grid grid-cols-2 gap-3">
+                {Object.entries(todayStats.byCarrier)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([carrier, count]) => (
+                    <div key={carrier} className="bg-dark-700 rounded-xl p-4">
+                      <p className="text-sm text-gray-400 mb-1">{carrier}</p>
+                      <p className="text-2xl font-bold text-blue-400">{count}</p>
+                    </div>
+                  ))}
               </div>
-
-              <div className="bg-dark-700 rounded-xl p-4">
-                <p className="text-sm text-gray-400 mb-1">⚡ Interrápidisimo</p>
-                <p className="text-2xl font-bold text-purple-400">
-                  {todayStats.interrapidisimo}
-                </p>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
