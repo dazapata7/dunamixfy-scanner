@@ -825,8 +825,8 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                                       <span className="text-white font-medium">
                                         {highlightMatch(code.customer_name, searchQuery)}
                                       </span>
-                                </div>
-                              )}
+                    </div>
+                  )}
 
                               {/* Order ID */}
                               {code.order_id && (
@@ -873,6 +873,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                 </div>
               )}
             </div>
+              </div>
             )}
 
             {/* Tab: Transportadoras */}
