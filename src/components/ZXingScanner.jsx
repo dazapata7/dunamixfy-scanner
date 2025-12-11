@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { BrowserMultiFormatReader, NotFoundException } from '@zxing/library';
 import { useScanner } from '../hooks/useScanner';
-import { ArrowLeft, Camera, CheckCircle2, XCircle } from 'lucide-react';
+import { X, CheckCircle2, XCircle } from 'lucide-react';
 import { AdminPanel } from './AdminPanel';
 
 export function ZXingScanner({ onBack }) {
@@ -325,113 +325,75 @@ export function ZXingScanner({ onBack }) {
 
   // Vista mobile: Scanner normal
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Header */}
-      <div className="bg-dark-800 border-b border-gray-700 p-2">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <button
-            onClick={onBack}
-            className="flex items-center gap-1 text-gray-300 hover:text-white transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            <span className="text-sm">Volver</span>
-          </button>
+    <div className="relative min-h-screen bg-black overflow-hidden">
+      {/* Camera con overlay adaptativo - Ocupa toda la pantalla */}
+      <div className={`relative w-full h-screen transition-all duration-500 ${
+        scanAnimation === 'success'
+          ? 'border-8 border-green-500 shadow-green-500/80'
+          : scanAnimation === 'error'
+          ? 'border-8 border-red-500 shadow-red-500/80'
+          : ''
+      }`}>
+        {/* Video */}
+        <video
+          ref={videoRef}
+          className="w-full h-full object-cover"
+          playsInline
+          muted
+        />
 
-          <div className="flex items-center gap-2">
-            <Camera className="w-4 h-4 text-primary-500" />
-            <h1 className="text-lg font-bold text-white">Scanner ZXing</h1>
+        {/* Canvas overlay para marco adaptativo */}
+        <canvas
+          ref={overlayCanvasRef}
+          className="absolute top-0 left-0 w-full h-full pointer-events-none"
+        />
+
+        {/* Botón flotante para cerrar - Arriba a la derecha */}
+        <button
+          onClick={onBack}
+          className="absolute top-4 right-4 w-12 h-12 rounded-full bg-black/60 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center text-white hover:bg-black/80 hover:border-white/50 transition-all active:scale-95 z-50"
+          title="Cerrar scanner"
+        >
+          <X className="w-6 h-6" />
+        </button>
+
+        {/* Indicador de procesando - Flotante arriba */}
+        {isProcessing && (
+          <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-black/70 backdrop-blur-md px-4 py-2 rounded-full border border-primary-500/50 flex items-center gap-2 z-40">
+            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
+            <span className="text-white text-sm font-medium">Procesando...</span>
           </div>
+        )}
 
-          <div className="w-16"></div>
-        </div>
-      </div>
-
-      {/* Scanner Area */}
-      <div className="max-w-4xl mx-auto p-2">
-
-        {/* Columna izquierda: Scanner */}
-        <div className="space-y-2">
-          {/* Camera con overlay adaptativo */}
-          <div className={`relative bg-dark-800 rounded-2xl overflow-hidden shadow-2xl border-4 transition-all duration-500 ${
-            scanAnimation === 'success'
-              ? 'border-green-500 shadow-green-500/80 scale-[1.02]'
-              : scanAnimation === 'error'
-              ? 'border-red-500 shadow-red-500/80 scale-[0.98]'
-              : 'border-primary-500/30'
-          }`} style={{ maxHeight: '60vh' }}>
-            {/* Video */}
-            <video
-              ref={videoRef}
-              className="w-full h-auto"
-              style={{ maxHeight: '60vh', objectFit: 'cover' }}
-              playsInline
-              muted
-            />
-
-            {/* Canvas overlay para marco adaptativo */}
-            <canvas
-              ref={overlayCanvasRef}
-              className="absolute top-0 left-0 w-full h-full pointer-events-none"
-            />
-          </div>
-
-          {/* Instrucciones */}
-          <div className="bg-dark-800 rounded-xl p-2 border border-gray-700">
-            <div className="text-center text-gray-300 text-xs">
-              {isLoadingCarriers ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-yellow-500 border-t-transparent rounded-full animate-spin"></div>
-                  Cargando transportadoras...
-                </div>
-              ) : carriers.length === 0 ? (
-                <div className="text-red-400">
-                  ⚠️ Error: No se cargaron transportadoras.
-                </div>
-              ) : isProcessing ? (
-                <div className="flex items-center justify-center gap-2">
-                  <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin"></div>
-                  Procesando código...
-                </div>
+        {/* Último escaneo - Flotante abajo */}
+        {lastScan && (
+          <div className={`absolute bottom-6 left-4 right-4 rounded-2xl p-4 border-2 backdrop-blur-md z-40 ${
+            lastScan.isRepeated
+              ? 'bg-red-500/20 border-red-500'
+              : 'bg-green-500/20 border-green-500'
+          }`}>
+            <div className="flex items-start gap-3">
+              {lastScan.isRepeated ? (
+                <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
               ) : (
-                <div>
-                  <div>✅ {carriers.length} transportadoras listas</div>
-                  <div className="mt-1">📷 Apunta la cámara al código QR o de barras</div>
-                  <div className="mt-1 text-primary-400 font-semibold">🎯 Marco adaptativo ZXing activado</div>
-                </div>
+                <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
               )}
-            </div>
-          </div>
-
-          {/* Último escaneo */}
-          {lastScan && (
-            <div className={`rounded-xl p-3 border-2 ${
-              lastScan.isRepeated
-                ? 'bg-red-500/10 border-red-500'
-                : 'bg-green-500/10 border-green-500'
-            }`}>
-              <div className="flex items-start gap-3">
-                {lastScan.isRepeated ? (
-                  <XCircle className="w-6 h-6 text-red-500 flex-shrink-0 mt-0.5" />
-                ) : (
-                  <CheckCircle2 className="w-6 h-6 text-green-500 flex-shrink-0 mt-0.5" />
-                )}
-                <div className="flex-1">
-                  <p className="font-mono text-lg font-semibold text-white">
-                    {lastScan.code}
-                  </p>
-                  <p className="text-sm text-gray-300 mt-1">
-                    {lastScan.carrier}
-                  </p>
-                  <p className={`text-sm font-semibold mt-1 ${
-                    lastScan.isRepeated ? 'text-red-400' : 'text-green-400'
-                  }`}>
-                    {lastScan.isRepeated ? '⚠️ REPETIDO (NO GUARDADO)' : '✅ GUARDADO'}
-                  </p>
-                </div>
+              <div className="flex-1">
+                <p className="font-mono text-lg font-semibold text-white">
+                  {lastScan.code}
+                </p>
+                <p className="text-sm text-gray-100 mt-1">
+                  {lastScan.carrier}
+                </p>
+                <p className={`text-sm font-semibold mt-1 ${
+                  lastScan.isRepeated ? 'text-red-300' : 'text-green-300'
+                }`}>
+                  {lastScan.isRepeated ? '⚠️ REPETIDO (NO GUARDADO)' : '✅ GUARDADO'}
+                </p>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );

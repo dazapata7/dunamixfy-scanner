@@ -290,8 +290,7 @@ export function Dashboard() {
         {/* Info - Glassmorphism */}
         <div className="text-center text-sm text-gray-400 pb-4">
           <div className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 border border-white/10 inline-block">
-            <p className="font-semibold text-gray-300">Dunamix Scanner v1.0</p>
-            <p className="mt-1 text-xs">React + Supabase • Tiempo Real</p>
+            <p className="font-semibold text-gray-300">Dunamixfy Scanner v1.0</p>
           </div>
         </div>
       </div>
