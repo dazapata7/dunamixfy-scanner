@@ -203,29 +203,29 @@ export function Scanner({ onBack }) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black flex flex-col">
-      {/* Header flotante minimalista */}
-      <div className="absolute top-0 left-0 right-0 z-20 bg-gradient-to-b from-black/80 to-transparent p-3">
+    <div className="fixed inset-0 bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex flex-col">
+      {/* Header flotante glassmorphism */}
+      <div className="absolute top-0 left-0 right-0 z-20 p-4">
         <div className="flex items-center justify-between">
           <button
             onClick={onBack}
-            className="flex items-center gap-2 text-white/90 hover:text-white transition-colors backdrop-blur-sm bg-black/30 px-3 py-2 rounded-full"
+            className="flex items-center gap-2 text-white hover:text-primary-400 transition-all backdrop-blur-xl bg-white/10 px-4 py-2.5 rounded-2xl border border-white/20 shadow-glass hover:bg-white/20 hover:scale-105 active:scale-95"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span className="text-sm font-medium">Salir</span>
+            <span className="text-sm font-semibold">Salir</span>
           </button>
 
-          {/* Contador de sesión flotante */}
-          <div className="backdrop-blur-md bg-black/50 px-4 py-2 rounded-full border border-white/20 shadow-lg">
-            <div className="flex items-center gap-3 text-white">
-              <div className="flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-green-400" />
-                <span className="text-base font-bold">{sessionScans}</span>
+          {/* Contador de sesión glassmorphism */}
+          <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-5 py-3 rounded-2xl border border-white/20 shadow-glass-lg">
+            <div className="flex items-center gap-4 text-white">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-400 shadow-lg shadow-green-400/50"></div>
+                <span className="text-lg font-bold">{sessionScans}</span>
               </div>
-              <div className="w-px h-4 bg-white/30"></div>
-              <div className="flex items-center gap-1.5">
-                <XCircle className="w-4 h-4 text-red-400" />
-                <span className="text-base font-bold">{sessionRepeated}</span>
+              <div className="w-px h-5 bg-gradient-to-b from-transparent via-white/30 to-transparent"></div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-red-400 shadow-lg shadow-red-400/50"></div>
+                <span className="text-lg font-bold">{sessionRepeated}</span>
               </div>
             </div>
           </div>
@@ -245,65 +245,75 @@ export function Scanner({ onBack }) {
           <div id="reader" className="w-full h-full"></div>
         </div>
 
-        {/* Indicador de estado - Flotante arriba */}
-        <div className="absolute top-20 left-0 right-0 z-10 px-4">
+        {/* Indicador de estado - Flotante glassmorphism */}
+        <div className="absolute top-24 left-0 right-0 z-10 px-4">
           {isLoadingCarriers ? (
-            <div className="backdrop-blur-md bg-yellow-500/90 text-black px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
+            <div className="backdrop-blur-xl bg-gradient-to-r from-yellow-500/20 to-orange-500/20 border border-yellow-400/30 text-yellow-100 px-6 py-4 rounded-3xl mx-auto w-fit shadow-glass-lg">
               <div className="flex items-center justify-center gap-3">
-                <div className="w-5 h-5 border-3 border-black border-t-transparent rounded-full animate-spin"></div>
-                <span className="font-bold">Cargando transportadoras...</span>
+                <div className="w-5 h-5 border-3 border-yellow-400 border-t-transparent rounded-full animate-spin"></div>
+                <span className="font-semibold">Cargando transportadoras...</span>
               </div>
             </div>
           ) : carriers.length === 0 ? (
-            <div className="backdrop-blur-md bg-red-500/90 text-white px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
-              <div className="font-bold">⚠️ Error: Sin transportadoras</div>
+            <div className="backdrop-blur-xl bg-gradient-to-r from-red-500/20 to-pink-500/20 border border-red-400/30 text-red-100 px-6 py-4 rounded-3xl mx-auto w-fit shadow-glass-lg">
+              <div className="font-semibold">⚠️ Error: Sin transportadoras</div>
             </div>
           ) : isProcessing ? (
-            <div className="backdrop-blur-md bg-blue-500/90 text-white px-6 py-3 rounded-full mx-auto w-fit shadow-lg">
+            <div className="backdrop-blur-xl bg-gradient-to-r from-cyan-500/20 to-blue-500/20 border border-cyan-400/30 text-cyan-100 px-6 py-4 rounded-3xl mx-auto w-fit shadow-glass-lg">
               <div className="flex items-center justify-center gap-3">
-                <div className="w-5 h-5 border-3 border-white border-t-transparent rounded-full animate-spin"></div>
-                <span className="font-bold">Procesando...</span>
+                <div className="w-5 h-5 border-3 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
+                <span className="font-semibold">Procesando...</span>
               </div>
             </div>
           ) : null}
         </div>
 
-        {/* Instrucciones - Flotante en el centro */}
+        {/* Instrucciones - Flotante glassmorphism en el centro */}
         {!isProcessing && !isLoadingCarriers && carriers.length > 0 && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div className="backdrop-blur-sm bg-black/40 px-6 py-3 rounded-2xl border-2 border-white/30">
+            <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 px-8 py-5 rounded-3xl border border-white/20 shadow-glass-lg">
               <div className="text-center text-white">
-                <div className="text-xl font-bold mb-1">📷 Escanea tu código</div>
-                <div className="text-sm opacity-80">{carriers.length} transportadoras listas</div>
+                <div className="text-2xl font-bold mb-2 bg-gradient-to-r from-primary-400 to-cyan-400 bg-clip-text text-transparent">
+                  Escanea tu código
+                </div>
+                <div className="text-sm text-white/60 font-medium">{carriers.length} transportadoras activas</div>
               </div>
             </div>
           </div>
         )}
 
-        {/* Último escaneo - Flotante abajo */}
+        {/* Último escaneo - Flotante glassmorphism abajo */}
         {lastScan && (
-          <div className="absolute bottom-4 left-4 right-4 z-10">
-            <div className={`backdrop-blur-md rounded-2xl p-4 shadow-2xl border-2 ${
+          <div className="absolute bottom-6 left-4 right-4 z-10">
+            <div className={`backdrop-blur-2xl rounded-3xl p-6 shadow-glass-lg border transition-all duration-300 ${
               lastScan.isError || lastScan.isRepeated
-                ? 'bg-red-500/90 border-red-300'
-                : 'bg-green-500/90 border-green-300'
+                ? 'bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-400/30'
+                : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30'
             }`}>
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-4">
                 {lastScan.isError || lastScan.isRepeated ? (
-                  <XCircle className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
+                  <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                    <XCircle className="w-7 h-7 text-red-400" />
+                  </div>
                 ) : (
-                  <CheckCircle2 className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
+                  <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-7 h-7 text-green-400" />
+                  </div>
                 )}
                 <div className="flex-1 min-w-0">
-                  <p className="font-mono text-xl font-bold text-white truncate">
+                  <p className="font-mono text-xl font-bold text-white truncate mb-1.5">
                     {lastScan.code}
                   </p>
-                  <p className="text-base text-white/90 mt-1 font-medium">
+                  <p className="text-base text-white/80 font-medium mb-2">
                     {lastScan.carrier}
                   </p>
-                  <p className="text-base font-bold mt-1.5 text-white">
+                  <p className={`text-sm font-bold px-3 py-1.5 rounded-xl inline-block ${
+                    lastScan.isError || lastScan.isRepeated
+                      ? 'bg-red-500/30 text-red-100'
+                      : 'bg-green-500/30 text-green-100'
+                  }`}>
                     {lastScan.isError
-                      ? `🚫 ${lastScan.errorMessage || 'PEDIDO NO LISTO PARA DESPACHO'}`
+                      ? `🚫 ${lastScan.errorMessage || 'PEDIDO NO LISTO'}`
                       : lastScan.isRepeated
                         ? '⚠️ REPETIDO - NO GUARDADO'
                         : '✅ GUARDADO EXITOSAMENTE'
