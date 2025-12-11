@@ -145,7 +145,8 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   // Exportar códigos a CSV
   const exportToCSV = () => {
     try {
-      const codesToExport = allCodes.length > 0 ? allCodes : todayCodes;
+      // V6: Usar filteredCodes para respetar búsqueda y filtros aplicados
+      const codesToExport = filteredCodes.length > 0 ? filteredCodes : (allCodes.length > 0 ? allCodes : todayCodes);
 
       if (codesToExport.length === 0) {
         toast.error('No hay códigos para exportar');
