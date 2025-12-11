@@ -4,8 +4,9 @@ import { useRole } from '../hooks/useRole';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 import { DesktopDashboard } from './DesktopDashboard';
-import { Camera, LogOut, BarChart3, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Camera, LogOut, BarChart3, RefreshCw, ShieldAlert, User } from 'lucide-react';
 import { useRealtime } from '../hooks/useRealtime';
+import { useAuth } from '../hooks/useAuth'; // V5: Para obtener usuario y signOut real
 import toast from 'react-hot-toast';
 
 export function Dashboard() {
@@ -13,6 +14,7 @@ export function Dashboard() {
   const [showStats, setShowStats] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
   const { isAdmin, isOperator, loading: loadingRole } = useRole();
+  const { user, signOut } = useAuth(); // V5: Obtener usuario actual y signOut real
 
   const {
     operator,
@@ -37,10 +39,17 @@ export function Dashboard() {
     return () => window.removeEventListener('resize', checkIsDesktop);
   }, []);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      logout();
-      toast.success('Sesión cerrada');
+      // V5: Cerrar sesión real de Supabase Auth
+      await signOut();
+
+      // Ejecutar logout del store (si existe)
+      if (logout) {
+        logout();
+      }
+
+      toast.success('Sesión cerrada exitosamente');
     }
   };
 
@@ -109,38 +118,54 @@ export function Dashboard() {
 
       {/* Header glassmorphism */}
       <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/5 border-b border-white/10">
-        <div className="max-w-4xl mx-auto p-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
-              Dashboard
-            </h1>
-            <p className="text-sm text-gray-400 mt-1 flex items-center gap-2">
-              {operator}
-              {isConnected && (
-                <span className="inline-flex items-center gap-1.5 backdrop-blur-xl bg-green-500/10 px-2 py-0.5 rounded-full border border-green-400/20">
-                  <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
-                  <span className="text-xs text-green-400 font-medium">En línea</span>
-                </span>
-              )}
-            </p>
-          </div>
+        <div className="max-w-4xl mx-auto p-4">
+          {/* V5: Indicador de usuario conectado - Mobile */}
+          {user && (
+            <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-4 py-3 rounded-2xl border border-white/20 shadow-glass-lg mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                  <User className="w-5 h-5 text-primary-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{user.email}</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <p className="text-xs text-gray-400">{operator}</p>
+                    {isConnected && (
+                      <span className="inline-flex items-center gap-1.5 backdrop-blur-xl bg-green-500/10 px-2 py-0.5 rounded-full border border-green-400/20">
+                        <span className="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse shadow-lg shadow-green-400/50"></span>
+                        <span className="text-xs text-green-400 font-medium">En línea</span>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleRefresh}
-              className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95 shadow-glass"
-              title="Sincronizar"
-            >
-              <RefreshCw className="w-5 h-5" />
-            </button>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+                Dashboard
+              </h1>
+            </div>
 
-            <button
-              onClick={handleLogout}
-              className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
-              title="Cerrar sesión"
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefresh}
+                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                title="Sincronizar"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </div>

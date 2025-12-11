@@ -1,16 +1,25 @@
 import { useState } from 'react';
 import { AdminPanel } from './AdminPanel';
 import { ConfigPanel } from './ConfigPanel';
-import { BarChart3, Settings, LogOut } from 'lucide-react';
+import { BarChart3, Settings, LogOut, User } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export function DesktopDashboard({ onLogout, isAdmin = false }) {
   const [activeView, setActiveView] = useState('stats'); // stats, config
+  const { user, signOut } = useAuth(); // V5: Obtener usuario actual
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      onLogout();
-      toast.success('Sesión cerrada');
+      // V5: Cerrar sesión real de Supabase Auth
+      await signOut();
+
+      // Ejecutar logout del store (si existe)
+      if (onLogout) {
+        onLogout();
+      }
+
+      toast.success('Sesión cerrada exitosamente');
     }
   };
 
@@ -39,6 +48,18 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
             </div>
 
             <div className="flex items-center gap-3">
+              {/* V5: Indicador de usuario conectado */}
+              {user && (
+                <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                    <User className="w-5 h-5 text-primary-400" />
+                  </div>
+                  <div className="text-left">
+                    <p className="text-sm font-semibold text-white">{user.email}</p>
+                    <p className="text-xs text-gray-400">{isAdmin ? 'Administrador' : 'Operador'}</p>
+                  </div>
+                </div>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => setActiveView('config')}
