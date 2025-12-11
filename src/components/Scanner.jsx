@@ -106,12 +106,12 @@ export function Scanner({ onBack }) {
 
     // V2: Feedback sensorial
     if (result) {
-      if (result.isRepeated) {
-        // Código repetido: sonido de error + vibración larga + animación roja
+      if (result.reason === 'cannot_ship' || result.isRepeated) {
+        // Error (pedido no listo o repetido): sonido de error + vibración larga + animación roja
         setScanAnimation('error');
         playErrorSound();
         vibrate([200, 100, 200]); // Vibración más larga para error
-      } else {
+      } else if (result.success) {
         // Código guardado: sonido de éxito + vibración corta + animación verde
         setScanAnimation('success');
         playSuccessSound();
@@ -284,12 +284,12 @@ export function Scanner({ onBack }) {
         {lastScan && (
           <div className="absolute bottom-4 left-4 right-4 z-10">
             <div className={`backdrop-blur-md rounded-2xl p-4 shadow-2xl border-2 ${
-              lastScan.isRepeated
+              lastScan.isError || lastScan.isRepeated
                 ? 'bg-red-500/90 border-red-300'
                 : 'bg-green-500/90 border-green-300'
             }`}>
               <div className="flex items-start gap-3">
-                {lastScan.isRepeated ? (
+                {lastScan.isError || lastScan.isRepeated ? (
                   <XCircle className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
                 ) : (
                   <CheckCircle2 className="w-8 h-8 text-white flex-shrink-0 mt-0.5" />
@@ -301,10 +301,13 @@ export function Scanner({ onBack }) {
                   <p className="text-base text-white/90 mt-1 font-medium">
                     {lastScan.carrier}
                   </p>
-                  <p className={`text-base font-bold mt-1.5 ${
-                    lastScan.isRepeated ? 'text-white' : 'text-white'
-                  }`}>
-                    {lastScan.isRepeated ? '⚠️ REPETIDO - NO GUARDADO' : '✅ GUARDADO EXITOSAMENTE'}
+                  <p className="text-base font-bold mt-1.5 text-white">
+                    {lastScan.isError
+                      ? `🚫 ${lastScan.errorMessage || 'PEDIDO NO LISTO PARA DESPACHO'}`
+                      : lastScan.isRepeated
+                        ? '⚠️ REPETIDO - NO GUARDADO'
+                        : '✅ GUARDADO EXITOSAMENTE'
+                    }
                   </p>
                 </div>
               </div>

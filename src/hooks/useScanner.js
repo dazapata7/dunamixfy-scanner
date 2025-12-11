@@ -286,8 +286,12 @@ export function useScanner() {
           console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
           console.warn('⚠️ Código NO guardado - Pedido no listo para despacho');
 
+          // Mensaje de error claro y consistente
+          const errorMessage = '🚫 PEDIDO NO LISTO PARA DESPACHO!';
+          const errorDetail = orderInfo.error ? `\n${orderInfo.error}` : '';
+
           // Mostrar alerta PROMINENTE al usuario
-          toast.error(orderInfo.error, {
+          toast.error(`${errorMessage}${errorDetail}`, {
             duration: 10000,
             icon: '🚫',
             style: {
@@ -308,12 +312,21 @@ export function useScanner() {
             navigator.vibrate([200, 100, 200, 100, 200]);
           }
 
+          // Actualizar lastScan para mostrar error en scanner
+          setLastScan({
+            code: codigo,
+            carrier: carrierName,
+            isRepeated: false,
+            isError: true,
+            errorMessage: 'PEDIDO NO LISTO PARA DESPACHO'
+          });
+
           // NO continuar con el guardado - salir del proceso
           setTimeout(() => setIsProcessing(false), 2000);
           return {
             success: false,
             reason: 'cannot_ship',
-            error: orderInfo.error
+            error: errorMessage
           };
         } else {
           console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
