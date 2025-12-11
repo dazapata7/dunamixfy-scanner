@@ -146,18 +146,28 @@ Si escaneas offline, no puedes consultar Dunamixfy (sin internet), entonces se g
 ```
 
 **Solución V4.1:**
-Al sincronizar (cuando vuelve internet), **automáticamente consulta Dunamixfy** para completar datos:
-```javascript
-// Detecta que faltan datos
-if (!item.order_id || !item.customer_name || !item.store_name) {
-  // Consulta Dunamixfy
-  const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
+Al sincronizar (cuando vuelve internet), **automáticamente consulta Dunamixfy** para:
+1. **Validar can_ship** (SIEMPRE, incluso si tiene datos)
+2. **Enriquecer datos** faltantes (order_id, customer_name, store_name)
 
-  // Enriquece antes de guardar
+```javascript
+// 1. PRIMERO: Validar can_ship (CRÍTICO)
+const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
+
+if (orderInfo.canShip === false) {
+  // ❌ Pedido NO listo → Eliminar de cola, NO guardar
+  removeFromQueue(item.id);
+  return { success: false };
+}
+
+// 2. SEGUNDO: Enriquecer si faltan datos
+if (!item.order_id || !item.customer_name || !item.store_name) {
   enrichedData.order_id = orderInfo.order_id;
   enrichedData.customer_name = orderInfo.customer_name;
   enrichedData.store_name = orderInfo.store_name;
 }
+
+// 3. TERCERO: Guardar en Supabase (solo si pasó validación)
 ```
 
 ### Flujo Completo:

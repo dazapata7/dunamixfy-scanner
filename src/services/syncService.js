@@ -48,15 +48,25 @@ async function processQueueItem(item) {
       created_at: new Date(item.timestamp).toISOString()
     };
 
-    // Si faltan datos (order_id, customer_name, store_name), intentar consultar Dunamixfy
-    const needsEnrichment = !item.order_id || !item.customer_name || !item.store_name;
+    // V4.1: SIEMPRE validar can_ship con Dunamixfy al sincronizar
+    // Esto previene guardar pedidos no listos que se escanearon offline
+    try {
+      console.log(`🔍 Backfill: Consultando Dunamixfy para ${item.code}...`);
+      const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
 
-    if (needsEnrichment) {
-      try {
-        console.log(`🔍 Backfill: Consultando Dunamixfy para ${item.code}...`);
-        const orderInfo = await dunamixfyApi.getOrderByCode(item.code);
+      // VALIDACIÓN CRÍTICA: Verificar can_ship SIEMPRE
+      if (orderInfo && orderInfo.canShip === false) {
+        // Pedido NO listo para despacho → Eliminar de cola, NO guardar
+        console.warn(`🚫 Backfill: Pedido ${item.code} no puede ser despachado - Removiendo de cola`);
+        removeFromQueue(item.id);
+        return { success: false, reason: 'cannot_ship' };
+      }
 
-        if (orderInfo && orderInfo.canShip !== false) {
+      // Si pasó validación can_ship, enriquecer datos si faltan
+      if (orderInfo && orderInfo.canShip !== false) {
+        const needsEnrichment = !item.order_id || !item.customer_name || !item.store_name;
+
+        if (needsEnrichment) {
           // Enriquecer con datos de Dunamixfy
           enrichedData.order_id = orderInfo.order_id || item.order_id;
           enrichedData.customer_name = orderInfo.customer_name || item.customer_name;
@@ -67,16 +77,13 @@ async function processQueueItem(item) {
             customer: enrichedData.customer_name,
             store: enrichedData.store_name
           });
-        } else if (orderInfo && orderInfo.canShip === false) {
-          // Si el pedido NO puede ser despachado, no sincronizar
-          console.warn(`🚫 Backfill: Pedido ${item.code} no puede ser despachado - Removiendo de cola`);
-          removeFromQueue(item.id);
-          return { success: false, reason: 'cannot_ship' };
+        } else {
+          console.log(`✅ Backfill: Pedido ${item.code} validado (ya tiene datos completos)`);
         }
-      } catch (dunamixfyError) {
-        console.warn(`⚠️ Backfill: Error consultando Dunamixfy para ${item.code}:`, dunamixfyError);
-        // Continuar con datos originales si falla consulta
       }
+    } catch (dunamixfyError) {
+      console.warn(`⚠️ Backfill: Error consultando Dunamixfy para ${item.code}:`, dunamixfyError);
+      // Si falla consulta, continuar con datos originales (reintentará en próximo sync)
     }
 
     // Intentar guardar en Supabase (con datos enriquecidos)
