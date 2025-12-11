@@ -28,10 +28,17 @@ export function AuthProvider({ children }) {
     // Escuchar cambios de autenticación
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔐 Auth event:', event, session?.user?.email);
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // V5: Mostrar toast cuando se cierra sesión exitosamente
+      if (event === 'SIGNED_OUT') {
+        toast.success('Sesión cerrada exitosamente');
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -85,7 +92,7 @@ export function AuthProvider({ children }) {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
 
-      toast.success('Sesión cerrada');
+      // V5: No mostramos toast aquí, lo hace el listener onAuthStateChange
       return { error: null };
     } catch (error) {
       console.error('Error al cerrar sesión:', error);

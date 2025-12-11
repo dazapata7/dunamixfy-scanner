@@ -11,15 +11,21 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
 
   const handleLogout = async () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      // V5: Cerrar sesión real de Supabase Auth
-      await signOut();
+      try {
+        // V5: Cerrar sesión real de Supabase Auth
+        await signOut();
 
-      // Ejecutar logout del store (si existe)
-      if (onLogout) {
-        onLogout();
+        // Ejecutar logout del store (si existe)
+        if (onLogout) {
+          onLogout();
+        }
+
+        // El listener onAuthStateChange del AuthProvider manejará la redirección
+        // al cambiar user a null
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        toast.error('Error al cerrar sesión');
       }
-
-      toast.success('Sesión cerrada exitosamente');
     }
   };
 
@@ -39,46 +45,48 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
 
         {/* Header glassmorphism */}
         <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/5 border-b border-white/10">
-          <div className="max-w-7xl mx-auto p-6 flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-primary-200 to-white bg-clip-text text-transparent">
-                Panel de Administración
-              </h1>
-              <p className="text-sm text-gray-400 mt-2">Gestión y estadísticas del sistema en tiempo real</p>
-            </div>
+          <div className="max-w-7xl mx-auto p-6">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-shrink-0">
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-primary-200 to-white bg-clip-text text-transparent">
+                  Panel de Administración
+                </h1>
+                <p className="text-sm text-gray-400 mt-2">Gestión y estadísticas del sistema en tiempo real</p>
+              </div>
 
-            <div className="flex items-center gap-3">
-              {/* V5: Indicador de usuario conectado */}
-              {user && (
-                <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
-                    <User className="w-5 h-5 text-primary-400" />
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {/* V5: Indicador de usuario conectado */}
+                {user && (
+                  <div className="backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 px-6 py-3 rounded-2xl border border-white/20 shadow-glass-lg flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                      <User className="w-5 h-5 text-primary-400" />
+                    </div>
+                    <div className="text-left">
+                      <p className="text-sm font-semibold text-white">{user.email}</p>
+                      <p className="text-xs text-gray-400">{isAdmin ? 'Administrador' : 'Operador'}</p>
+                    </div>
                   </div>
-                  <div className="text-left">
-                    <p className="text-sm font-semibold text-white">{user.email}</p>
-                    <p className="text-xs text-gray-400">{isAdmin ? 'Administrador' : 'Operador'}</p>
-                  </div>
-                </div>
-              )}
-              {isAdmin && (
+                )}
+                {isAdmin && (
+                  <button
+                    onClick={() => setActiveView('config')}
+                    className="flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 text-white rounded-2xl transition-all border border-white/20 shadow-glass hover:scale-105 active:scale-95"
+                  >
+                    <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                      <Settings className="w-5 h-5" />
+                    </div>
+                    <span className="font-semibold">Configuración del Sistema</span>
+                  </button>
+                )}
+
                 <button
-                  onClick={() => setActiveView('config')}
-                  className="flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 text-white rounded-2xl transition-all border border-white/20 shadow-glass hover:scale-105 active:scale-95"
+                  onClick={handleLogout}
+                  className="p-3 rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                  title="Cerrar sesión"
                 >
-                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
-                    <Settings className="w-5 h-5" />
-                  </div>
-                  <span className="font-semibold">Configuración del Sistema</span>
+                  <LogOut className="w-6 h-6" />
                 </button>
-              )}
-
-              <button
-                onClick={handleLogout}
-                className="p-3 rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-6 h-6" />
-              </button>
+              </div>
             </div>
           </div>
         </div>

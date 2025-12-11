@@ -41,15 +41,21 @@ export function Dashboard() {
 
   const handleLogout = async () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
-      // V5: Cerrar sesión real de Supabase Auth
-      await signOut();
+      try {
+        // V5: Cerrar sesión real de Supabase Auth
+        await signOut();
 
-      // Ejecutar logout del store (si existe)
-      if (logout) {
-        logout();
+        // Ejecutar logout del store (si existe)
+        if (logout) {
+          logout();
+        }
+
+        // El listener onAuthStateChange del AuthProvider manejará la redirección
+        // al cambiar user a null
+      } catch (error) {
+        console.error('Error al cerrar sesión:', error);
+        toast.error('Error al cerrar sesión');
       }
-
-      toast.success('Sesión cerrada exitosamente');
     }
   };
 
