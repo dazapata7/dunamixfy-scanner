@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart, RefreshCw, Download, X, Plus } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart, RefreshCw, Download, X, Plus, Search } from 'lucide-react';
 import { codesService, carriersService } from '../services/supabase';
 import { backfillService } from '../services/backfillService';
 import { useAuth } from '../hooks/useAuth'; // V5: Para mostrar usuario conectado
@@ -24,6 +24,11 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
   const [customStartDate, setCustomStartDate] = useState('');
   const [customEndDate, setCustomEndDate] = useState('');
   const [filteredStats, setFilteredStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
+
+  // V6: Búsqueda y filtros avanzados
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCarriers, setSelectedCarriers] = useState([]);
+  const [selectedStores, setSelectedStores] = useState([]);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -197,6 +202,95 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
     }
   }, [dateFilter, activeTab]);
 
+  // V6: Filtrado avanzado con búsqueda y filtros combinados
+  const filteredCodes = useMemo(() => {
+    const codesToFilter = allCodes.length > 0 ? allCodes : todayCodes;
+
+    return codesToFilter.filter(code => {
+      // Filtro de búsqueda (código, cliente, pedido, tienda)
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        const matchesSearch =
+          code.code?.toLowerCase().includes(query) ||
+          code.customer_name?.toLowerCase().includes(query) ||
+          code.order_id?.toLowerCase().includes(query) ||
+          code.store_name?.toLowerCase().includes(query);
+
+        if (!matchesSearch) return false;
+      }
+
+      // Filtro por transportadora
+      if (selectedCarriers.length > 0) {
+        const carrierName = code.carrier_name || code.carriers?.display_name;
+        if (!selectedCarriers.includes(carrierName)) return false;
+      }
+
+      // Filtro por tienda
+      if (selectedStores.length > 0) {
+        if (!selectedStores.includes(code.store_name)) return false;
+      }
+
+      return true;
+    });
+  }, [allCodes, todayCodes, searchQuery, selectedCarriers, selectedStores]);
+
+  // V6: Obtener listas únicas de transportadoras y tiendas para filtros
+  const availableCarriers = useMemo(() => {
+    const codesToAnalyze = allCodes.length > 0 ? allCodes : todayCodes;
+    const carriers = new Set();
+    codesToAnalyze.forEach(code => {
+      const carrierName = code.carrier_name || code.carriers?.display_name;
+      if (carrierName) carriers.add(carrierName);
+    });
+    return Array.from(carriers).sort();
+  }, [allCodes, todayCodes]);
+
+  const availableStores = useMemo(() => {
+    const codesToAnalyze = allCodes.length > 0 ? allCodes : todayCodes;
+    const stores = new Set();
+    codesToAnalyze.forEach(code => {
+      if (code.store_name) stores.add(code.store_name);
+    });
+    return Array.from(stores).sort();
+  }, [allCodes, todayCodes]);
+
+  // V6: Función para resaltar matches en el texto
+  const highlightMatch = (text, query) => {
+    if (!query || !text) return text;
+
+    const parts = text.split(new RegExp(`(${query})`, 'gi'));
+    return parts.map((part, i) =>
+      part.toLowerCase() === query.toLowerCase()
+        ? <mark key={i} className="bg-yellow-400/30 text-yellow-200 px-1 rounded">{part}</mark>
+        : part
+    );
+  };
+
+  // V6: Toggle filtro de transportadora
+  const toggleCarrierFilter = (carrier) => {
+    setSelectedCarriers(prev =>
+      prev.includes(carrier)
+        ? prev.filter(c => c !== carrier)
+        : [...prev, carrier]
+    );
+  };
+
+  // V6: Toggle filtro de tienda
+  const toggleStoreFilter = (store) => {
+    setSelectedStores(prev =>
+      prev.includes(store)
+        ? prev.filter(s => s !== store)
+        : [...prev, store]
+    );
+  };
+
+  // V6: Limpiar todos los filtros
+  const clearAllFilters = () => {
+    setSearchQuery('');
+    setSelectedCarriers([]);
+    setSelectedStores([]);
+  };
+
   const handleDeleteCode = async (id, code) => {
     if (!confirm(`¿Eliminar código ${code}?`)) return;
 
@@ -264,57 +358,55 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-      {/* Header */}
-      <div className="bg-dark-800 border-b border-gray-700 p-4">
+      {/* V6: Header más compacto */}
+      <div className="bg-dark-800 border-b border-gray-700 p-2.5">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {!hideBackButton ? (
             <button
               onClick={onBack}
-              className="flex items-center gap-2 text-gray-300 hover:text-white transition-colors"
+              className="flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors text-sm"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="w-4 h-4" />
               <span>Volver</span>
             </button>
           ) : (
-            <div className="w-20"></div>
+            <div className="w-16"></div>
           )}
 
-          <div className="flex items-center gap-3">
-            <BarChart3 className="w-6 h-6 text-primary-500" />
-            <h1 className="text-2xl font-bold text-white">Estadísticas en Tiempo Real</h1>
+          <div className="flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-primary-500" />
+            <h1 className="text-lg font-bold text-white">Estadísticas en Tiempo Real</h1>
           </div>
 
-          <div className="flex items-center gap-3">
-            {/* V5: Indicador de usuario conectado */}
+          <div className="flex items-center gap-2">
+            {/* V6: Indicador de usuario más compacto */}
             {user && (
-              <div className="flex items-center gap-2 px-4 py-2 bg-dark-700 rounded-lg border border-gray-600">
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
-                  <User className="w-4 h-4 text-primary-400" />
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-gray-600">
+                <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                  <User className="w-3.5 h-3.5 text-primary-400" />
                 </div>
-                <div className="text-left">
-                  <p className="text-xs font-semibold text-white">{user.email}</p>
-                </div>
+                <p className="text-xs font-semibold text-white">{user.email}</p>
               </div>
             )}
 
             <button
               onClick={handleStartBackfill}
               disabled={isBackfilling}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors text-xs"
             >
-              <RefreshCw className={`w-4 h-4 ${isBackfilling ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${isBackfilling ? 'animate-spin' : ''}`} />
               <span>{isBackfilling ? 'Actualizando...' : 'Actualizar desde Dunamixfy'}</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* V6: Tabs más compactos */}
       <div className="bg-dark-800 border-b border-gray-700">
-        <div className="max-w-7xl mx-auto flex gap-1 p-2">
+        <div className="max-w-7xl mx-auto flex gap-1 p-1.5">
           <button
             onClick={() => setActiveTab('stats')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm ${
               activeTab === 'stats'
                 ? 'bg-primary-500 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-dark-700'
@@ -329,7 +421,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
               setActiveTab('history');
               if (allCodes.length === 0) loadAllHistory();
             }}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm ${
               activeTab === 'history'
                 ? 'bg-primary-500 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-dark-700'
@@ -341,7 +433,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
           <button
             onClick={() => setActiveTab('carriers')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors text-sm ${
               activeTab === 'carriers'
                 ? 'bg-primary-500 text-white'
                 : 'text-gray-400 hover:text-white hover:bg-dark-700'
@@ -353,78 +445,78 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
         </div>
       </div>
 
-      {/* Content */}
-      <div className="max-w-7xl mx-auto p-6">
+      {/* V6: Content más compacto */}
+      <div className="max-w-7xl mx-auto p-3">
         {isLoading ? (
-          <div className="text-center py-20">
-            <div className="w-12 h-12 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-            <p className="text-gray-400 mt-4">Cargando datos...</p>
+          <div className="text-center py-12">
+            <div className="w-10 h-10 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-gray-400 mt-3 text-sm">Cargando datos...</p>
           </div>
         ) : (
           <>
             {/* Tab: Estadísticas */}
             {activeTab === 'stats' && (
-              <div className="space-y-6">
-                {/* Estadísticas del día */}
-                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <h2 className="text-xl font-bold text-white mb-4">Estadísticas de Hoy</h2>
+              <div className="space-y-3">
+                {/* V6: Estadísticas del día - más compacto */}
+                <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                  <h2 className="text-base font-bold text-white mb-3">Estadísticas de Hoy</h2>
 
-                  <div className="grid grid-cols-4 gap-4">
-                    <div className="bg-dark-900 rounded-lg p-6 text-center border-2 border-primary-500">
-                      <div className="text-4xl font-bold text-primary-500">{stats.total}</div>
-                      <div className="text-sm text-gray-400 mt-2">Total Escaneados</div>
+                  <div className="grid grid-cols-4 gap-3">
+                    <div className="bg-dark-900 rounded-lg p-4 text-center border-2 border-primary-500">
+                      <div className="text-2xl font-bold text-primary-500">{stats.total}</div>
+                      <div className="text-xs text-gray-400 mt-1">Total Escaneados</div>
                     </div>
 
                     {Object.entries(stats.byCarrier).map(([carrier, count]) => (
-                      <div key={carrier} className="bg-dark-900 rounded-lg p-6 text-center border border-gray-700">
-                        <div className="text-4xl font-bold text-green-500">{count}</div>
-                        <div className="text-sm text-gray-400 mt-2 capitalize">{carrier}</div>
+                      <div key={carrier} className="bg-dark-900 rounded-lg p-4 text-center border border-gray-700">
+                        <div className="text-2xl font-bold text-green-500">{count}</div>
+                        <div className="text-xs text-gray-400 mt-1 capitalize">{carrier}</div>
                       </div>
                     ))}
                   </div>
                 </div>
 
-                {/* Estadísticas por Tienda */}
+                {/* V6: Estadísticas por Tienda - más compacto */}
                 {stats.byStore && Object.keys(stats.byStore).length > 0 && (
-                  <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                    <h2 className="text-xl font-bold text-white mb-4">
+                  <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                    <h2 className="text-base font-bold text-white mb-3">
                       📊 Guías por Tienda (Hoy)
                     </h2>
 
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
                       {Object.entries(stats.byStore)
                         .sort(([, a], [, b]) => b - a)
                         .map(([store, count]) => (
-                          <div key={store} className="bg-dark-900 rounded-lg p-6 text-center border border-gray-700">
-                            <div className="text-4xl font-bold text-blue-500">{count}</div>
-                            <div className="text-sm text-gray-400 mt-2">{store}</div>
+                          <div key={store} className="bg-dark-900 rounded-lg p-3 text-center border border-gray-700">
+                            <div className="text-2xl font-bold text-blue-500">{count}</div>
+                            <div className="text-xs text-gray-400 mt-1">{store}</div>
                           </div>
                         ))}
                     </div>
                   </div>
                 )}
 
-                {/* Códigos recientes */}
-                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <h2 className="text-xl font-bold text-white mb-4">Últimos Escaneos de Hoy</h2>
+                {/* V6: Códigos recientes - más compacto */}
+                <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                  <h2 className="text-base font-bold text-white mb-3">Últimos Escaneos de Hoy</h2>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {todayCodes.slice(0, 10).map((code) => {
                       return (
                         <div
                           key={code.id}
-                          className="bg-dark-900 rounded-lg p-4 border border-gray-700 group hover:border-primary-500 transition-colors"
+                          className="bg-dark-900 rounded-lg p-3 border border-gray-700 group hover:border-primary-500 transition-colors"
                         >
                           <div className="flex items-start justify-between">
                             <div className="flex-1">
                               {/* Código y badges */}
-                              <div className="flex items-center gap-3 mb-3">
-                                <p className="font-mono font-bold text-white text-lg">{code.code}</p>
-                                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full">
+                              <div className="flex items-center gap-2 mb-2">
+                                <p className="font-mono font-bold text-white text-sm">{code.code}</p>
+                                <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
                                   {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
                                 </span>
                                 {code.store_name && (
-                                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full">
+                                  <span className="px-2 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">
                                     {code.store_name}
                                   </span>
                                 )}
@@ -432,9 +524,9 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
                               {/* Información del cache */}
                               {code.customer_name && (
-                                <div className="bg-dark-800 rounded-lg p-3 border border-gray-600 space-y-2">
+                                <div className="bg-dark-800 rounded-lg p-2 border border-gray-600">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-white font-semibold">
+                                    <span className="text-white text-xs font-semibold">
                                       👤 {code.customer_name}
                                     </span>
                                     {code.order_id && (
@@ -446,16 +538,16 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                                 </div>
                               )}
 
-                              <p className="text-sm text-gray-400 mt-2">
+                              <p className="text-xs text-gray-400 mt-1.5">
                                 {new Date(code.created_at).toLocaleString('es-CO')}
                               </p>
                             </div>
 
                             <button
                               onClick={() => handleDeleteCode(code.id, code.code)}
-                              className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg ml-2"
+                              className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/20 rounded-lg ml-2"
                             >
-                              <Trash2 className="w-5 h-5 text-red-500" />
+                              <Trash2 className="w-4 h-4 text-red-500" />
                             </button>
                           </div>
                         </div>
@@ -466,19 +558,19 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
               </div>
             )}
 
-            {/* Tab: Historial Completo */}
+            {/* V6: Tab: Historial Completo - más compacto */}
             {activeTab === 'history' && (
-              <div className="space-y-6">
-                {/* Filtros de Fecha */}
-                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <h2 className="text-xl font-bold text-white mb-4">Filtros de Fecha</h2>
+              <div className="space-y-3">
+                {/* V6: Filtros de Fecha - más compacto */}
+                <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                  <h2 className="text-base font-bold text-white mb-3">Filtros de Fecha</h2>
 
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {/* Atajos de fecha */}
-                    <div className="flex flex-wrap gap-2">
+                    <div className="flex flex-wrap gap-1.5">
                       <button
                         onClick={() => setDateFilter('today')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                           dateFilter === 'today'
                             ? 'bg-primary-500 text-white'
                             : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
@@ -488,7 +580,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                       </button>
                       <button
                         onClick={() => setDateFilter('yesterday')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                           dateFilter === 'yesterday'
                             ? 'bg-primary-500 text-white'
                             : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
@@ -498,7 +590,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                       </button>
                       <button
                         onClick={() => setDateFilter('week')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                           dateFilter === 'week'
                             ? 'bg-primary-500 text-white'
                             : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
@@ -508,7 +600,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                       </button>
                       <button
                         onClick={() => setDateFilter('month')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                           dateFilter === 'month'
                             ? 'bg-primary-500 text-white'
                             : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
@@ -518,7 +610,7 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                       </button>
                       <button
                         onClick={() => setDateFilter('custom')}
-                        className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                        className={`px-3 py-1.5 rounded-lg font-medium transition-colors text-sm ${
                           dateFilter === 'custom'
                             ? 'bg-primary-500 text-white'
                             : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
@@ -560,6 +652,102 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                   </div>
                 </div>
 
+                {/* V6: Búsqueda y Filtros Avanzados */}
+                <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-base font-semibold text-white">Búsqueda y Filtros</h3>
+                    {(searchQuery || selectedCarriers.length > 0 || selectedStores.length > 0) && (
+                      <button
+                        onClick={clearAllFilters}
+                        className="flex items-center gap-1 text-xs text-red-400 hover:text-red-300 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        Limpiar filtros
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Barra de búsqueda */}
+                  <div className="mb-3">
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                      <input
+                        type="text"
+                        placeholder="Buscar por código, cliente, pedido o tienda..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full bg-dark-700 text-white pl-10 pr-4 py-2 rounded-lg border border-gray-600 focus:border-primary-500 focus:outline-none text-sm placeholder-gray-500"
+                      />
+                      {searchQuery && (
+                        <button
+                          onClick={() => setSearchQuery('')}
+                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-white"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Filtros de transportadora y tienda */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {/* Transportadoras */}
+                    {availableCarriers.length > 0 && (
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1.5">Transportadora</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableCarriers.map(carrier => (
+                            <button
+                              key={carrier}
+                              onClick={() => toggleCarrierFilter(carrier)}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                selectedCarriers.includes(carrier)
+                                  ? 'bg-primary-500 text-white'
+                                  : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                              }`}
+                            >
+                              {carrier}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Tiendas */}
+                    {availableStores.length > 0 && (
+                      <div>
+                        <label className="block text-xs text-gray-400 mb-1.5">Tienda</label>
+                        <div className="flex flex-wrap gap-1.5">
+                          {availableStores.map(store => (
+                            <button
+                              key={store}
+                              onClick={() => toggleStoreFilter(store)}
+                              className={`px-2 py-1 rounded text-xs font-medium transition-colors ${
+                                selectedStores.includes(store)
+                                  ? 'bg-primary-500 text-white'
+                                  : 'bg-dark-700 text-gray-300 hover:bg-dark-600'
+                              }`}
+                            >
+                              {store}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Contador de resultados */}
+                  <div className="mt-3 pt-3 border-t border-gray-700">
+                    <p className="text-xs text-gray-400">
+                      Mostrando <span className="text-primary-400 font-semibold">{filteredCodes.length}</span> de{' '}
+                      <span className="text-white font-semibold">
+                        {allCodes.length > 0 ? allCodes.length : todayCodes.length}
+                      </span>{' '}
+                      códigos
+                    </p>
+                  </div>
+                </div>
+
                 {/* Estadísticas por Tienda */}
                 {filteredStats.byStore && Object.keys(filteredStats.byStore).length > 0 && (
                   <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
@@ -581,74 +769,86 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
                 )}
 
                 {/* Listado de códigos */}
-                <div className="bg-dark-800 rounded-xl p-6 border border-gray-700">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold text-white">
-                      Códigos Escaneados ({allCodes.length > 0 ? allCodes.length : todayCodes.length})
+                <div className="bg-dark-800 rounded-xl p-4 border border-gray-700">
+                  <div className="flex items-center justify-between mb-3">
+                    <h2 className="text-base font-bold text-white">
+                      Códigos Escaneados ({filteredCodes.length})
                     </h2>
                     <button
                       onClick={exportToCSV}
-                      className="flex items-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm font-medium"
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-xs font-medium"
                       title="Exportar a CSV"
                     >
-                      <Download className="w-4 h-4" />
+                      <Download className="w-3.5 h-3.5" />
                       Exportar CSV
                     </button>
                   </div>
 
-                  <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                  {(allCodes.length > 0 ? allCodes : todayCodes).map((code) => {
-                    return (
-                      <div
-                        key={code.id}
-                        className="bg-dark-900 rounded-lg p-4 border border-gray-700 group hover:border-primary-500 transition-colors"
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 space-y-3">
-                            {/* Código y badges principales */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-mono font-bold text-white text-base">{code.code}</p>
-                              <span className="px-2 py-1 bg-green-500/20 text-green-400 text-xs rounded">
-                                <TruckIcon className="w-3 h-3 inline mr-1" />
-                                {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
-                              </span>
-                              {code.store_name && (
-                                <span className="px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
-                                  <Store className="w-3 h-3 inline mr-1" />
-                                  {code.store_name}
-                                </span>
-                              )}
-                            </div>
+                  {/* V6: Mensaje si no hay resultados */}
+                  {filteredCodes.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-gray-400 text-sm">No se encontraron códigos con los filtros aplicados</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                      {filteredCodes.map((code) => {
+                        return (
+                          <div
+                            key={code.id}
+                            className="bg-dark-900 rounded-lg p-3 border border-gray-700 group hover:border-primary-500 transition-colors"
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex-1 space-y-2">
+                                {/* Código y badges principales */}
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <p className="font-mono font-bold text-white text-sm">
+                                    {highlightMatch(code.code, searchQuery)}
+                                  </p>
+                                  <span className="px-1.5 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
+                                    <TruckIcon className="w-3 h-3 inline mr-0.5" />
+                                    {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
+                                  </span>
+                                  {code.store_name && (
+                                    <span className="px-1.5 py-0.5 bg-blue-500/20 text-blue-400 text-xs rounded">
+                                      <Store className="w-3 h-3 inline mr-0.5" />
+                                      {highlightMatch(code.store_name, searchQuery)}
+                                    </span>
+                                  )}
+                                </div>
 
-                            {/* Detalles de la orden */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              {/* Cliente */}
-                              {code.customer_name && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <User className="w-4 h-4 text-primary-400 flex-shrink-0" />
-                                  <span className="text-white font-medium">{code.customer_name}</span>
+                                {/* Detalles de la orden */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-1.5">
+                                  {/* Cliente */}
+                                  {code.customer_name && (
+                                    <div className="flex items-center gap-1.5 text-xs">
+                                      <User className="w-3.5 h-3.5 text-primary-400 flex-shrink-0" />
+                                      <span className="text-white font-medium">
+                                        {highlightMatch(code.customer_name, searchQuery)}
+                                      </span>
                                 </div>
                               )}
 
                               {/* Order ID */}
                               {code.order_id && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <ShoppingCart className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                                  <span className="text-gray-300">Pedido #{code.order_id}</span>
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <ShoppingCart className="w-3.5 h-3.5 text-yellow-400 flex-shrink-0" />
+                                  <span className="text-gray-300">
+                                    Pedido #{highlightMatch(code.order_id, searchQuery)}
+                                  </span>
                                 </div>
                               )}
 
                               {/* Tipo de escaneo */}
                               {code.scan_type && (
-                                <div className="flex items-center gap-2 text-sm">
-                                  <Package className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                                <div className="flex items-center gap-1.5 text-xs">
+                                  <Package className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
                                   <span className="text-gray-300 capitalize">{code.scan_type}</span>
                                 </div>
                               )}
 
                               {/* Fecha */}
-                              <div className="flex items-center gap-2 text-sm">
-                                <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <Calendar className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                                 <span className="text-gray-400">
                                   {new Date(code.created_at).toLocaleString('es-CO', {
                                     dateStyle: 'short',
@@ -661,17 +861,17 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
                           <button
                             onClick={() => handleDeleteCode(code.id, code.code)}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-red-500/20 rounded-lg flex-shrink-0"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-red-500/20 rounded-lg flex-shrink-0"
                             title="Eliminar código"
                           >
-                            <Trash2 className="w-4 h-4 text-red-500" />
+                            <Trash2 className="w-3.5 h-3.5 text-red-500" />
                           </button>
                         </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
+              )}
             </div>
             )}
 
