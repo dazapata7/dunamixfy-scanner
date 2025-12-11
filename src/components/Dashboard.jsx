@@ -267,3 +267,6 @@ export function Dashboard() {
     </div>
   );
 }
+
+// V4: Export default para lazy loading
+export default Dashboard;

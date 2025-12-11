@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+// V4: Dynamic import de html5-qrcode (solo cuando se usa Scanner)
+// import { Html5Qrcode } from 'html5-qrcode'; // REMOVIDO
 import { useScanner } from '../hooks/useScanner';
 import { useStore } from '../store/useStore';
 import { ArrowLeft, CheckCircle2, XCircle } from 'lucide-react';
@@ -36,7 +37,10 @@ export function Scanner({ onBack }) {
 
   const startScanner = async () => {
     try {
+      // V4: Dynamic import - Cargar html5-qrcode solo cuando se necesita
+      const { Html5Qrcode } = await import('html5-qrcode');
       html5QrcodeRef.current = new Html5Qrcode('reader');
+      console.log('📦 html5-qrcode cargado dinámicamente');
 
       // V3.2: Configuración ÓPTIMA - rápida y efectiva
       const config = {

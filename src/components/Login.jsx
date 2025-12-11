@@ -100,3 +100,6 @@ export function Login() {
     </div>
   );
 }
+
+// V4: Export default para lazy loading
+export default Login;

@@ -175,3 +175,6 @@ export function LoginAuth() {
     </div>
   );
 }
+
+// V4: Export default para lazy loading
+export default LoginAuth;

@@ -4,6 +4,9 @@ import { procesarCodigoConCarriers, detectScanType } from '../utils/validators';
 import { useStore } from '../store/useStore';
 import { dunamixfyApi } from '../services/dunamixfyApi';
 import toast from 'react-hot-toast';
+// V4: Offline queue support
+import { addToQueue, getQueueCount, isOnline } from '../services/offlineQueue';
+import { syncQueue, startAutoSync, setupConnectionListeners } from '../services/syncService';
 
 /**
  * ============================================================================
@@ -60,6 +63,16 @@ export function useScanner() {
    */
   useEffect(() => {
     loadCarriers();
+
+    // V4: Iniciar auto-sync y listeners de conexión
+    setupConnectionListeners();
+    startAutoSync();
+
+    // V4: Log de estado inicial
+    console.log('📡 Estado offline:', {
+      isOnline: isOnline(),
+      queueCount: getQueueCount()
+    });
   }, []);
 
   /**
@@ -336,10 +349,10 @@ export function useScanner() {
         // Continuar con el escaneo aunque falle la consulta
       }
 
-      // Paso 6: V3 - Guardar código con cache mínimo de Dunamixfy
+      // Paso 6: V4 - Guardar código (online) o agregar a cola (offline)
       console.log('✅ Código NUEVO - Guardando con cache...');
 
-      const newCode = await codesService.create({
+      const scanData = {
         code: codigo,                           // Código normalizado
         carrier_id: carrierId,                  // UUID foreign key a carriers
         operator_id: operatorId,                // UUID foreign key a operators
@@ -350,7 +363,27 @@ export function useScanner() {
         customer_name: orderCache.customer_name,
         carrier_name: carrierName,
         store_name: orderCache.store_name
-      });
+      };
+
+      let newCode = null;
+      let isOffline = false;
+
+      // V4: Intentar guardar online, si falla usar cola offline
+      if (isOnline()) {
+        try {
+          newCode = await codesService.create(scanData);
+          console.log('✅ Código guardado online en Supabase');
+        } catch (error) {
+          console.error('❌ Error guardando online, usando cola offline:', error);
+          addToQueue(scanData);
+          isOffline = true;
+        }
+      } else {
+        // Sin conexión: usar cola offline directamente
+        console.log('📡 Sin conexión - Guardando en cola offline');
+        addToQueue(scanData);
+        isOffline = true;
+      }
 
       // Paso 7: Agregar al cache para validaciones futuras en sesión
       addToCache(codigo);
@@ -362,26 +395,43 @@ export function useScanner() {
       setLastScan({
         code: codigo,
         carrier: carrierName,
-        isRepeated: false
+        isRepeated: false,
+        isOffline // V4: Indicador de modo offline
       });
 
-      toast.success(`${carrierName}`, {
-        duration: 4000,
-        icon: '✅',
-        style: {
-          background: '#10b981',
-          color: '#fff',
-          fontSize: '16px',
-          fontWeight: 'bold',
-          padding: '16px 24px',
-          borderRadius: '12px',
-        }
-      });
-
-      console.log('✅ Código guardado exitosamente:', newCode);
+      // V4: Toast diferente según modo online/offline
+      if (isOffline) {
+        toast.success(`${carrierName}\n📡 Guardado offline - Sincronizará automáticamente`, {
+          duration: 5000,
+          icon: '💾',
+          style: {
+            background: '#f59e0b', // Naranja para offline
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '16px 24px',
+            borderRadius: '12px',
+          }
+        });
+        console.log('💾 Código guardado en cola offline (queueCount:', getQueueCount(), ')');
+      } else {
+        toast.success(`${carrierName}`, {
+          duration: 4000,
+          icon: '✅',
+          style: {
+            background: '#10b981',
+            color: '#fff',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            padding: '16px 24px',
+            borderRadius: '12px',
+          }
+        });
+        console.log('✅ Código guardado exitosamente online:', newCode);
+      }
 
       setTimeout(() => setIsProcessing(false), 1500);
-      return { success: true, data: newCode };
+      return { success: true, data: newCode, isOffline };
 
     } catch (error) {
       console.error('❌ Error al procesar código:', error);
