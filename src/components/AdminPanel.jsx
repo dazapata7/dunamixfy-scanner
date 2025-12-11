@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft, TruckIcon, Trash2, BarChart3, Calendar, Package, Store, User, ShoppingCart, RefreshCw, Download, X, Plus } from 'lucide-react';
 import { codesService, carriersService } from '../services/supabase';
 import { backfillService } from '../services/backfillService';
+import { useAuth } from '../hooks/useAuth'; // V5: Para mostrar usuario conectado
 import toast from 'react-hot-toast';
 
 export function AdminPanel({ onBack, hideBackButton = false }) {
+  const { user } = useAuth(); // V5: Obtener usuario actual
   const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers
   const [todayCodes, setTodayCodes] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
@@ -282,14 +284,28 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
             <h1 className="text-2xl font-bold text-white">Estadísticas en Tiempo Real</h1>
           </div>
 
-          <button
-            onClick={handleStartBackfill}
-            disabled={isBackfilling}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors text-sm"
-          >
-            <RefreshCw className={`w-4 h-4 ${isBackfilling ? 'animate-spin' : ''}`} />
-            <span>{isBackfilling ? 'Actualizando...' : 'Actualizar desde Dunamixfy'}</span>
-          </button>
+          <div className="flex items-center gap-3">
+            {/* V5: Indicador de usuario conectado */}
+            {user && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-dark-700 rounded-lg border border-gray-600">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
+                  <User className="w-4 h-4 text-primary-400" />
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-semibold text-white">{user.email}</p>
+                </div>
+              </div>
+            )}
+
+            <button
+              onClick={handleStartBackfill}
+              disabled={isBackfilling}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white rounded-lg transition-colors text-sm"
+            >
+              <RefreshCw className={`w-4 h-4 ${isBackfilling ? 'animate-spin' : ''}`} />
+              <span>{isBackfilling ? 'Actualizando...' : 'Actualizar desde Dunamixfy'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
