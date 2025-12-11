@@ -253,100 +253,110 @@ export function useScanner() {
       }
 
       // Paso 5: V3 - Consultar información de la orden en Dunamixfy CO (tiempo real)
+      // SOLO PARA COORDINADORA - Interrapidisimo NO consulta Dunamixfy
       let orderCache = {
         order_id: null,
         customer_name: null,
         store_name: null
       };
 
-      try {
-        console.log('🌐 Consultando orden en Dunamixfy CO...');
-        const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
+      // Detectar si es Coordinadora (case-insensitive)
+      const isCoordinadora = carrierName.toLowerCase().includes('coordinadora');
 
-        if (orderInfo.success) {
-          console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
+      if (isCoordinadora) {
+        // Solo Coordinadora consulta Dunamixfy y valida can_ship
+        try {
+          console.log('🌐 [COORDINADORA] Consultando orden en Dunamixfy CO...');
+          const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
 
-          // V3: Extraer campos para cache mínimo
-          const firstName = orderInfo.data.firstname || '';
-          const lastName = orderInfo.data.lastname || '';
-          const customerName = `${firstName} ${lastName}`.trim();
+          if (orderInfo.success) {
+            console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
 
-          orderCache = {
-            order_id: orderInfo.data.order_id || null,
-            customer_name: customerName || null,
-            store_name: orderInfo.data.store || null
-          };
+            // V3: Extraer campos para cache mínimo
+            const firstName = orderInfo.data.firstname || '';
+            const lastName = orderInfo.data.lastname || '';
+            const customerName = `${firstName} ${lastName}`.trim();
 
-          // Mostrar info del cliente en toast
-          if (customerName) {
-            toast.success(`👤 ${customerName}`, {
-              duration: 5000,
-              icon: '📦',
+            orderCache = {
+              order_id: orderInfo.data.order_id || null,
+              customer_name: customerName || null,
+              store_name: orderInfo.data.store || null
+            };
+
+            // Mostrar info del cliente en toast
+            if (customerName) {
+              toast.success(`👤 ${customerName}`, {
+                duration: 5000,
+                icon: '📦',
+                style: {
+                  background: '#3b82f6',
+                  color: '#fff',
+                  fontSize: '18px',
+                  fontWeight: 'bold',
+                  padding: '20px 28px',
+                  borderRadius: '16px',
+                  maxWidth: '90vw',
+                }
+              });
+            }
+          } else if (orderInfo.canShip === false) {
+            // ALERTA: El pedido NO puede ser despachado (can_ship = NO)
+            // NO GUARDAR EN BASE DE DATOS - Solo pedidos listos para despacho
+            console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
+            console.warn('⚠️ Código NO guardado - Pedido no listo para despacho');
+
+            // Mensaje de error claro y consistente
+            const errorMessage = '🚫 PEDIDO NO LISTO PARA DESPACHO!';
+            const errorDetail = orderInfo.error ? `\n${orderInfo.error}` : '';
+
+            // Mostrar alerta PROMINENTE al usuario
+            toast.error(`${errorMessage}${errorDetail}`, {
+              duration: 10000,
+              icon: '🚫',
               style: {
-                background: '#3b82f6',
+                background: '#ef4444',
                 color: '#fff',
-                fontSize: '18px',
+                fontSize: '20px',
                 fontWeight: 'bold',
-                padding: '20px 28px',
+                padding: '24px 32px',
                 borderRadius: '16px',
                 maxWidth: '90vw',
+                border: '3px solid #dc2626',
+                boxShadow: '0 10px 40px rgba(239, 68, 68, 0.5)',
               }
             });
-          }
-        } else if (orderInfo.canShip === false) {
-          // ALERTA: El pedido NO puede ser despachado (can_ship = NO)
-          // NO GUARDAR EN BASE DE DATOS - Solo pedidos listos para despacho
-          console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
-          console.warn('⚠️ Código NO guardado - Pedido no listo para despacho');
 
-          // Mensaje de error claro y consistente
-          const errorMessage = '🚫 PEDIDO NO LISTO PARA DESPACHO!';
-          const errorDetail = orderInfo.error ? `\n${orderInfo.error}` : '';
-
-          // Mostrar alerta PROMINENTE al usuario
-          toast.error(`${errorMessage}${errorDetail}`, {
-            duration: 10000,
-            icon: '🚫',
-            style: {
-              background: '#ef4444',
-              color: '#fff',
-              fontSize: '20px',
-              fontWeight: 'bold',
-              padding: '24px 32px',
-              borderRadius: '16px',
-              maxWidth: '90vw',
-              border: '3px solid #dc2626',
-              boxShadow: '0 10px 40px rgba(239, 68, 68, 0.5)',
+            // Vibración de alerta (si el dispositivo lo soporta)
+            if (navigator.vibrate) {
+              navigator.vibrate([200, 100, 200, 100, 200]);
             }
-          });
 
-          // Vibración de alerta (si el dispositivo lo soporta)
-          if (navigator.vibrate) {
-            navigator.vibrate([200, 100, 200, 100, 200]);
+            // Actualizar lastScan para mostrar error en scanner
+            setLastScan({
+              code: codigo,
+              carrier: carrierName,
+              isRepeated: false,
+              isError: true,
+              errorMessage: 'PEDIDO NO LISTO PARA DESPACHO'
+            });
+
+            // NO continuar con el guardado - salir del proceso
+            setTimeout(() => setIsProcessing(false), 2000);
+            return {
+              success: false,
+              reason: 'cannot_ship',
+              error: errorMessage
+            };
+          } else {
+            console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
           }
-
-          // Actualizar lastScan para mostrar error en scanner
-          setLastScan({
-            code: codigo,
-            carrier: carrierName,
-            isRepeated: false,
-            isError: true,
-            errorMessage: 'PEDIDO NO LISTO PARA DESPACHO'
-          });
-
-          // NO continuar con el guardado - salir del proceso
-          setTimeout(() => setIsProcessing(false), 2000);
-          return {
-            success: false,
-            reason: 'cannot_ship',
-            error: errorMessage
-          };
-        } else {
-          console.warn('⚠️ Orden no encontrada en Dunamixfy CO:', orderInfo.error);
+        } catch (orderError) {
+          console.error('❌ Error consultando Dunamixfy CO:', orderError);
+          // Continuar con el escaneo aunque falle la consulta
         }
-      } catch (orderError) {
-        console.error('❌ Error consultando Dunamixfy CO:', orderError);
-        // Continuar con el escaneo aunque falle la consulta
+      } else {
+        // Interrapidisimo u otras transportadoras: NO consultar Dunamixfy
+        console.log(`ℹ️ [${carrierName}] No requiere consulta a Dunamixfy - guardando directamente`);
       }
 
       // Paso 6: V4 - Guardar código (online) o agregar a cola (offline)

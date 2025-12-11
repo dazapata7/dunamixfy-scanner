@@ -505,7 +505,7 @@ export function AdminPanel({ onBack, hideBackButton = false, hideUserBadge = fal
                   <h2 className="text-base font-bold text-white mb-3">Últimos Escaneos de Hoy</h2>
 
                   <div className="space-y-2">
-                    {todayCodes.slice(0, 10).map((code) => {
+                    {todayCodes.slice(0, 10).map((code, index) => {
                       return (
                         <div
                           key={code.id}
@@ -515,6 +515,10 @@ export function AdminPanel({ onBack, hideBackButton = false, hideUserBadge = fal
                             <div className="flex-1">
                               {/* Código y badges */}
                               <div className="flex items-center gap-2 mb-2">
+                                {/* Número de índice */}
+                                <span className="px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded font-semibold min-w-[2rem] text-center">
+                                  #{index + 1}
+                                </span>
                                 <p className="font-mono font-bold text-white text-sm">{code.code}</p>
                                 <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs rounded">
                                   {code.carrier_name || code.carriers?.display_name || 'Sin transportadora'}
@@ -795,7 +799,7 @@ export function AdminPanel({ onBack, hideBackButton = false, hideUserBadge = fal
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                      {filteredCodes.map((code) => {
+                      {filteredCodes.map((code, index) => {
                         return (
                           <div
                             key={code.id}
@@ -805,6 +809,10 @@ export function AdminPanel({ onBack, hideBackButton = false, hideUserBadge = fal
                               <div className="flex-1 space-y-2">
                                 {/* Código y badges principales */}
                                 <div className="flex items-center gap-1.5 flex-wrap">
+                                  {/* Número de índice */}
+                                  <span className="px-2 py-0.5 bg-gray-700 text-gray-300 text-xs rounded font-semibold min-w-[2rem] text-center">
+                                    #{index + 1}
+                                  </span>
                                   <p className="font-mono font-bold text-white text-sm">
                                     {highlightMatch(code.code, searchQuery)}
                                   </p>
