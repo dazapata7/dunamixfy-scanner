@@ -133,7 +133,23 @@ export function Dashboard() {
             </div>
 
             <div className="flex items-center gap-2">
-              {/* Badge de usuario circular - compacto al lado derecho */}
+              <button
+                onClick={handleRefresh}
+                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                title="Sincronizar"
+              >
+                <RefreshCw className="w-5 h-5" />
+              </button>
+
+              <button
+                onClick={handleLogout}
+                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
+                title="Cerrar sesión"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+
+              {/* Badge de usuario circular - compacto al final */}
               {user && (
                 <div className="relative">
                   {/* Círculo con borde gradiente */}
@@ -150,22 +166,6 @@ export function Dashboard() {
                   )}
                 </div>
               )}
-
-              <button
-                onClick={handleRefresh}
-                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-white hover:bg-white/10 transition-all hover:scale-110 active:scale-95 shadow-glass"
-                title="Sincronizar"
-              >
-                <RefreshCw className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={handleLogout}
-                className="p-2.5 rounded-xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
-                title="Cerrar sesión"
-              >
-                <LogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
         </div>

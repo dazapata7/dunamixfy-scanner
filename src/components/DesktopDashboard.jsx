@@ -55,21 +55,6 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
               </div>
 
               <div className="flex items-center gap-3 flex-shrink-0 min-w-0">
-                {/* Badge de usuario circular - compacto al lado derecho */}
-                {user && (
-                  <div className="relative">
-                    {/* Círculo con borde gradiente */}
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-cyan-500 p-0.5 shadow-lg shadow-primary-500/30">
-                      {/* Círculo interior oscuro */}
-                      <div className="w-full h-full rounded-full bg-dark-900 flex items-center justify-center">
-                        <User className="w-6 h-6 text-primary-400" />
-                      </div>
-                    </div>
-
-                    {/* Indicador de estado online - punto pequeño */}
-                    <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-dark-900 shadow-lg shadow-green-500/50 animate-pulse"></div>
-                  </div>
-                )}
                 {isAdmin && (
                   <button
                     onClick={() => setActiveView('config')}
@@ -89,6 +74,22 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
                 >
                   <LogOut className="w-6 h-6" />
                 </button>
+
+                {/* Badge de usuario circular - compacto al final */}
+                {user && (
+                  <div className="relative">
+                    {/* Círculo con borde gradiente */}
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-br from-primary-500 to-cyan-500 p-0.5 shadow-lg shadow-primary-500/30">
+                      {/* Círculo interior oscuro */}
+                      <div className="w-full h-full rounded-full bg-dark-900 flex items-center justify-center">
+                        <User className="w-6 h-6 text-primary-400" />
+                      </div>
+                    </div>
+
+                    {/* Indicador de estado online - punto pequeño */}
+                    <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-green-500 border-2 border-dark-900 shadow-lg shadow-green-500/50 animate-pulse"></div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
