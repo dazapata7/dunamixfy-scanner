@@ -10,7 +10,7 @@ export default defineConfig({
     mkcert(), // V2: Plugin para generar certificados SSL válidos automáticamente
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['dunfy_fondo_coscuro.png'],
+      includeAssets: ['dunfy_fondo_coscuro.png', 'icono_xfy.png'],
       manifest: {
         name: 'Dunamix Scanner',
         short_name: 'Dunamix',
@@ -19,6 +19,12 @@ export default defineConfig({
         background_color: '#0a0e1a',
         display: 'standalone',
         icons: [
+          {
+            src: '/icono_xfy.png',
+            sizes: '192x192',
+            type: 'image/png',
+            purpose: 'any'
+          },
           {
             src: '/dunfy_fondo_coscuro.png',
             sizes: '512x512',

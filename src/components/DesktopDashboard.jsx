@@ -20,76 +20,97 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
 
   if (activeView === 'stats') {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-900 via-dark-800 to-dark-900">
-        {/* Header */}
-        <div className="bg-dark-800 border-b border-gray-700 p-4">
-          <div className="max-w-7xl mx-auto flex items-center justify-between">
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 relative overflow-hidden">
+        {/* Efectos de fondo decorativos */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-0 right-0 w-96 h-96 bg-primary-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 left-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl"></div>
+        </div>
+
+        {/* Header glassmorphism */}
+        <div className="sticky top-0 z-10 backdrop-blur-xl bg-white/5 border-b border-white/10">
+          <div className="max-w-7xl mx-auto p-6 flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-white">Panel de Administración</h1>
-              <p className="text-sm text-gray-400 mt-1">Gestión y estadísticas del sistema</p>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-white via-primary-200 to-white bg-clip-text text-transparent">
+                Panel de Administración
+              </h1>
+              <p className="text-sm text-gray-400 mt-2">Gestión y estadísticas del sistema en tiempo real</p>
             </div>
 
             <div className="flex items-center gap-3">
               {isAdmin && (
                 <button
                   onClick={() => setActiveView('config')}
-                  className="flex items-center gap-2 px-4 py-2 bg-dark-700 hover:bg-dark-600 text-white rounded-lg transition-colors border border-gray-600"
+                  className="flex items-center gap-3 px-6 py-3 backdrop-blur-xl bg-gradient-to-br from-white/10 to-white/5 hover:from-white/15 hover:to-white/10 text-white rounded-2xl transition-all border border-white/20 shadow-glass hover:scale-105 active:scale-95"
                 >
-                  <Settings className="w-5 h-5" />
-                  Configuración del Sistema
+                  <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center">
+                    <Settings className="w-5 h-5" />
+                  </div>
+                  <span className="font-semibold">Configuración del Sistema</span>
                 </button>
               )}
 
               <button
                 onClick={handleLogout}
-                className="p-2 rounded-lg bg-dark-700 text-gray-300 hover:text-red-400 hover:bg-dark-600 transition-colors"
+                className="p-3 rounded-2xl backdrop-blur-xl bg-white/5 border border-white/10 text-gray-300 hover:text-red-400 hover:bg-red-500/10 hover:border-red-400/20 transition-all hover:scale-110 active:scale-95 shadow-glass"
                 title="Cerrar sesión"
               >
-                <LogOut className="w-5 h-5" />
+                <LogOut className="w-6 h-6" />
               </button>
             </div>
           </div>
         </div>
 
         {/* Content */}
-        <div className="max-w-7xl mx-auto p-6">
-          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-6 mb-6`}>
-            {/* Botón Estadísticas */}
+        <div className="relative max-w-7xl mx-auto p-8">
+          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-8 mb-8`}>
+            {/* Botón Estadísticas - Glassmorphism */}
             <button
               onClick={() => setActiveView('stats-detail')}
-              className="bg-gradient-to-br from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white p-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-primary-400"
+              className="group backdrop-blur-2xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 hover:from-primary-500/30 hover:to-cyan-500/30 p-10 rounded-3xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-primary-400/30 hover:border-primary-400/50 relative overflow-hidden"
             >
-              <div className="flex items-center justify-between">
+              {/* Efecto de brillo al hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
+
+              <div className="relative flex items-center justify-between">
                 <div className="text-left">
-                  <BarChart3 className="w-12 h-12 mb-4" />
-                  <h2 className="text-2xl font-bold">Estadísticas Avanzadas</h2>
-                  <p className="text-primary-100 mt-2">Ver análisis detallado y reportes</p>
+                  <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center mb-6 group-hover:bg-primary-500/30 transition-all">
+                    <BarChart3 className="w-9 h-9 text-primary-400" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-white mb-3">Estadísticas Avanzadas</h2>
+                  <p className="text-primary-100 text-lg">Ver análisis detallado y reportes completos</p>
                 </div>
-                <div className="text-5xl font-bold opacity-20">📊</div>
+                <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">📊</div>
               </div>
             </button>
 
-            {/* Botón Configuración - Solo para admins */}
+            {/* Botón Configuración - Solo para admins - Glassmorphism */}
             {isAdmin && (
               <button
                 onClick={() => setActiveView('config')}
-                className="bg-gradient-to-br from-gray-700 to-gray-800 hover:from-gray-600 hover:to-gray-700 text-white p-8 rounded-2xl shadow-2xl transition-all duration-300 transform hover:scale-105 border-2 border-gray-600"
+                className="group backdrop-blur-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 p-10 rounded-3xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-purple-400/30 hover:border-purple-400/50 relative overflow-hidden"
               >
-                <div className="flex items-center justify-between">
+                {/* Efecto de brillo al hover */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
+
+                <div className="relative flex items-center justify-between">
                   <div className="text-left">
-                    <Settings className="w-12 h-12 mb-4" />
-                    <h2 className="text-2xl font-bold">Configuración</h2>
-                    <p className="text-gray-300 mt-2">Gestionar tiendas, transportadoras y usuarios</p>
+                    <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6 group-hover:bg-purple-500/30 transition-all">
+                      <Settings className="w-9 h-9 text-purple-400" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mb-3">Configuración</h2>
+                    <p className="text-purple-100 text-lg">Gestionar tiendas, transportadoras y usuarios</p>
                   </div>
-                  <div className="text-5xl font-bold opacity-20">⚙️</div>
+                  <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">⚙️</div>
                 </div>
               </button>
             )}
           </div>
 
-          {/* Vista de estadísticas en tiempo real */}
+          {/* Vista de estadísticas en tiempo real - Glassmorphism wrapper */}
           {activeView === 'stats' && (
-            <div className="mt-6">
+            <div className="backdrop-blur-2xl bg-gradient-to-br from-white/5 to-white/2 rounded-3xl border border-white/10 shadow-glass-lg overflow-hidden">
               <AdminPanel onBack={() => {}} hideBackButton />
             </div>
           )}
