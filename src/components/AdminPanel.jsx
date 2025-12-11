@@ -5,14 +5,14 @@ import { backfillService } from '../services/backfillService';
 import { useAuth } from '../hooks/useAuth'; // V5: Para mostrar usuario conectado
 import toast from 'react-hot-toast';
 
-export function AdminPanel({ onBack, hideBackButton = false }) {
+export function AdminPanel({ onBack, hideBackButton = false, hideUserBadge = false }) {
   const { user } = useAuth(); // V5: Obtener usuario actual
   const [activeTab, setActiveTab] = useState('stats'); // stats, history, carriers
   const [todayCodes, setTodayCodes] = useState([]);
   const [allCodes, setAllCodes] = useState([]);
   const [stats, setStats] = useState({ total: 0, byCarrier: {}, byStore: {} });
   const [carriers, setCarriers] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false); // V6: Iniciar en false para evitar flash de loading
 
   // Backfill state
   const [isBackfilling, setIsBackfilling] = useState(false);
@@ -44,13 +44,16 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
 
   const loadAllData = async () => {
     try {
-      setIsLoading(true);
+      // V6: Solo mostrar loading si toma más de 300ms (evita flash)
+      const loadingTimeout = setTimeout(() => setIsLoading(true), 300);
+
       const [codes, statistics, carriersList] = await Promise.all([
         codesService.getToday(),
         codesService.getTodayStats(),
         carriersService.getAll()
       ]);
 
+      clearTimeout(loadingTimeout);
       setTodayCodes(codes);
       setStats(statistics);
       setCarriers(carriersList);
@@ -380,8 +383,8 @@ export function AdminPanel({ onBack, hideBackButton = false }) {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* V6: Indicador de usuario más compacto */}
-            {user && (
+            {/* V6: Indicador de usuario más compacto - Oculto en desktop (ya está arriba) */}
+            {user && !hideUserBadge && (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-dark-700 rounded-lg border border-gray-600">
                 <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-primary-500/20 to-cyan-500/20 flex items-center justify-center border border-primary-400/30">
                   <User className="w-3.5 h-3.5 text-primary-400" />

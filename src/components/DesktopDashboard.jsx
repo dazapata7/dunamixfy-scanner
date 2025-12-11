@@ -140,7 +140,7 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
           {/* Vista de estadísticas en tiempo real - Glassmorphism wrapper */}
           {activeView === 'stats' && (
             <div className="backdrop-blur-2xl bg-gradient-to-br from-white/5 to-white/2 rounded-3xl border border-white/10 shadow-glass-lg overflow-hidden">
-              <AdminPanel onBack={() => {}} hideBackButton />
+              <AdminPanel onBack={() => {}} hideBackButton hideUserBadge />
             </div>
           )}
         </div>
