@@ -250,11 +250,13 @@ export function ZXingScanner({ onBack }) {
       }
     }, 500);
 
+    // OPTIMIZACIÓN: Cooldown más corto (60% reducción)
+    const cooldownTime = result?.success ? 800 : 1500; // Éxito: 0.8s, Error: 1.5s
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
       console.log('✅ Cooldown liberado');
-    }, 2000);
+    }, cooldownTime);
   };
 
   const playSuccessSound = () => {
