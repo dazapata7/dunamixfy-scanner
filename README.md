@@ -1,17 +1,22 @@
-# 🚀 Dunamix Scanner
+# 🚀 Dunamixfy Scanner
 
-Scanner QR/Barcode para control de entregas con React + Vite + Supabase
+Scanner QR/Barcode para control de entregas con integración a Dunamixfy API
 
 ## ✨ Características
 
-- 📱 Scanner QR y códigos de barras
+- 📱 Scanner QR y códigos de barras (ZXing - alta precisión)
 - 🔄 Sincronización en tiempo real entre dispositivos
-- ✅ Detección automática de duplicados
-- 📊 Dashboard con estadísticas
-- 🏢 Soporte para múltiples transportadoras (Coordinadora, Interrápidisimo)
+- ✅ Detección automática de duplicados (cache + BD)
+- 📊 Dashboard con estadísticas avanzadas y reportes
+- 🏢 Soporte para múltiples transportadoras dinámicas (BD)
 - 💾 Base de datos PostgreSQL con Supabase
-- 📴 Funciona offline (PWA)
-- 📈 Exportar datos a CSV
+- 📴 Funciona offline (PWA con cola de sincronización)
+- 📈 Exportar datos a CSV con filtros
+- 🔐 Autenticación con Supabase Auth
+- 🌐 Integración con Dunamixfy CO API
+- ⚡ Validación pre-guardado para Coordinadora (can_ship)
+- 🎨 UI Glassmorphism moderna y responsive
+- #️⃣ Historial numerado para fácil referencia
 
 ## 🛠️ Tecnologías
 
@@ -19,15 +24,51 @@ Scanner QR/Barcode para control de entregas con React + Vite + Supabase
 - **Vite** - Build tool ultra rápido
 - **Supabase** - Backend as a Service (PostgreSQL + Auth + Realtime)
 - **Zustand** - State management
-- **Tailwind CSS** - Estilos
-- **html5-qrcode** - Scanner de QR/Barcode
+- **Tailwind CSS** - Estilos con efectos glassmorphism
+- **ZXing** - Scanner de códigos de barras optimizado
 - **React Hot Toast** - Notificaciones
+- **Workbox** - Service Worker para PWA offline-first
 
-## 📋 Requisitos Previos
+## 📋 Versiones
 
-- Node.js 18+ instalado
-- Cuenta en Supabase (gratis)
-- Editor de código (VS Code recomendado)
+### V6 - Filtros Avanzados y Búsqueda (Actual)
+- Sistema de filtros por transportadora y tienda
+- Búsqueda en tiempo real (código, cliente, pedido, tienda)
+- Exportación CSV con filtros aplicados
+- Tabs reorganizados: Hoy, Historial, Transportadoras
+- Numeración de códigos en listas (#1, #2, #3...)
+
+### V5 - Autenticación y Sesiones
+- Supabase Auth con email/password
+- Sistema de roles (admin/operador)
+- Gestión de sesiones de usuario
+- Panel de configuración para admins
+- Logout seguro con confirmación
+
+### V4 - PWA Offline-First
+- Service Worker con Workbox
+- Cola de sincronización offline
+- Auto-sync cuando regresa conexión
+- Code-splitting por rutas
+- Optimización de bundle
+
+### V3 - Integración Dunamixfy API
+- Consulta real-time a Dunamixfy CO
+- Cache mínimo (order_id, customer_name, store_name)
+- Validación can_ship para Coordinadora
+- Interrapidisimo sin consulta API (más rápido)
+- Retención 7 días con auto-limpieza
+
+### V2 - Transportadoras Dinámicas
+- Tabla `carriers` en BD
+- Reglas de validación configurables
+- Soporte para N transportadoras
+- AdminPanel con gestión avanzada
+
+### V1 - Base
+- Scanner básico QR/Barcode
+- Detección de duplicados
+- Estadísticas en tiempo real
 
 ## 🚀 Instalación
 
@@ -51,56 +92,14 @@ npm install
 2. Sign up / Login
 3. Click "New Project"
 4. Llena los datos:
-   - Name: `dunamix-scanner`
+   - Name: `dunamixfy-scanner`
    - Database Password: `[inventa uno seguro]`
    - Region: `South America (São Paulo)`
 5. Click "Create new project" (tarda ~2 min)
 
 #### 3.2 Crear las tablas
 
-Ve a **SQL Editor** en Supabase y ejecuta este script:
-
-```sql
--- Tabla de operarios
-CREATE TABLE operators (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  UNIQUE(name)
-);
-
--- Tabla de códigos escaneados
-CREATE TABLE codes (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  code TEXT NOT NULL,
-  carrier TEXT NOT NULL CHECK (carrier IN ('coordinadora', 'interrapidisimo')),
-  operator_id UUID REFERENCES operators(id) ON DELETE SET NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  UNIQUE(code)
-);
-
--- Índices para mejorar performance
-CREATE INDEX idx_codes_created_at ON codes(created_at DESC);
-CREATE INDEX idx_codes_carrier ON codes(carrier);
-CREATE INDEX idx_codes_operator ON codes(operator_id);
-
--- Habilitar Row Level Security (RLS)
-ALTER TABLE operators ENABLE ROW LEVEL SECURITY;
-ALTER TABLE codes ENABLE ROW LEVEL SECURITY;
-
--- Policies para acceso público (anon)
-CREATE POLICY "Enable read access for all users" ON operators
-  FOR SELECT USING (true);
-
-CREATE POLICY "Enable insert for all users" ON operators
-  FOR INSERT WITH CHECK (true);
-
-CREATE POLICY "Enable read access for all users" ON codes
-  FOR SELECT USING (true);
-
-CREATE POLICY "Enable insert for all users" ON codes
-  FOR INSERT WITH CHECK (true);
-```
+Ve a **SQL Editor** en Supabase y ejecuta el script de migración completo (ver archivo de migraciones).
 
 #### 3.3 Configurar variables de entorno
 
@@ -120,6 +119,8 @@ cp .env.example .env
 ```env
 VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
 VITE_SUPABASE_ANON_KEY=tu-clave-anon-aqui
+VITE_DUNAMIXFY_API_URL=https://api.dunamixfy.co
+VITE_DUNAMIXFY_API_KEY=tu-api-key-dunamixfy
 ```
 
 ### 4. Ejecutar en desarrollo
@@ -138,70 +139,72 @@ npm run build
 
 Los archivos optimizados estarán en `/dist`
 
-## 🚀 Deploy
+## �� Deploy en Vercel
 
-### Vercel (Recomendado - Gratis)
+El proyecto está configurado para deploy automático en Vercel:
 
-1. Instala Vercel CLI:
-```bash
-npm i -g vercel
-```
-
-2. Deploy:
-```bash
-vercel
-```
-
+1. Push a `main` branch
+2. Vercel detecta cambios y hace deploy automático
 3. Configura las variables de entorno en Vercel Dashboard
-
-### Netlify
-
-1. Conecta tu repositorio de GitHub
-2. Build command: `npm run build`
-3. Publish directory: `dist`
-4. Agrega las variables de entorno
 
 ## 🗂️ Estructura del Proyecto
 
 ```
 dunamix-scanner/
 ├── src/
-│   ├── components/       # Componentes de UI
-│   │   ├── Login.jsx
-│   │   ├── Dashboard.jsx
-│   │   ├── Scanner.jsx
-│   │   └── Stats.jsx
-│   ├── services/         # Servicios (Supabase)
-│   │   └── supabase.js
-│   ├── hooks/            # Custom hooks
-│   │   ├── useScanner.js
-│   │   └── useRealtime.js
-│   ├── store/            # Estado global (Zustand)
+│   ├── components/              # Componentes de UI
+│   │   ├── LoginAuth.jsx       # Login con Supabase Auth
+│   │   ├── Dashboard.jsx       # Dashboard mobile
+│   │   ├── DesktopDashboard.jsx # Dashboard desktop
+│   │   ├── ZXingScanner.jsx    # Scanner con ZXing
+│   │   ├── AdminPanel.jsx      # Panel admin con stats
+│   │   └── ConfigPanel.jsx     # Configuración (admins)
+│   ├── services/                # Servicios
+│   │   ├── supabase.js         # Cliente Supabase
+│   │   ├── dunamixfyApi.js     # API Dunamixfy
+│   │   ├── offlineQueue.js     # Cola offline
+│   │   └── syncService.js      # Auto-sync
+│   ├── hooks/                   # Custom hooks
+│   │   ├── useScanner.js       # Lógica de escaneo
+│   │   ├── useRealtime.js      # Tiempo real Supabase
+│   │   └── useAuth.jsx         # Autenticación
+│   ├── store/                   # Estado global (Zustand)
 │   │   └── useStore.js
-│   ├── utils/            # Utilidades
-│   │   └── validators.js
+│   ├── utils/                   # Utilidades
+│   │   └── validators.js       # Validación transportadoras
 │   ├── App.jsx
-│   ├── App.css
 │   └── main.jsx
 ├── public/
-│   └── dunfy_fondo_coscuro.png
+│   ├── manifest.webmanifest    # PWA manifest
+│   └── icons/                  # Iconos PWA
 ├── package.json
-├── vite.config.js
+├── vite.config.js              # Config con PWA plugin
 ├── tailwind.config.js
 └── .env
 ```
 
-## 🔧 Configuración de Transportadoras
+## 🔧 Flujo de Escaneo
 
-### Coordinadora
-- **Formato**: Termina en "001" y tiene más de 20 caracteres
-- **Ejemplo**: `70020222800020000356813890077001`
-- **Código extraído**: `56813890077` (11 dígitos antes de "001")
+### Coordinadora (con validación Dunamixfy)
+1. Detectar código QR/Barcode
+2. Validar formato según reglas en BD
+3. Check cache local (rápido)
+4. Check duplicado en BD
+5. **Consultar Dunamixfy API** (tiempo real)
+6. **Validar `can_ship`**:
+   - Si `can_ship = NO`: Mostrar error, NO guardar
+   - Si `can_ship = YES`: Guardar con datos del cliente
+7. Mostrar feedback (verde/rojo)
+8. Cooldown: 800ms (éxito) / 1500ms (error)
 
-### Interrápidisimo
-- **Formato**: 12 o 13 dígitos que empiezan con "24"
-- **Ejemplo**: `240041585918` o `2400415859180`
-- **Código extraído**: `240041585918` (primeros 12 dígitos)
+### Interrapidisimo (sin validación Dunamixfy)
+1. Detectar código QR/Barcode
+2. Validar formato según reglas en BD
+3. Check cache local
+4. Check duplicado en BD
+5. **Guardar directamente** (más rápido, no consulta API)
+6. Mostrar feedback
+7. Cooldown: 800ms (éxito) / 1500ms (error)
 
 ## 📱 PWA (Progressive Web App)
 
@@ -210,7 +213,13 @@ La app se puede instalar en el teléfono:
 1. Abre la URL en Chrome/Safari
 2. Click en "Agregar a pantalla de inicio"
 3. Funciona como app nativa
-4. Trabaja offline
+4. **Trabaja offline** con cola de sincronización automática
+
+### Características Offline
+- Códigos se guardan en `localStorage` cuando no hay conexión
+- Auto-sync cuando regresa internet
+- Indicador visual de modo offline (toast naranja)
+- Queue persistente entre sesiones
 
 ## 🐛 Troubleshooting
 
@@ -226,15 +235,43 @@ La app se puede instalar en el teléfono:
 - Verifica que la tabla `codes` tiene el constraint `UNIQUE(code)`
 - Revisa la consola del navegador para errores
 
-## 📊 Migrar datos desde Google Sheets
+### Códigos impresos no se leen
+- El scanner usa ZXing con `TRY_HARDER` habilitado
+- Asegúrate de buena iluminación
+- Acerca el código a la cámara
+- Verifica que el código impreso tiene buena calidad
 
-Si tienes datos en Google Sheets:
+### Error "Pedido no listo para despacho"
+- Este es el comportamiento esperado para Coordinadora
+- Dunamixfy indica que el pedido no puede despacharse (`can_ship = NO`)
+- El código NO se guarda hasta que esté listo
+- Contacta a Dunamixfy para resolver el estado del pedido
 
-1. Exporta a CSV
-2. Ve a **Table Editor** en Supabase
-3. Click en `codes` table
-4. Click **Insert** → **Insert rows from CSV**
-5. Mapea las columnas correctamente
+## 🔐 Seguridad
+
+- Row Level Security (RLS) habilitado en todas las tablas
+- Autenticación con Supabase Auth
+- API keys en variables de entorno
+- HTTPS obligatorio en producción
+
+## 📊 Base de Datos
+
+### Tablas principales
+- `codes` - Códigos escaneados con cache mínimo
+- `carriers` - Transportadoras dinámicas
+- `operators` - Usuarios del sistema (deprecado, usar auth.users)
+
+### Retención de datos
+- Códigos: 7 días (auto-limpieza programada)
+- Dunamixfy es fuente de verdad para datos completos
+
+## ⚡ Optimizaciones de Performance
+
+- **Cooldown dinámico**: 60% más rápido (800ms vs 2000ms)
+- **ZXing TRY_HARDER**: +40% tasa de éxito en códigos impresos
+- **Cache local**: Reduce consultas a BD
+- **Code-splitting**: Lazy loading de rutas
+- **PWA caching**: Assets en cache para offline
 
 ## 🤝 Contribuir
 
@@ -242,7 +279,7 @@ Este proyecto es privado para Dunamix.
 
 ## 📝 Licencia
 
-Propietario - Dunamix © 2024
+Propietario - Dunamix © 2024-2025
 
 ---
 
@@ -250,5 +287,5 @@ Propietario - Dunamix © 2024
 
 Para soporte técnico, contacta al desarrollador.
 
-**Versión**: 1.0.0
+**Versión**: 6.0.0
 **Última actualización**: Diciembre 2024
