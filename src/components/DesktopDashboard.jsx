@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import { AdminPanel } from './AdminPanel';
 import { ConfigPanel } from './ConfigPanel';
-import { BarChart3, Settings, LogOut, User } from 'lucide-react';
+import { BarChart3, Settings, LogOut, User, Package } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import toast from 'react-hot-toast';
 
 export function DesktopDashboard({ onLogout, isAdmin = false }) {
   const [activeView, setActiveView] = useState('stats'); // stats, config
   const { user, signOut } = useAuth(); // V5: Obtener usuario actual
+  const navigate = useNavigate();
 
   const handleLogout = async () => {
     if (confirm('¿Estás seguro que deseas cerrar sesión?')) {
@@ -97,24 +99,44 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
 
         {/* Content */}
         <div className="relative max-w-7xl mx-auto p-8">
-          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-8 mb-8`}>
+          <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-6 mb-8`}>
             {/* Botón Estadísticas - Glassmorphism */}
             <button
               onClick={() => setActiveView('stats-detail')}
-              className="group backdrop-blur-2xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 hover:from-primary-500/30 hover:to-cyan-500/30 p-10 rounded-3xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-primary-400/30 hover:border-primary-400/50 relative overflow-hidden"
+              className="group backdrop-blur-2xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 hover:from-primary-500/30 hover:to-cyan-500/30 p-6 rounded-2xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-primary-400/30 hover:border-primary-400/50 relative overflow-hidden"
             >
               {/* Efecto de brillo al hover */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
 
               <div className="relative flex items-center justify-between">
                 <div className="text-left">
-                  <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center mb-6 group-hover:bg-primary-500/30 transition-all">
+                  <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/30 transition-all">
                     <BarChart3 className="w-9 h-9 text-primary-400" />
                   </div>
-                  <h2 className="text-3xl font-bold text-white mb-3">Estadísticas Avanzadas</h2>
-                  <p className="text-primary-100 text-lg">Ver análisis detallado y reportes completos</p>
+                  <h2 className="text-2xl font-bold text-white mb-3">Estadísticas Avanzadas</h2>
+                  <p className="text-primary-100 text-base">Ver análisis detallado y reportes completos</p>
                 </div>
                 <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">📊</div>
+              </div>
+            </button>
+
+            {/* Botón WMS - Glassmorphism */}
+            <button
+              onClick={() => navigate('/wms')}
+              className="group backdrop-blur-2xl bg-gradient-to-br from-orange-500/20 to-amber-500/20 hover:from-orange-500/30 hover:to-amber-500/30 p-6 rounded-2xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-orange-400/30 hover:border-orange-400/50 relative overflow-hidden"
+            >
+              {/* Efecto de brillo al hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
+
+              <div className="relative flex items-center justify-between">
+                <div className="text-left">
+                  <div className="w-16 h-16 rounded-2xl bg-orange-500/20 flex items-center justify-center mb-4 group-hover:bg-orange-500/30 transition-all">
+                    <Package className="w-9 h-9 text-orange-400" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-white mb-3">WMS - Almacén</h2>
+                  <p className="text-orange-100 text-base">Gestión de inventario y despachos</p>
+                </div>
+                <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">📦</div>
               </div>
             </button>
 
@@ -122,18 +144,18 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
             {isAdmin && (
               <button
                 onClick={() => setActiveView('config')}
-                className="group backdrop-blur-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 p-10 rounded-3xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-purple-400/30 hover:border-purple-400/50 relative overflow-hidden"
+                className="group backdrop-blur-2xl bg-gradient-to-br from-purple-500/20 to-indigo-500/20 hover:from-purple-500/30 hover:to-indigo-500/30 p-6 rounded-2xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-purple-400/30 hover:border-purple-400/50 relative overflow-hidden"
               >
                 {/* Efecto de brillo al hover */}
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
 
                 <div className="relative flex items-center justify-between">
                   <div className="text-left">
-                    <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-6 group-hover:bg-purple-500/30 transition-all">
+                    <div className="w-16 h-16 rounded-2xl bg-purple-500/20 flex items-center justify-center mb-4 group-hover:bg-purple-500/30 transition-all">
                       <Settings className="w-9 h-9 text-purple-400" />
                     </div>
-                    <h2 className="text-3xl font-bold text-white mb-3">Configuración</h2>
-                    <p className="text-purple-100 text-lg">Gestionar tiendas, transportadoras y usuarios</p>
+                    <h2 className="text-2xl font-bold text-white mb-3">Configuración</h2>
+                    <p className="text-purple-100 text-base">Gestionar tiendas, transportadoras y usuarios</p>
                   </div>
                   <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">⚙️</div>
                 </div>

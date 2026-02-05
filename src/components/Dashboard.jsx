@@ -1,15 +1,17 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useStore } from '../store/useStore';
 import { useRole } from '../hooks/useRole';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 import { DesktopDashboard } from './DesktopDashboard';
-import { Camera, LogOut, BarChart3, RefreshCw, ShieldAlert, User } from 'lucide-react';
+import { Camera, LogOut, BarChart3, RefreshCw, ShieldAlert, User, Package } from 'lucide-react';
 import { useRealtime } from '../hooks/useRealtime';
 import { useAuth } from '../hooks/useAuth'; // V5: Para obtener usuario y signOut real
 import toast from 'react-hot-toast';
 
 export function Dashboard() {
+  const navigate = useNavigate();
   const [showScanner, setShowScanner] = useState(false);
   const [showStats, setShowStats] = useState(false);
   const [isDesktop, setIsDesktop] = useState(false);
@@ -279,6 +281,17 @@ export function Dashboard() {
               <BarChart3 className="w-7 h-7" />
             </div>
             <span className="text-xl">Ver Estadísticas</span>
+          </button>
+
+          {/* WMS Button */}
+          <button
+            onClick={() => navigate('/wms')}
+            className="group w-full backdrop-blur-xl bg-gradient-to-r from-orange-500/90 to-amber-500/90 hover:from-orange-500 hover:to-amber-500 border border-orange-400/30 text-white font-bold py-5 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 shadow-glass-lg hover:shadow-orange-500/50 hover:scale-105 active:scale-95"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-all">
+              <Package className="w-7 h-7" />
+            </div>
+            <span className="text-xl">WMS - Almacén</span>
           </button>
         </div>
 

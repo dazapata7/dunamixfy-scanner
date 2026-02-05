@@ -12,6 +12,7 @@ export const useStore = create(
       operator: null,
       operatorId: null,
       selectedStore: null,
+      selectedWarehouse: null,  // WMS: Almacén seleccionado
       
       // Estadísticas de la sesión
       sessionScans: 0,
@@ -35,11 +36,14 @@ export const useStore = create(
       }),
       
       setSelectedStore: (store) => set({ selectedStore: store }),
+
+      setSelectedWarehouse: (warehouse) => set({ selectedWarehouse: warehouse }),
       
-      logout: () => set({ 
-        operator: null, 
+      logout: () => set({
+        operator: null,
         operatorId: null,
         selectedStore: null,
+        selectedWarehouse: null,
         sessionScans: 0,
         sessionRepeated: 0
       }),
@@ -74,10 +78,11 @@ export const useStore = create(
     }),
     {
       name: 'dunamix-storage',
-      partialize: (state) => ({ 
+      partialize: (state) => ({
         operator: state.operator,
         operatorId: state.operatorId,
-        selectedStore: state.selectedStore
+        selectedStore: state.selectedStore,
+        selectedWarehouse: state.selectedWarehouse
       })
     }
   )

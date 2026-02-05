@@ -1,4 +1,5 @@
 import { useState, lazy, Suspense } from "react";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useStore } from "./store/useStore";
 import { Toaster } from "react-hot-toast";
@@ -9,6 +10,18 @@ import "./App.css";
 const Login = lazy(() => import("./components/Login"));
 const LoginAuth = lazy(() => import("./components/LoginAuth"));
 const Dashboard = lazy(() => import("./components/Dashboard"));
+
+// WMS Components
+const WMSHome = lazy(() => import("./components/wms/WMSHome"));
+const WarehouseSelector = lazy(() => import("./components/wms/WarehouseSelector"));
+const ScanGuide = lazy(() => import("./components/wms/ScanGuide"));
+const DispatchPreview = lazy(() => import("./components/wms/DispatchPreview"));
+const InventoryList = lazy(() => import("./components/wms/InventoryList"));
+const CSVImporter = lazy(() => import("./components/wms/CSVImporter"));
+const ReceiptForm = lazy(() => import("./components/wms/ReceiptForm"));
+const AdjustmentForm = lazy(() => import("./components/wms/AdjustmentForm"));
+const DispatchDashboard = lazy(() => import("./components/wms/DispatchDashboard"));
+const ScanHistory = lazy(() => import("./components/wms/ScanHistory"));
 
 // Componente interno que usa el hook useAuth
 function AppContent() {
@@ -34,17 +47,67 @@ function AppContent() {
   // Si está activada la autenticación real
   if (useRealAuth) {
     return (
-      <Suspense fallback={<LoadingScreen />}>
-        {!user ? <LoginAuth /> : <Dashboard />}
-      </Suspense>
+      <BrowserRouter>
+        <Suspense fallback={<LoadingScreen />}>
+          {!user ? (
+            <Routes>
+              <Route path="/" element={<LoginAuth />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          ) : (
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+
+              {/* WMS Routes */}
+              <Route path="/wms" element={<WMSHome />} />
+              <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
+              <Route path="/wms/scan-guide" element={<ScanGuide />} />
+              <Route path="/wms/inventory" element={<InventoryList />} />
+              <Route path="/wms/import-csv" element={<CSVImporter />} />
+              <Route path="/wms/receipt" element={<ReceiptForm />} />
+              <Route path="/wms/adjustment" element={<AdjustmentForm />} />
+              <Route path="/wms/dashboard" element={<DispatchDashboard />} />
+              <Route path="/wms/history" element={<ScanHistory />} />
+
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          )}
+        </Suspense>
+      </BrowserRouter>
     );
   }
 
   // Modo legacy (sin auth real)
   return (
-    <Suspense fallback={<LoadingScreen />}>
-      {!operator ? <Login /> : <Dashboard />}
-    </Suspense>
+    <BrowserRouter>
+      <Suspense fallback={<LoadingScreen />}>
+        {!operator ? (
+          <Routes>
+            <Route path="/" element={<Login />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        ) : (
+          <Routes>
+            <Route path="/" element={<Dashboard />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* WMS Routes */}
+            <Route path="/wms" element={<WMSHome />} />
+            <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
+            <Route path="/wms/scan-guide" element={<ScanGuide />} />
+            <Route path="/wms/inventory" element={<InventoryList />} />
+            <Route path="/wms/import-csv" element={<CSVImporter />} />
+            <Route path="/wms/receipt" element={<ReceiptForm />} />
+            <Route path="/wms/adjustment" element={<AdjustmentForm />} />
+            <Route path="/wms/dashboard" element={<DispatchDashboard />} />
+            <Route path="/wms/history" element={<ScanHistory />} />
+
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        )}
+      </Suspense>
+    </BrowserRouter>
   );
 }
 
