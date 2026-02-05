@@ -189,13 +189,24 @@ export function ScanGuide() {
       setScanAnimation('error');
       playErrorSound();
       vibrate([200, 100, 200, 100, 200]);
-      toast.error(error.message || 'Error al procesar la guía');
+
+      // Mostrar toast con error completo
+      toast.error(error.message || 'Error al procesar la guía', {
+        duration: 6000,
+        style: {
+          maxWidth: '500px'
+        }
+      });
+
       setSessionErrors(prev => prev + 1);
 
       // Actualizar lastScan para feedback visual (ERROR)
+      // Detectar si es error de transportadora no identificada
+      const isCarrierNotFound = error.message?.includes('TRANSPORTADORA NO IDENTIFICADA');
+
       setLastScan({
         code: decodedText,
-        carrier: 'Error',
+        carrier: isCarrierNotFound ? '⚠️ NO IDENTIFICADA' : 'Error',
         isRepeated: false,
         isError: true,
         errorMessage: error.message || 'Error al procesar la guía'

@@ -76,10 +76,16 @@ export function useWMS() {
 
     try {
       // 1. Detectar transportadora
+      console.log(`📋 Carriers cargados: ${carriers.length}`);
+      carriers.forEach(c => console.log(`  - ${c.display_name} (${c.code}): ${c.is_active ? 'ACTIVA' : 'INACTIVA'}`));
+
       const detectionResult = procesarCodigoConCarriers(rawCode, carriers);
 
       if (!detectionResult.valido) {
-        throw new Error('Código no válido para ninguna transportadora');
+        console.error('❌ Código no válido para ninguna transportadora');
+        console.error('Código recibido:', rawCode);
+        console.error('Longitud:', rawCode.length);
+        throw new Error(`⚠️ TRANSPORTADORA NO IDENTIFICADA\nCódigo: ${rawCode.substring(0, 20)}...\nVerifique que sea Coordinadora o Interrápidisimo`);
       }
 
       const { codigo, carrierId, carrierName, carrierCode } = detectionResult;
@@ -189,7 +195,7 @@ export function useWMS() {
       console.log(`📦 Items resueltos: ${shipmentData.items.length} productos`);
 
       // 4. Mapear SKUs a product_ids
-      const itemsWithProducts = await this.mapSkusToProducts(shipmentData.items);
+      const itemsWithProducts = await mapSkusToProducts(shipmentData.items);
 
       console.log(`✅ Items mapeados: ${itemsWithProducts.length} productos encontrados`);
 
