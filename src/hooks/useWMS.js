@@ -6,6 +6,7 @@
 // =====================================================
 
 import { useState, useEffect, useCallback } from 'react';
+import { useStore } from '../store/useStore';
 import { warehousesService, dispatchesService } from '../services/wmsService';
 import { shipmentResolverService } from '../services/shipmentResolverService';
 import { inventoryService, productsService } from '../services/wmsService';
@@ -14,8 +15,10 @@ import { carriersService, codesService } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 export function useWMS() {
+  // Leer selectedWarehouse del store de Zustand (persistente)
+  const { selectedWarehouse } = useStore();
+
   const [warehouses, setWarehouses] = useState([]);
-  const [selectedWarehouse, setSelectedWarehouse] = useState(null);
   const [carriers, setCarriers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -286,35 +289,18 @@ export function useWMS() {
   }, []);
 
   // =====================================================
-  // WAREHOUSE SELECTION
-  // =====================================================
-
-  const selectWarehouse = useCallback((warehouse) => {
-    console.log(`📍 Almacén seleccionado: ${warehouse.name}`);
-    setSelectedWarehouse(warehouse);
-    toast.success(`Almacén: ${warehouse.name}`);
-  }, []);
-
-  const clearWarehouse = useCallback(() => {
-    console.log('📍 Almacén des-seleccionado');
-    setSelectedWarehouse(null);
-  }, []);
-
-  // =====================================================
   // RETURN
   // =====================================================
 
   return {
     // Estado
     warehouses,
-    selectedWarehouse,
+    selectedWarehouse, // Del store de Zustand
     carriers,
     isLoading,
     isProcessing,
 
     // Métodos
-    selectWarehouse,
-    clearWarehouse,
     scanGuideForDispatch,
     confirmDispatch,
     cancelDispatch,
