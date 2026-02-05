@@ -97,15 +97,25 @@ export const warehousesService = {
    * Actualizar almacén
    */
   async update(id, updates) {
+    console.log('📝 Actualizando almacén:', id);
+
     const { data, error } = await supabase
       .from('warehouses')
       .update(updates)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('❌ Error al actualizar almacén:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error('Almacén no encontrado');
+    }
+
+    console.log('✅ Almacén actualizado');
+    return data[0];
   },
 
   /**
@@ -264,15 +274,25 @@ export const productsService = {
    * Actualizar producto
    */
   async update(id, updates) {
+    console.log('📝 Actualizando producto:', id);
+
     const { data, error } = await supabase
       .from('products')
       .update(updates)
       .eq('id', id)
-      .select()
-      .single();
+      .select();
 
-    if (error) throw error;
-    return data;
+    if (error) {
+      console.error('❌ Error al actualizar producto:', error);
+      throw error;
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error('Producto no encontrado');
+    }
+
+    console.log('✅ Producto actualizado');
+    return data[0];
   },
 
   /**
