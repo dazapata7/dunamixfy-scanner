@@ -264,7 +264,7 @@ export function Dashboard() {
         {/* Botones de acción - Glassmorphism */}
         <div className="space-y-3 pb-6">
           <button
-            onClick={() => setShowScanner(true)}
+            onClick={() => navigate('/wms/scan-guide')}
             className="group w-full backdrop-blur-xl bg-gradient-to-r from-primary-500/90 to-cyan-500/90 hover:from-primary-500 hover:to-cyan-500 border border-primary-400/30 text-white font-bold py-5 px-6 rounded-2xl transition-all duration-300 flex items-center justify-center gap-3 shadow-glass-lg hover:shadow-primary-500/50 hover:scale-105 active:scale-95"
           >
             <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center group-hover:bg-white/30 transition-all">

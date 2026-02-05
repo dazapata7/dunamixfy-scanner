@@ -35,10 +35,9 @@ export function ScanGuide() {
   const [sessionDispatches, setSessionDispatches] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
-  // Verificar que hay almacén seleccionado
+  // Si no hay almacén, redirigir al selector
   useEffect(() => {
     if (!selectedWarehouse) {
-      toast.error('Debe seleccionar un almacén primero');
       navigate('/wms/select-warehouse');
     }
   }, [selectedWarehouse, navigate]);
