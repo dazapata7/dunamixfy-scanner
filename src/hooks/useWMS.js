@@ -12,6 +12,7 @@ import { shipmentResolverService } from '../services/shipmentResolverService';
 import { inventoryService, productsService } from '../services/wmsService';
 import { procesarCodigoConCarriers } from '../utils/validators';
 import { carriersService, codesService } from '../services/supabase';
+import { dunamixfyApi } from '../services/dunamixfyApi';
 import toast from 'react-hot-toast';
 
 export function useWMS() {
@@ -84,6 +85,86 @@ export function useWMS() {
       const { codigo, carrierId, carrierName, carrierCode } = detectionResult;
 
       console.log(`🚚 Transportadora detectada: ${carrierName} (${codigo})`);
+
+      // 1.5. VALIDACIÓN DUNAMIXFY (solo Coordinadora)
+      // Consultar información de la orden y validar can_ship ANTES de continuar
+      const isCoordinadora = carrierName.toLowerCase().includes('coordinadora');
+      let customerName = null;
+      let orderId = null;
+      let storeName = null;
+
+      if (isCoordinadora) {
+        try {
+          console.log('🌐 [COORDINADORA] Consultando orden en Dunamixfy...');
+          const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
+
+          if (orderInfo.success) {
+            console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
+
+            // Extraer info del cliente
+            const firstName = orderInfo.data.firstname || '';
+            const lastName = orderInfo.data.lastname || '';
+            customerName = `${firstName} ${lastName}`.trim();
+            orderId = orderInfo.data.order_id || null;
+            storeName = orderInfo.data.store || null;
+
+            // Mostrar info del cliente
+            if (customerName) {
+              toast.success(`👤 ${customerName}`, {
+                duration: 4000,
+                icon: '📦',
+                style: {
+                  background: '#3b82f6',
+                  color: '#fff',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  padding: '16px 24px',
+                  borderRadius: '12px',
+                }
+              });
+            }
+          } else if (orderInfo.canShip === false) {
+            // ⛔ PEDIDO NO PUEDE SER DESPACHADO (can_ship = NO)
+            console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
+
+            const errorMessage = '🚫 PEDIDO NO LISTO PARA DESPACHO!';
+
+            toast.error(`${errorMessage}\n${orderInfo.error || ''}`, {
+              duration: 10000,
+              icon: '🚫',
+              style: {
+                background: '#ef4444',
+                color: '#fff',
+                fontSize: '18px',
+                fontWeight: 'bold',
+                padding: '20px 28px',
+                borderRadius: '16px',
+                border: '3px solid #dc2626',
+                boxShadow: '0 10px 40px rgba(239, 68, 68, 0.5)',
+              }
+            });
+
+            // Vibración de alerta
+            if (navigator.vibrate) {
+              navigator.vibrate([200, 100, 200, 100, 200]);
+            }
+
+            // NO continuar con el dispatch
+            throw new Error('PEDIDO NO LISTO PARA DESPACHO');
+          } else {
+            console.warn('⚠️ Orden no encontrada en Dunamixfy:', orderInfo.error);
+          }
+        } catch (dunamixfyError) {
+          // Si es error de can_ship, re-lanzarlo
+          if (dunamixfyError.message === 'PEDIDO NO LISTO PARA DESPACHO') {
+            throw dunamixfyError;
+          }
+          console.error('❌ Error consultando Dunamixfy:', dunamixfyError);
+          // Continuar aunque falle la consulta (para otros errores de red)
+        }
+      } else {
+        console.log(`ℹ️ [${carrierName}] No requiere consulta a Dunamixfy`);
+      }
 
       // 2. Verificar idempotencia (que no exista dispatch con esta guía)
       const existingDispatch = await dispatchesService.getByGuideCode(codigo);
