@@ -7,7 +7,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
-import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History } from 'lucide-react';
+import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings } from 'lucide-react';
 
 export function WMSHome() {
   const navigate = useNavigate();
@@ -76,6 +76,22 @@ export function WMSHome() {
       description: 'Escaneos y trazabilidad',
       path: '/wms/history',
       gradient: 'from-purple-500/10 to-pink-500/10'
+    },
+    {
+      id: 'manage-warehouses',
+      icon: Settings,
+      title: 'Gestionar Almacenes',
+      description: 'Crear, editar, eliminar',
+      path: '/wms/manage-warehouses',
+      gradient: 'from-slate-500/10 to-gray-500/10'
+    },
+    {
+      id: 'manage-products',
+      icon: Package,
+      title: 'Gestionar Productos',
+      description: 'Crear, editar, eliminar',
+      path: '/wms/manage-products',
+      gradient: 'from-emerald-500/10 to-teal-500/10'
     }
   ];
 

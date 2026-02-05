@@ -10,7 +10,7 @@ import { warehousesService, dispatchesService } from '../services/wmsService';
 import { shipmentResolverService } from '../services/shipmentResolverService';
 import { inventoryService, productsService } from '../services/wmsService';
 import { procesarCodigoConCarriers } from '../utils/validators';
-import { carriersService } from '../services/supabase';
+import { carriersService, codesService } from '../services/supabase';
 import toast from 'react-hot-toast';
 
 export function useWMS() {
@@ -133,6 +133,25 @@ export function useWMS() {
       }, itemsWithProducts);
 
       console.log(`✅ Dispatch creado: ${dispatch.dispatch_number}`);
+
+      // 7. INTEGRACIÓN: Registrar también en tabla codes (scanner DMX5 legacy)
+      // Esto mantiene compatibilidad con el sistema de escaneo original
+      try {
+        await codesService.create({
+          operator_id: operatorId,
+          code: codigo,
+          type: 'guide',  // Tipo específico para guías WMS
+          carrier_id: carrierId,
+          carrier_name: carrierName,
+          order_id: shipmentData.metadata?.order_id || null,
+          customer_name: shipmentData.metadata?.customer_name || null,
+          store_name: shipmentData.metadata?.store || null
+        });
+        console.log(`✅ Código registrado en tabla codes (integración DMX5)`);
+      } catch (codeError) {
+        // No fallar el dispatch si falla el registro en codes (es legacy)
+        console.warn('⚠️ No se pudo registrar en tabla codes:', codeError);
+      }
 
       // Retornar dispatch + metadata + validación stock
       return {
