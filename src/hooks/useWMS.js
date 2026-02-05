@@ -68,7 +68,8 @@ export function useWMS() {
     }
 
     if (!operatorId) {
-      throw new Error('Operador no identificado');
+      console.error('❌ operatorId no existe:', operatorId);
+      throw new Error('❌ NO HAY OPERADOR\nDebe hacer login desde el Dashboard principal primero');
     }
 
     console.log('🔍 WMS: Procesando guía:', rawCode);

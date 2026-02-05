@@ -26,6 +26,14 @@ export function ScanGuide() {
   const { scanGuideForDispatch, confirmDispatch, isProcessing, selectedWarehouse } = useWMS();
   const { operator, operatorId } = useStore();
 
+  // DEBUG: Verificar operatorId
+  useEffect(() => {
+    console.log('🧑 Operador actual:', { operator, operatorId });
+    if (!operatorId) {
+      console.error('❌ NO HAY OPERADOR - Debe hacer login primero');
+    }
+  }, [operator, operatorId]);
+
   // Estado para preview de dispatch
   const [dispatchPreview, setDispatchPreview] = useState(null);
   const [stockValidation, setStockValidation] = useState(null);
@@ -37,6 +45,16 @@ export function ScanGuide() {
 
   // Último escaneo (para feedback visual como Scanner.jsx)
   const [lastScan, setLastScan] = useState(null);
+
+  // Si no hay operador, redirigir al login
+  useEffect(() => {
+    if (!operatorId) {
+      console.log('⚠️ No hay operador - redirigiendo al login...');
+      toast.error('Debe hacer login primero');
+      navigate('/');
+      return;
+    }
+  }, [operatorId, navigate]);
 
   // Si no hay almacén, redirigir al selector ANTES de pedir permisos
   useEffect(() => {
