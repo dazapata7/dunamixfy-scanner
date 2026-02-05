@@ -2,14 +2,14 @@
 // SCAN GUIDE - Dunamix WMS
 // =====================================================
 // Escaneo de guías para despacho
-// Reutiliza Scanner.jsx existente + useWMS hook
+// BASADO EN Scanner.jsx (3 meses de desarrollo)
 // =====================================================
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWMS } from '../../hooks/useWMS';
 import { useStore } from '../../store/useStore';
-import { ArrowLeft, CheckCircle2, XCircle, Package, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, XCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DispatchPreview } from './DispatchPreview';
 import '../../scanner-custom.css';
@@ -40,7 +40,7 @@ export function ScanGuide() {
     if (!selectedWarehouse) {
       console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
       navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
-      return; // No iniciar scanner
+      return;
     }
 
     // Solo iniciar scanner si HAY almacén seleccionado
@@ -53,27 +53,17 @@ export function ScanGuide() {
   }, [selectedWarehouse, navigate]);
 
   // =====================================================
-  // SCANNER METHODS (Reutilizados de Scanner.jsx)
+  // SCANNER METHODS (Copiados de Scanner.jsx)
   // =====================================================
 
   const startScanner = async () => {
     try {
-      console.log('🔍 Solicitando permisos de cámara...');
-
-      // Solicitar permisos explícitamente ANTES de iniciar scanner
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      console.log('✅ Permisos de cámara concedidos');
-
-      // Detener stream temporal (html5-qrcode manejará su propio stream)
-      stream.getTracks().forEach(track => track.stop());
-
       // Dynamic import de html5-qrcode
       const { Html5Qrcode } = await import('html5-qrcode');
       html5QrcodeRef.current = new Html5Qrcode('wms-reader');
       console.log('📦 WMS Scanner: html5-qrcode cargado');
 
+      // Configuración ÓPTIMA (copiada de Scanner.jsx)
       const config = {
         fps: 10,
         qrbox: function(viewfinderWidth, viewfinderHeight) {
@@ -97,7 +87,7 @@ export function ScanGuide() {
       );
 
       setIsScanning(true);
-      console.log('📷 WMS Scanner iniciado');
+      console.log('📷 WMS Scanner iniciado con marco optimizado');
     } catch (error) {
       console.error('❌ Error al iniciar WMS scanner:', error);
 
@@ -128,7 +118,7 @@ export function ScanGuide() {
   // =====================================================
 
   const onScanSuccess = async (decodedText) => {
-    // Prevenir escaneos duplicados
+    // Prevenir escaneos duplicados (copiado de Scanner.jsx)
     if (isProcessing || scanCooldown.current) {
       console.log('⏭️ Escaneo ignorado (procesando o en cooldown)');
       return;
@@ -136,13 +126,13 @@ export function ScanGuide() {
 
     // Si es el mismo código reciente, ignorar
     if (lastScannedCode.current === decodedText) {
-      console.log('⏭️ Código duplicado ignorado');
+      console.log('⏭️ Código duplicado ignorado (mismo código reciente)');
       return;
     }
 
     console.log('🔍 WMS: Guía detectada:', decodedText);
 
-    // Activar cooldown
+    // Activar cooldown INMEDIATAMENTE
     scanCooldown.current = true;
     lastScannedCode.current = decodedText;
 
@@ -180,18 +170,88 @@ export function ScanGuide() {
       setSessionErrors(prev => prev + 1);
     }
 
-    // Limpiar animación
+    // Limpiar animación después de 2 segundos
     setTimeout(() => setScanAnimation(null), 2000);
 
-    // Liberar cooldown
+    // Liberar cooldown después de 2 segundos
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
+      console.log('✅ Cooldown liberado, listo para siguiente escaneo');
     }, 2000);
   };
 
   const onScanError = (error) => {
     // Ignorar errores normales de escaneo
+  };
+
+  // =====================================================
+  // AUDIO & VIBRATION (Copiados EXACTAMENTE de Scanner.jsx)
+  // =====================================================
+
+  const playSuccessSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Doble beep ascendente para éxito
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
+      oscillator.type = 'sine';
+
+      // Volumen MÁS ALTO (0.8 = 80%)
+      gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+
+      console.log('🔊 Sonido de ÉXITO (verde) - Doble beep ascendente');
+    } catch (error) {
+      console.warn('⚠️ No se pudo reproducir sonido de éxito:', error);
+    }
+  };
+
+  const playErrorSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Triple beep descendente GRAVE para error
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.15);
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.3);
+      oscillator.type = 'sawtooth'; // Onda más áspera para error
+
+      // Volumen MÁS ALTO (0.8 = 80%)
+      gainNode.gain.setValueAtTime(0.8, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.5);
+
+      console.log('🔊 Sonido de ERROR (rojo) - Triple beep descendente');
+    } catch (error) {
+      console.warn('⚠️ No se pudo reproducir sonido de error:', error);
+    }
+  };
+
+  const vibrate = (pattern) => {
+    try {
+      if ('vibrate' in navigator) {
+        navigator.vibrate(pattern);
+      }
+    } catch (error) {
+      console.warn('⚠️ No se pudo vibrar:', error);
+    }
   };
 
   // =====================================================
@@ -218,70 +278,11 @@ export function ScanGuide() {
     }
   };
 
-  // =====================================================
-  // CANCEL DISPATCH
-  // =====================================================
-
   const handleCancelDispatch = () => {
     setDispatchPreview(null);
     setStockValidation(null);
     setShipmentRecord(null);
     toast('Despacho cancelado');
-  };
-
-  // =====================================================
-  // AUDIO & VIBRATION (Reutilizados de Scanner.jsx)
-  // =====================================================
-
-  const playSuccessSound = () => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
-    } catch (error) {
-      console.warn('Audio no soportado');
-    }
-  };
-
-  const playErrorSound = () => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
-      oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.4);
-    } catch (error) {
-      console.warn('Audio no soportado');
-    }
-  };
-
-  const vibrate = (pattern) => {
-    if (navigator.vibrate) {
-      navigator.vibrate(pattern);
-    }
   };
 
   // =====================================================
@@ -301,7 +302,7 @@ export function ScanGuide() {
     );
   }
 
-  // Mostrar scanner
+  // Mostrar scanner (UI simplificada vs Scanner.jsx)
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
       <div className="max-w-2xl mx-auto">
@@ -356,12 +357,9 @@ export function ScanGuide() {
           {/* Scanner */}
           <div id="wms-reader" className="rounded-2xl overflow-hidden scanner-container" />
 
-          {/* Scan Animation Ring */}
+          {/* Scan Animation Ring (copiado de Scanner.jsx) */}
           {scanAnimation && (
-            <div className={`
-              absolute inset-0 pointer-events-none
-              flex items-center justify-center
-            `}>
+            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
               <div className={`
                 w-32 h-32 rounded-full
                 ${scanAnimation === 'success' ? 'bg-green-500/20 border-green-500' : 'bg-red-500/20 border-red-500'}
