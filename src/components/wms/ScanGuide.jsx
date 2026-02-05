@@ -56,6 +56,17 @@ export function ScanGuide() {
 
   const startScanner = async () => {
     try {
+      console.log('🔍 Solicitando permisos de cámara...');
+
+      // Solicitar permisos explícitamente ANTES de iniciar scanner
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      console.log('✅ Permisos de cámara concedidos');
+
+      // Detener stream temporal (html5-qrcode manejará su propio stream)
+      stream.getTracks().forEach(track => track.stop());
+
       // Dynamic import de html5-qrcode
       const { Html5Qrcode } = await import('html5-qrcode');
       html5QrcodeRef.current = new Html5Qrcode('wms-reader');
@@ -87,7 +98,14 @@ export function ScanGuide() {
       console.log('📷 WMS Scanner iniciado');
     } catch (error) {
       console.error('❌ Error al iniciar WMS scanner:', error);
-      toast.error('Error al iniciar cámara');
+
+      if (error.name === 'NotAllowedError') {
+        toast.error('Permisos de cámara denegados');
+      } else if (error.name === 'NotFoundError') {
+        toast.error('No se encontró cámara');
+      } else {
+        toast.error('Error al iniciar cámara');
+      }
     }
   };
 
