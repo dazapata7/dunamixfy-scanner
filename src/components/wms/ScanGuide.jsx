@@ -5,7 +5,7 @@
 // Reutiliza Scanner.jsx existente + useWMS hook
 // =====================================================
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWMS } from '../../hooks/useWMS';
 import { useStore } from '../../store/useStore';
@@ -35,28 +35,11 @@ export function ScanGuide() {
   const [sessionDispatches, setSessionDispatches] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
-  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
-  useEffect(() => {
-    if (!selectedWarehouse) {
-      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
-      navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
-      return;
-    }
-
-    // Solo iniciar scanner si HAY almacén seleccionado
-    console.log('✅ Almacén seleccionado, iniciando scanner...');
-    startScanner();
-
-    return () => {
-      stopScanner();
-    };
-  }, [selectedWarehouse]); // Solo depende de selectedWarehouse
-
   // =====================================================
   // SCANNER METHODS (Reutilizados de Scanner.jsx)
   // =====================================================
 
-  const startScanner = async () => {
+  const startScanner = useCallback(async () => {
     try {
       console.log('🔍 Solicitando permisos de cámara...');
 
@@ -109,9 +92,9 @@ export function ScanGuide() {
         toast.error('Error al iniciar cámara');
       }
     }
-  };
+  }, []); // Cierre de useCallback
 
-  const stopScanner = async () => {
+  const stopScanner = useCallback(async () => {
     if (html5QrcodeRef.current) {
       try {
         await html5QrcodeRef.current.stop();
@@ -121,7 +104,24 @@ export function ScanGuide() {
         console.error('Error al detener scanner:', error);
       }
     }
-  };
+  }, []); // Cierre de useCallback
+
+  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
+  useEffect(() => {
+    if (!selectedWarehouse) {
+      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
+      navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
+      return;
+    }
+
+    // Solo iniciar scanner si HAY almacén seleccionado
+    console.log('✅ Almacén seleccionado, iniciando scanner...');
+    startScanner();
+
+    return () => {
+      stopScanner();
+    };
+  }, [selectedWarehouse, navigate, startScanner, stopScanner]);
 
   // =====================================================
   // SCAN SUCCESS HANDLER (Adaptado para WMS)
