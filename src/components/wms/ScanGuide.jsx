@@ -39,7 +39,7 @@ export function ScanGuide() {
   useEffect(() => {
     if (!selectedWarehouse) {
       console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
-      navigate('/wms/select-warehouse');
+      navigate('/wms/select-warehouse?redirect=/wms/scan-guide'); // Pasar redirect
       return; // No iniciar scanner
     }
 

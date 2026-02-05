@@ -6,7 +6,7 @@
 // =====================================================
 
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { warehousesService } from '../../services/wmsService';
 import { MapPin, Loader2, ArrowLeft, Check } from 'lucide-react';
@@ -14,6 +14,8 @@ import toast from 'react-hot-toast';
 
 export function WarehouseSelector() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/wms'; // Leer parámetro redirect
   const { operator, setSelectedWarehouse, selectedWarehouse } = useStore();
 
   const [warehouses, setWarehouses] = useState([]);
@@ -43,9 +45,10 @@ export function WarehouseSelector() {
 
   function handleSelectWarehouse(warehouse) {
     console.log('📍 Almacén seleccionado:', warehouse.name);
+    console.log('🔀 Redirigiendo a:', redirectTo);
     setSelectedWarehouse(warehouse);
     toast.success(`Almacén: ${warehouse.name}`);
-    navigate('/wms');
+    navigate(redirectTo); // Usar redirect dinámico
   }
 
   return (
