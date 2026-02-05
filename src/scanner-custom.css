@@ -96,3 +96,66 @@
 .animate-pulse-error {
   animation: pulse-error 0.8s ease-in-out 4; /* V3.1: 4 pulsos en lugar de 3 */
 }
+
+/* ============================================
+ * ESTILOS PARA WMS SCANNER (wms-reader)
+ * ============================================ */
+
+/* WMS Scanner - Área grande sin restricciones */
+#wms-reader {
+  height: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  min-height: auto !important;
+}
+
+/* WMS Scanner - Video sin restricciones */
+#wms-reader video {
+  height: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  min-height: auto !important;
+  object-fit: contain !important;
+}
+
+/* WMS Scanner - Canvas sin restricciones */
+#wms-reader canvas {
+  height: auto !important;
+  width: 100% !important;
+  max-height: none !important;
+  min-height: auto !important;
+}
+
+/* WMS Scanner - Contenedor sin límites */
+#wms-reader > div {
+  height: auto !important;
+  max-height: none !important;
+  min-height: auto !important;
+}
+
+/* WMS Scanner - Marco del qrbox */
+#wms-reader__scan_region {
+  border: 3px solid rgba(0, 217, 192, 0.7) !important;
+  box-shadow: 0 0 10px rgba(0, 217, 192, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+/* WMS Scanner - Dashboard */
+#wms-reader__dashboard_section_csr {
+  text-align: center;
+  padding: 8px;
+}
+
+/* WMS Scanner - Ocultar textos innecesarios */
+#wms-reader__dashboard_section_csr > span:first-child {
+  display: none;
+}
+
+/* Contenedor general del scanner */
+.scanner-container {
+  position: relative;
+  width: 100%;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  overflow: hidden;
+}
