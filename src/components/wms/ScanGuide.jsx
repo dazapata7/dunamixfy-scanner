@@ -39,7 +39,7 @@ export function ScanGuide() {
   // AUDIO & VIBRATION (Definir primero para usar en callbacks)
   // =====================================================
 
-  const playSuccessSound = () => {
+  const playSuccessSound = useCallback(() => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -59,9 +59,9 @@ export function ScanGuide() {
     } catch (error) {
       console.warn('Audio no soportado');
     }
-  };
+  }, []);
 
-  const playErrorSound = () => {
+  const playErrorSound = useCallback(() => {
     try {
       const audioContext = new (window.AudioContext || window.webkitAudioContext)();
       const oscillator = audioContext.createOscillator();
@@ -82,13 +82,13 @@ export function ScanGuide() {
     } catch (error) {
       console.warn('Audio no soportado');
     }
-  };
+  }, []);
 
-  const vibrate = (pattern) => {
+  const vibrate = useCallback((pattern) => {
     if (navigator.vibrate) {
       navigator.vibrate(pattern);
     }
-  };
+  }, []);
 
   // =====================================================
   // SCAN SUCCESS HANDLER (Definir ANTES de startScanner)
@@ -155,7 +155,7 @@ export function ScanGuide() {
       scanCooldown.current = false;
       lastScannedCode.current = null;
     }, 2000);
-  }, [isProcessing, scanGuideForDispatch, operatorId]);
+  }, [isProcessing, scanGuideForDispatch, operatorId, playSuccessSound, playErrorSound, vibrate]);
 
   const onScanError = useCallback((error) => {
     // Ignorar errores normales de escaneo
