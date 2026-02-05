@@ -35,20 +35,22 @@ export function ScanGuide() {
   const [sessionDispatches, setSessionDispatches] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
-  // Si no hay almacén, redirigir al selector
+  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
   useEffect(() => {
     if (!selectedWarehouse) {
+      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
       navigate('/wms/select-warehouse');
+      return; // No iniciar scanner
     }
-  }, [selectedWarehouse, navigate]);
 
-  useEffect(() => {
+    // Solo iniciar scanner si HAY almacén seleccionado
+    console.log('✅ Almacén seleccionado, iniciando scanner...');
     startScanner();
 
     return () => {
       stopScanner();
     };
-  }, []);
+  }, [selectedWarehouse, navigate]);
 
   // =====================================================
   // SCANNER METHODS (Reutilizados de Scanner.jsx)
