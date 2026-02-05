@@ -5,7 +5,7 @@
 // Reutiliza Scanner.jsx existente + useWMS hook
 // =====================================================
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWMS } from '../../hooks/useWMS';
 import { useStore } from '../../store/useStore';
@@ -35,66 +35,99 @@ export function ScanGuide() {
   const [sessionDispatches, setSessionDispatches] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
+  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
+  useEffect(() => {
+    if (!selectedWarehouse) {
+      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
+      navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
+      return; // No iniciar scanner
+    }
+
+    // Solo iniciar scanner si HAY almacén seleccionado
+    console.log('✅ Almacén seleccionado, iniciando scanner...');
+    startScanner();
+
+    return () => {
+      stopScanner();
+    };
+  }, [selectedWarehouse, navigate]);
+
   // =====================================================
-  // AUDIO & VIBRATION (Definir primero para usar en callbacks)
+  // SCANNER METHODS (Reutilizados de Scanner.jsx)
   // =====================================================
 
-  const playSuccessSound = useCallback(() => {
+  const startScanner = async () => {
     try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
+      console.log('🔍 Solicitando permisos de cámara...');
 
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
+      // Solicitar permisos explícitamente ANTES de iniciar scanner
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment' }
+      });
+      console.log('✅ Permisos de cámara concedidos');
 
-      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
+      // Detener stream temporal (html5-qrcode manejará su propio stream)
+      stream.getTracks().forEach(track => track.stop());
 
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+      // Dynamic import de html5-qrcode
+      const { Html5Qrcode } = await import('html5-qrcode');
+      html5QrcodeRef.current = new Html5Qrcode('wms-reader');
+      console.log('📦 WMS Scanner: html5-qrcode cargado');
 
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.3);
+      const config = {
+        fps: 10,
+        qrbox: function(viewfinderWidth, viewfinderHeight) {
+          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+          const qrboxSize = Math.floor(minEdge * 0.7);
+          return {
+            width: qrboxSize,
+            height: qrboxSize
+          };
+        },
+        rememberLastUsedCamera: true,
+        showTorchButtonIfSupported: true,
+        disableFlip: false
+      };
+
+      await html5QrcodeRef.current.start(
+        { facingMode: 'environment' },
+        config,
+        onScanSuccess,
+        onScanError
+      );
+
+      setIsScanning(true);
+      console.log('📷 WMS Scanner iniciado');
     } catch (error) {
-      console.warn('Audio no soportado');
+      console.error('❌ Error al iniciar WMS scanner:', error);
+
+      if (error.name === 'NotAllowedError') {
+        toast.error('Permisos de cámara denegados');
+      } else if (error.name === 'NotFoundError') {
+        toast.error('No se encontró cámara');
+      } else {
+        toast.error('Error al iniciar cámara');
+      }
     }
-  }, []);
+  };
 
-  const playErrorSound = useCallback(() => {
-    try {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const oscillator = audioContext.createOscillator();
-      const gainNode = audioContext.createGain();
-
-      oscillator.connect(gainNode);
-      gainNode.connect(audioContext.destination);
-
-      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
-      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
-      oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
-
-      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
-
-      oscillator.start(audioContext.currentTime);
-      oscillator.stop(audioContext.currentTime + 0.4);
-    } catch (error) {
-      console.warn('Audio no soportado');
+  const stopScanner = async () => {
+    if (html5QrcodeRef.current) {
+      try {
+        await html5QrcodeRef.current.stop();
+        html5QrcodeRef.current.clear();
+        console.log('⏹️ WMS Scanner detenido');
+      } catch (error) {
+        console.error('Error al detener scanner:', error);
+      }
     }
-  }, []);
-
-  const vibrate = useCallback((pattern) => {
-    if (navigator.vibrate) {
-      navigator.vibrate(pattern);
-    }
-  }, []);
+  };
 
   // =====================================================
-  // SCAN SUCCESS HANDLER (Definir ANTES de startScanner)
+  // SCAN SUCCESS HANDLER (Adaptado para WMS)
   // =====================================================
 
-  const onScanSuccess = useCallback(async (decodedText) => {
+  const onScanSuccess = async (decodedText) => {
     // Prevenir escaneos duplicados
     if (isProcessing || scanCooldown.current) {
       console.log('⏭️ Escaneo ignorado (procesando o en cooldown)');
@@ -155,99 +188,11 @@ export function ScanGuide() {
       scanCooldown.current = false;
       lastScannedCode.current = null;
     }, 2000);
-  }, [isProcessing, scanGuideForDispatch, operatorId, playSuccessSound, playErrorSound, vibrate]);
+  };
 
-  const onScanError = useCallback((error) => {
+  const onScanError = (error) => {
     // Ignorar errores normales de escaneo
-  }, []);
-
-  // =====================================================
-  // SCANNER METHODS
-  // =====================================================
-
-  const startScanner = useCallback(async () => {
-    try {
-      console.log('🔍 Solicitando permisos de cámara...');
-
-      // Solicitar permisos explícitamente ANTES de iniciar scanner
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment' }
-      });
-      console.log('✅ Permisos de cámara concedidos');
-
-      // Detener stream temporal (html5-qrcode manejará su propio stream)
-      stream.getTracks().forEach(track => track.stop());
-
-      // Dynamic import de html5-qrcode
-      const { Html5Qrcode } = await import('html5-qrcode');
-      html5QrcodeRef.current = new Html5Qrcode('wms-reader');
-      console.log('📦 WMS Scanner: html5-qrcode cargado');
-
-      const config = {
-        fps: 10,
-        qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.7);
-          return {
-            width: qrboxSize,
-            height: qrboxSize
-          };
-        },
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true,
-        disableFlip: false
-      };
-
-      await html5QrcodeRef.current.start(
-        { facingMode: 'environment' },
-        config,
-        onScanSuccess,
-        onScanError
-      );
-
-      setIsScanning(true);
-      console.log('📷 WMS Scanner iniciado');
-    } catch (error) {
-      console.error('❌ Error al iniciar WMS scanner:', error);
-
-      if (error.name === 'NotAllowedError') {
-        toast.error('Permisos de cámara denegados');
-      } else if (error.name === 'NotFoundError') {
-        toast.error('No se encontró cámara');
-      } else {
-        toast.error('Error al iniciar cámara');
-      }
-    }
-  }, [onScanSuccess, onScanError]); // Incluir callbacks como dependencias
-
-  const stopScanner = useCallback(async () => {
-    if (html5QrcodeRef.current) {
-      try {
-        await html5QrcodeRef.current.stop();
-        html5QrcodeRef.current.clear();
-        console.log('⏹️ WMS Scanner detenido');
-      } catch (error) {
-        console.error('Error al detener scanner:', error);
-      }
-    }
-  }, []); // Cierre de useCallback
-
-  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
-  useEffect(() => {
-    if (!selectedWarehouse) {
-      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
-      navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
-      return;
-    }
-
-    // Solo iniciar scanner si HAY almacén seleccionado
-    console.log('✅ Almacén seleccionado, iniciando scanner...');
-    startScanner();
-
-    return () => {
-      stopScanner();
-    };
-  }, [selectedWarehouse, startScanner, stopScanner]);
+  };
 
   // =====================================================
   // CONFIRM DISPATCH
@@ -282,6 +227,61 @@ export function ScanGuide() {
     setStockValidation(null);
     setShipmentRecord(null);
     toast('Despacho cancelado');
+  };
+
+  // =====================================================
+  // AUDIO & VIBRATION (Reutilizados de Scanner.jsx)
+  // =====================================================
+
+  const playSuccessSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(900, audioContext.currentTime + 0.1);
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.warn('Audio no soportado');
+    }
+  };
+
+  const playErrorSound = () => {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      oscillator.frequency.setValueAtTime(400, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(300, audioContext.currentTime + 0.1);
+      oscillator.frequency.setValueAtTime(200, audioContext.currentTime + 0.2);
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.4);
+    } catch (error) {
+      console.warn('Audio no soportado');
+    }
+  };
+
+  const vibrate = (pattern) => {
+    if (navigator.vibrate) {
+      navigator.vibrate(pattern);
+    }
   };
 
   // =====================================================
