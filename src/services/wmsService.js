@@ -131,24 +131,64 @@ export const warehousesService = {
   async delete(id) {
     console.log(`🗑️ Eliminando almacén ID: ${id}`);
 
-    // Verificar si tiene movimientos de inventario
-    const { data: movements, error: checkError } = await supabase
+    // Verificar inventory_movements
+    console.log('🔍 Verificando relaciones en inventory_movements...');
+    const { data: movements, error: checkError1 } = await supabase
       .from('inventory_movements')
       .select('id')
       .eq('warehouse_id', id)
       .limit(1);
 
-    if (checkError) {
-      console.error('❌ Error al verificar movimientos:', checkError);
-      throw checkError;
+    if (checkError1) {
+      console.error('❌ Error al verificar inventory_movements:', checkError1);
+      throw checkError1;
     }
 
     if (movements && movements.length > 0) {
-      console.warn(`⚠️ Almacén ${id} tiene ${movements.length} movimientos - no se puede eliminar`);
-      throw new Error('No se puede eliminar un almacén con movimientos de inventario');
+      console.warn(`⚠️ Almacén tiene ${movements.length} movimientos de inventario`);
+      throw new Error('No se puede eliminar: almacén tiene movimientos de inventario');
+    }
+    console.log('✅ Sin movimientos de inventario');
+
+    // Verificar receipts
+    console.log('🔍 Verificando relaciones en receipts...');
+    const { data: receipts, error: checkError2 } = await supabase
+      .from('receipts')
+      .select('id')
+      .eq('warehouse_id', id)
+      .limit(1);
+
+    if (checkError2) {
+      console.error('❌ Error al verificar receipts:', checkError2);
+      throw checkError2;
     }
 
-    console.log(`✅ Almacén ${id} sin movimientos - procediendo a eliminar`);
+    if (receipts && receipts.length > 0) {
+      console.warn(`⚠️ Almacén tiene ${receipts.length} recibos`);
+      throw new Error('No se puede eliminar: almacén tiene recibos registrados');
+    }
+    console.log('✅ Sin recibos');
+
+    // Verificar dispatches
+    console.log('🔍 Verificando relaciones en dispatches...');
+    const { data: dispatches, error: checkError3 } = await supabase
+      .from('dispatches')
+      .select('id')
+      .eq('warehouse_id', id)
+      .limit(1);
+
+    if (checkError3) {
+      console.error('❌ Error al verificar dispatches:', checkError3);
+      throw checkError3;
+    }
+
+    if (dispatches && dispatches.length > 0) {
+      console.warn(`⚠️ Almacén tiene ${dispatches.length} despachos`);
+      throw new Error('No se puede eliminar: almacén tiene despachos registrados');
+    }
+    console.log('✅ Sin despachos');
+
+    console.log(`✅ Almacén ${id} sin relaciones - procediendo a eliminar`);
 
     // Eliminar físicamente de la BD
     const { data, error } = await supabase
@@ -158,11 +198,19 @@ export const warehousesService = {
       .select();
 
     if (error) {
-      console.error('❌ Error al eliminar almacén:', error);
+      console.error('❌ Error al eliminar almacén de BD:', error);
+      console.error('   Código:', error.code);
+      console.error('   Mensaje:', error.message);
+      console.error('   Detalles:', error.details);
       throw error;
     }
 
-    console.log(`✅ Almacén eliminado correctamente:`, data);
+    if (!data || data.length === 0) {
+      console.error('❌ DELETE no retornó datos - almacén podría no haberse eliminado');
+      throw new Error('Error al eliminar: no se obtuvo confirmación de la base de datos');
+    }
+
+    console.log(`✅ Almacén eliminado correctamente de BD:`, data);
     return data;
   }
 };
@@ -316,24 +364,83 @@ export const productsService = {
   async delete(id) {
     console.log(`🗑️ Eliminando producto ID: ${id}`);
 
-    // Verificar si tiene movimientos de inventario
-    const { data: movements, error: checkError } = await supabase
+    // Verificar todas las tablas que pueden tener referencias
+    console.log('🔍 Verificando relaciones en inventory_movements...');
+    const { data: movements, error: checkError1 } = await supabase
       .from('inventory_movements')
       .select('id')
       .eq('product_id', id)
       .limit(1);
 
-    if (checkError) {
-      console.error('❌ Error al verificar movimientos:', checkError);
-      throw checkError;
+    if (checkError1) {
+      console.error('❌ Error al verificar inventory_movements:', checkError1);
+      throw checkError1;
     }
 
     if (movements && movements.length > 0) {
-      console.warn(`⚠️ Producto ${id} tiene ${movements.length} movimientos - no se puede eliminar`);
-      throw new Error('No se puede eliminar un producto con movimientos de inventario');
+      console.warn(`⚠️ Producto tiene ${movements.length} movimientos de inventario`);
+      throw new Error('No se puede eliminar: producto tiene movimientos de inventario');
+    }
+    console.log('✅ Sin movimientos de inventario');
+
+    // Verificar receipt_items
+    console.log('🔍 Verificando relaciones en receipt_items...');
+    const { data: receiptItems, error: checkError2 } = await supabase
+      .from('receipt_items')
+      .select('id')
+      .eq('product_id', id)
+      .limit(1);
+
+    if (checkError2) {
+      console.error('❌ Error al verificar receipt_items:', checkError2);
+      throw checkError2;
     }
 
-    console.log(`✅ Producto ${id} sin movimientos - procediendo a eliminar`);
+    if (receiptItems && receiptItems.length > 0) {
+      console.warn(`⚠️ Producto tiene ${receiptItems.length} items en recibos`);
+      throw new Error('No se puede eliminar: producto tiene items en recibos');
+    }
+    console.log('✅ Sin items en recibos');
+
+    // Verificar dispatch_items
+    console.log('🔍 Verificando relaciones en dispatch_items...');
+    const { data: dispatchItems, error: checkError3 } = await supabase
+      .from('dispatch_items')
+      .select('id')
+      .eq('product_id', id)
+      .limit(1);
+
+    if (checkError3) {
+      console.error('❌ Error al verificar dispatch_items:', checkError3);
+      throw checkError3;
+    }
+
+    if (dispatchItems && dispatchItems.length > 0) {
+      console.warn(`⚠️ Producto tiene ${dispatchItems.length} items en despachos`);
+      throw new Error('No se puede eliminar: producto tiene items en despachos');
+    }
+    console.log('✅ Sin items en despachos');
+
+    // Verificar shipment_items
+    console.log('🔍 Verificando relaciones en shipment_items...');
+    const { data: shipmentItems, error: checkError4 } = await supabase
+      .from('shipment_items')
+      .select('id')
+      .eq('product_id', id)
+      .limit(1);
+
+    if (checkError4) {
+      console.error('❌ Error al verificar shipment_items:', checkError4);
+      throw checkError4;
+    }
+
+    if (shipmentItems && shipmentItems.length > 0) {
+      console.warn(`⚠️ Producto tiene ${shipmentItems.length} items en envíos`);
+      throw new Error('No se puede eliminar: producto tiene items en envíos importados');
+    }
+    console.log('✅ Sin items en envíos');
+
+    console.log(`✅ Producto ${id} sin relaciones - procediendo a eliminar`);
 
     // Eliminar físicamente de la BD
     const { data, error } = await supabase
@@ -343,11 +450,19 @@ export const productsService = {
       .select();
 
     if (error) {
-      console.error('❌ Error al eliminar producto:', error);
+      console.error('❌ Error al eliminar producto de BD:', error);
+      console.error('   Código:', error.code);
+      console.error('   Mensaje:', error.message);
+      console.error('   Detalles:', error.details);
       throw error;
     }
 
-    console.log(`✅ Producto eliminado correctamente:`, data);
+    if (!data || data.length === 0) {
+      console.error('❌ DELETE no retornó datos - producto podría no haberse eliminado');
+      throw new Error('Error al eliminar: no se obtuvo confirmación de la base de datos');
+    }
+
+    console.log(`✅ Producto eliminado correctamente de BD:`, data);
     return data;
   },
 
