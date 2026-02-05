@@ -237,13 +237,22 @@ export function useWMS() {
         console.warn('⚠️ No se pudo registrar en tabla codes:', codeError);
       }
 
-      // Retornar dispatch + metadata + validación stock
+      // Retornar dispatch + metadata + validación stock + feedback info
       return {
         dispatch,
         metadata: shipmentData.metadata,
         stockValidation,
         shipmentRecord: shipmentData.shipmentRecord,
-        isDuplicate: false
+        isDuplicate: false,
+        // Info para feedback visual (ScanGuide.jsx lo usa para mostrar al usuario)
+        feedbackInfo: {
+          code: codigo,
+          carrier: carrierName,
+          customerName: customerName || shipmentData.metadata?.customer_name,
+          orderId: orderId || shipmentData.metadata?.order_id,
+          storeName: storeName || shipmentData.metadata?.store,
+          itemsCount: itemsWithProducts.length
+        }
       };
 
     } catch (error) {

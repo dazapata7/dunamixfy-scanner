@@ -35,6 +35,9 @@ export function ScanGuide() {
   const [sessionDispatches, setSessionDispatches] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
+  // Último escaneo (para feedback visual como Scanner.jsx)
+  const [lastScan, setLastScan] = useState(null);
+
   // Si no hay almacén, redirigir al selector ANTES de pedir permisos
   useEffect(() => {
     if (!selectedWarehouse) {
@@ -148,6 +151,14 @@ export function ScanGuide() {
         toast.error(result.message || 'Guía duplicada');
         setSessionErrors(prev => prev + 1);
 
+        // Actualizar lastScan para feedback visual
+        setLastScan({
+          code: decodedText,
+          carrier: result.feedbackInfo?.carrier || 'Desconocido',
+          isRepeated: true,
+          isError: false
+        });
+
       } else {
         // Dispatch creado exitosamente
         setScanAnimation('success');
@@ -159,6 +170,18 @@ export function ScanGuide() {
         setDispatchPreview(result.dispatch);
         setStockValidation(result.stockValidation);
         setShipmentRecord(result.shipmentRecord);
+
+        // Actualizar lastScan para feedback visual (ÉXITO)
+        setLastScan({
+          code: result.feedbackInfo.code,
+          carrier: result.feedbackInfo.carrier,
+          customerName: result.feedbackInfo.customerName,
+          orderId: result.feedbackInfo.orderId,
+          storeName: result.feedbackInfo.storeName,
+          itemsCount: result.feedbackInfo.itemsCount,
+          isRepeated: false,
+          isError: false
+        });
       }
 
     } catch (error) {
@@ -168,6 +191,15 @@ export function ScanGuide() {
       vibrate([200, 100, 200, 100, 200]);
       toast.error(error.message || 'Error al procesar la guía');
       setSessionErrors(prev => prev + 1);
+
+      // Actualizar lastScan para feedback visual (ERROR)
+      setLastScan({
+        code: decodedText,
+        carrier: 'Error',
+        isRepeated: false,
+        isError: true,
+        errorMessage: error.message || 'Error al procesar la guía'
+      });
     }
 
     // Limpiar animación después de 2 segundos
@@ -394,6 +426,59 @@ export function ScanGuide() {
               📦 Apunte la cámara al código de barras o QR de la guía
             </p>
           </div>
+
+          {/* Último escaneo (copiado de Scanner.jsx) */}
+          {lastScan && (
+            <div className="mt-6">
+              <div className={`backdrop-blur-2xl rounded-3xl p-6 shadow-glass-lg border transition-all duration-300 ${
+                lastScan.isError || lastScan.isRepeated
+                  ? 'bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-400/30'
+                  : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30'
+              }`}>
+                <div className="flex items-start gap-4">
+                  {lastScan.isError || lastScan.isRepeated ? (
+                    <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
+                      <XCircle className="w-7 h-7 text-red-400" />
+                    </div>
+                  ) : (
+                    <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                      <CheckCircle2 className="w-7 h-7 text-green-400" />
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-xl font-bold text-white truncate mb-1.5">
+                      {lastScan.code}
+                    </p>
+                    <p className="text-base text-white/80 font-medium mb-2">
+                      {lastScan.carrier}
+                    </p>
+                    {lastScan.customerName && (
+                      <p className="text-sm text-white/70 mb-2">
+                        👤 {lastScan.customerName}
+                      </p>
+                    )}
+                    {lastScan.itemsCount && (
+                      <p className="text-sm text-white/70 mb-2">
+                        📦 {lastScan.itemsCount} productos
+                      </p>
+                    )}
+                    <p className={`text-sm font-bold px-3 py-1.5 rounded-xl inline-block ${
+                      lastScan.isError || lastScan.isRepeated
+                        ? 'bg-red-500/30 text-red-100'
+                        : 'bg-green-500/30 text-green-100'
+                    }`}>
+                      {lastScan.isError
+                        ? `🚫 ${lastScan.errorMessage || 'ERROR'}`
+                        : lastScan.isRepeated
+                          ? '⚠️ DUPLICADO - YA EXISTE'
+                          : '✅ LISTO PARA REVISAR'
+                      }
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
