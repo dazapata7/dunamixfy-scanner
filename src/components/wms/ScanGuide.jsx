@@ -46,21 +46,36 @@ export function ScanGuide() {
   // Último escaneo (para feedback visual como Scanner.jsx)
   const [lastScan, setLastScan] = useState(null);
 
-  // Si no hay operador, redirigir al login
+  // Si no hay operador, redirigir al login (con pequeño delay para que Zustand cargue del localStorage)
   useEffect(() => {
-    if (!operatorId) {
-      console.log('⚠️ No hay operador - redirigiendo al login...');
-      toast.error('Debe hacer login primero');
-      navigate('/');
-      return;
-    }
+    // Dar tiempo a Zustand para cargar desde localStorage
+    const timer = setTimeout(() => {
+      if (!operatorId) {
+        console.log('⚠️ No hay operador - redirigiendo al login...');
+        toast.error('Debe hacer login primero');
+        navigate('/');
+      }
+    }, 100); // 100ms es suficiente para que Zustand restaure el estado
+
+    return () => clearTimeout(timer);
   }, [operatorId, navigate]);
 
-  // Si no hay almacén, redirigir al selector ANTES de pedir permisos
+  // Si no hay almacén, redirigir al selector ANTES de pedir permisos (con pequeño delay)
   useEffect(() => {
-    if (!selectedWarehouse) {
-      console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
-      navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
+    // Dar tiempo a Zustand para cargar desde localStorage
+    const timer = setTimeout(() => {
+      if (!selectedWarehouse) {
+        console.log('⚠️ No hay almacén seleccionado - redirigiendo...');
+        navigate('/wms/select-warehouse?redirect=/wms/scan-guide');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [selectedWarehouse, navigate]);
+
+  // Inicializar scanner solo si hay operador Y almacén
+  useEffect(() => {
+    if (!operatorId || !selectedWarehouse) {
       return;
     }
 
@@ -71,7 +86,7 @@ export function ScanGuide() {
     return () => {
       stopScanner();
     };
-  }, [selectedWarehouse, navigate]);
+  }, [operatorId, selectedWarehouse]);
 
   // =====================================================
   // SCANNER METHODS (Copiados de Scanner.jsx)
