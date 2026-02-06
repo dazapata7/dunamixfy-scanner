@@ -5,6 +5,7 @@
 // Glassmorphism + Cards de navegación
 // =====================================================
 
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings } from 'lucide-react';
@@ -14,9 +15,21 @@ export function WMSHome() {
   const operator = useStore((state) => state.operator);
   const selectedWarehouse = useStore((state) => state.selectedWarehouse);
 
-  // Si no hay almacén seleccionado, redirigir a selector
+  // Si no hay almacén seleccionado, redirigir a selector (en useEffect)
+  useEffect(() => {
+    // Dar tiempo a Zustand para cargar desde localStorage
+    const timer = setTimeout(() => {
+      if (!selectedWarehouse) {
+        console.log('⚠️ WMSHome: No hay almacén seleccionado - redirigiendo...');
+        navigate('/wms/select-warehouse');
+      }
+    }, 100);
+
+    return () => clearTimeout(timer);
+  }, [selectedWarehouse, navigate]);
+
+  // Mientras carga Zustand, mostrar loading o nada
   if (!selectedWarehouse) {
-    navigate('/wms/select-warehouse');
     return null;
   }
 
