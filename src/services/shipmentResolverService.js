@@ -181,18 +181,38 @@ export const shipmentResolverService = {
 
   /**
    * Normalizar items de Coordinadora (desde API)
-   * orderItems puede venir en varios formatos según Bubble
+   * orderItems puede venir en varios formatos según Bubble:
+   * - STRING JSON (necesita JSON.parse)
+   * - Objeto único (convertir a array)
+   * - Array de objetos (formato ideal)
    */
   normalizeCoordinadoraItems(orderItems) {
-    if (!orderItems || !Array.isArray(orderItems)) {
-      console.warn('⚠️ orderItems no es un array válido:', orderItems);
+    if (!orderItems) {
+      console.warn('⚠️ orderItems es null/undefined');
       return [];
     }
 
-    const items = orderItems.map(item => {
-      // Formato esperado: { sku: "RODILLAX-50ML", qty: 2, product_name: "..." }
-      // O puede venir como: { product_sku: "...", quantity: ... }
+    let parsedItems = orderItems;
 
+    // Si es string, parsear JSON
+    if (typeof orderItems === 'string') {
+      try {
+        parsedItems = JSON.parse(orderItems);
+        console.log('✅ orderItems parseado desde JSON string');
+      } catch (e) {
+        console.error('❌ Error parseando orderItems JSON:', e);
+        return [];
+      }
+    }
+
+    // Si es objeto único, convertir a array
+    if (!Array.isArray(parsedItems)) {
+      console.log('🔄 Convirtiendo objeto único a array');
+      parsedItems = [parsedItems];
+    }
+
+    const items = parsedItems.map(item => {
+      // Formato esperado: { sku: "210", quantity: 2, name: "Lumbrax" }
       const sku = item.sku || item.product_sku || item.SKU;
       const qty = item.qty || item.quantity || item.Quantity || 1;
 
@@ -202,11 +222,12 @@ export const shipmentResolverService = {
       }
 
       return {
-        sku: sku.trim().toUpperCase(),
+        sku: sku.toString().trim().toUpperCase(),
         qty: parseInt(qty, 10)
       };
     }).filter(Boolean);  // Filtrar nulls
 
+    console.log(`✅ Items normalizados: ${items.length} productos`);
     return items;
   },
 
