@@ -5,7 +5,7 @@
 // Maneja: warehouses, scan guide, dispatch, validación
 // =====================================================
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useStore } from '../store/useStore';
 import { warehousesService, dispatchesService } from '../services/wmsService';
 import { shipmentResolverService } from '../services/shipmentResolverService';
@@ -61,8 +61,9 @@ export function useWMS() {
   /**
    * Escanear guía y crear dispatch (draft)
    * Flujo completo: detectar carrier → resolver items → validar stock → crear dispatch
+   * NOTA: NO usar useCallback aquí para que siempre capture carriers actualizado
    */
-  const scanGuideForDispatch = useCallback(async (rawCode, operatorId) => {
+  const scanGuideForDispatch = async (rawCode, operatorId) => {
     if (!selectedWarehouse) {
       throw new Error('Debe seleccionar un almacén primero');
     }
@@ -77,10 +78,22 @@ export function useWMS() {
 
     try {
       // 1. Detectar transportadora
-      console.log(`📋 Carriers cargados: ${carriers.length}`);
-      carriers.forEach(c => console.log(`  - ${c.display_name} (${c.code}): ${c.is_active ? 'ACTIVA' : 'INACTIVA'}`));
+      // IMPORTANTE: Usar carriers del estado actual, no del closure
+      const currentCarriers = carriers;
+      console.log(`📋 Carriers cargados: ${currentCarriers.length}`);
+      currentCarriers.forEach(c => console.log(`  - ${c.display_name} (${c.code}): ${c.is_active ? 'ACTIVA' : 'INACTIVA'}`));
 
-      const detectionResult = procesarCodigoConCarriers(rawCode, carriers);
+      if (currentCarriers.length === 0) {
+        console.error('❌ No hay carriers cargados. Reintentando carga...');
+        await loadInitialData();
+        // Intentar de nuevo después de recargar
+        const retriedCarriers = carriers;
+        if (retriedCarriers.length === 0) {
+          throw new Error('No se pudieron cargar las transportadoras. Recargue la página.');
+        }
+      }
+
+      const detectionResult = procesarCodigoConCarriers(rawCode, currentCarriers.length > 0 ? currentCarriers : carriers);
 
       if (!detectionResult.valido) {
         console.error('❌ Código no válido para ninguna transportadora');
@@ -270,7 +283,7 @@ export function useWMS() {
     } finally {
       setIsProcessing(false);
     }
-  }, [selectedWarehouse, carriers]);
+  };
 
   /**
    * Mapear SKUs a product_ids
@@ -325,7 +338,7 @@ export function useWMS() {
   /**
    * Confirmar dispatch (validar stock + crear movimientos OUT + marcar shipment_record)
    */
-  const confirmDispatch = useCallback(async (dispatchId, shipmentRecordId) => {
+  const confirmDispatch = async (dispatchId, shipmentRecordId) => {
     console.log(`✅ Confirmando dispatch: ${dispatchId}`);
     setIsProcessing(true);
 
@@ -361,7 +374,7 @@ export function useWMS() {
     } finally {
       setIsProcessing(false);
     }
-  }, []);
+  };
 
   // =====================================================
   // CANCEL DISPATCH
@@ -370,7 +383,7 @@ export function useWMS() {
   /**
    * Cancelar/eliminar dispatch en draft
    */
-  const cancelDispatch = useCallback(async (dispatchId) => {
+  const cancelDispatch = async (dispatchId) => {
     console.log(`🗑️ Cancelando dispatch: ${dispatchId}`);
 
     try {
@@ -383,7 +396,7 @@ export function useWMS() {
       toast.error('Error al cancelar el despacho');
       throw error;
     }
-  }, []);
+  };
 
   // =====================================================
   // RETURN
