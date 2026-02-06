@@ -71,6 +71,22 @@ export function AuthProvider({ children }) {
 
       if (error) throw error;
 
+      // Sincronizar operador manualmente (Migration 012)
+      if (data.user) {
+        try {
+          const userName = data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Usuario';
+          await supabase.rpc('sync_operator_on_login', {
+            user_id: data.user.id,
+            user_email: data.user.email,
+            user_name: userName
+          });
+          console.log('✅ Operador sincronizado en login:', userName);
+        } catch (syncError) {
+          console.warn('⚠️ No se pudo sincronizar operador:', syncError);
+          // No lanzar error, continuar con login
+        }
+      }
+
       toast.success('Sesión iniciada correctamente');
       return { data, error: null };
     } catch (error) {
@@ -92,6 +108,22 @@ export function AuthProvider({ children }) {
       });
 
       if (error) throw error;
+
+      // Sincronizar operador manualmente (Migration 012)
+      if (data.user) {
+        try {
+          const userName = metadata.name || data.user.email?.split('@')[0] || 'Usuario';
+          await supabase.rpc('sync_operator_on_login', {
+            user_id: data.user.id,
+            user_email: data.user.email,
+            user_name: userName
+          });
+          console.log('✅ Operador sincronizado en registro:', userName);
+        } catch (syncError) {
+          console.warn('⚠️ No se pudo sincronizar operador:', syncError);
+          // No lanzar error, continuar con registro
+        }
+      }
 
       toast.success('Cuenta creada. Revisa tu email para confirmar.');
       return { data, error: null };
