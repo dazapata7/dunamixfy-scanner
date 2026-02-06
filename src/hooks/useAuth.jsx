@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
+import { useStore } from '../store/useStore';
 import toast from 'react-hot-toast';
 
 const AuthContext = createContext({});
@@ -16,6 +17,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
+  const { setOperator, logout: logoutStore } = useStore();
 
   useEffect(() => {
     // Obtener sesión actual
@@ -23,6 +25,13 @@ export function AuthProvider({ children }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+
+      // Si hay sesión activa, guardar operador en Zustand
+      if (session?.user) {
+        const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario';
+        setOperator(userName, session.user.id);
+        console.log('🧑 Operador guardado desde sesión inicial:', userName, session.user.id);
+      }
     });
 
     // Escuchar cambios de autenticación
@@ -35,8 +44,16 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // V5: Mostrar toast cuando se cierra sesión exitosamente
+      // V6: Guardar operador en Zustand cuando se loguea
+      if (event === 'SIGNED_IN' && session?.user) {
+        const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario';
+        setOperator(userName, session.user.id);
+        console.log('🧑 Operador guardado:', userName, session.user.id);
+      }
+
+      // V6: Limpiar operador de Zustand cuando se desloguea
       if (event === 'SIGNED_OUT') {
+        logoutStore();
         toast.success('Sesión cerrada exitosamente');
       }
     });
