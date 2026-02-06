@@ -216,8 +216,9 @@ export function useWMS() {
 
       console.log(`📦 Items resueltos: ${shipmentData.items.length} productos`);
 
-      // 4. Mapear SKUs a product_ids
-      const itemsWithProducts = await mapSkusToProducts(shipmentData.items);
+      // 4. Mapear SKUs a product_ids (pasando source para mappings externos)
+      const source = carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode;
+      const itemsWithProducts = await mapSkusToProducts(shipmentData.items, source);
 
       console.log(`✅ Items mapeados: ${itemsWithProducts.length} productos encontrados`);
 
@@ -296,21 +297,23 @@ export function useWMS() {
   /**
    * Mapear SKUs a product_ids
    * Si el producto no existe, retorna error en el item
+   * @param {Array} items - Items con {sku, qty}
+   * @param {string} source - Fuente del SKU externo ('dunamixfy', 'interrapidisimo', etc.)
    */
-  async function mapSkusToProducts(items) {
+  async function mapSkusToProducts(items, source = null) {
     const mappedItems = [];
 
     for (const item of items) {
       try {
-        // Buscar producto por SKU
-        const product = await productsService.getBySku(item.sku);
+        // Buscar producto por SKU (primero intenta mapping externo si hay source)
+        const product = await productsService.getBySku(item.sku, source);
 
         if (!product) {
           // Producto no encontrado
           mappedItems.push({
             ...item,
             product_id: null,
-            error: `Producto no encontrado: ${item.sku}`
+            error: `Producto no encontrado: ${item.sku}${source ? ` (${source})` : ''}`
           });
         } else {
           mappedItems.push({

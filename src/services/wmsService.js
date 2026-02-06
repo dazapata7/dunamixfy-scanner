@@ -242,11 +242,36 @@ export const productsService = {
   },
 
   /**
-   * Buscar producto por SKU
+   * Buscar producto por SKU (interno o externo con mapping)
+   * @param {string} sku - SKU a buscar
+   * @param {string} source - Fuente del SKU externo ('dunamixfy', 'interrapidisimo', etc.)
    */
-  async getBySku(sku) {
-    console.log(`🔍 Buscando producto con SKU: ${sku}`);
+  async getBySku(sku, source = null) {
+    console.log(`🔍 Buscando producto con SKU: ${sku}${source ? ` (source: ${source})` : ''}`);
 
+    // 1. Si hay source, buscar primero en mappings
+    if (source) {
+      const { data: mapping, error: mappingError } = await supabase
+        .from('product_sku_mappings')
+        .select('product_id, products(*)')
+        .eq('source', source)
+        .eq('external_sku', sku)
+        .eq('is_active', true)
+        .single();
+
+      if (!mappingError && mapping) {
+        console.log(`✅ Producto encontrado vía mapping (${source}): ${mapping.products.name}`);
+        return mapping.products;
+      }
+
+      if (mappingError && mappingError.code !== 'PGRST116') {
+        console.error('❌ Error al buscar mapping:', mappingError);
+      } else {
+        console.log(`⚠️ No se encontró mapping para SKU externo: ${sku} (${source})`);
+      }
+    }
+
+    // 2. Buscar por SKU interno (fallback)
     const { data, error } = await supabase
       .from('products')
       .select('*')
@@ -262,7 +287,7 @@ export const productsService = {
       throw error;
     }
 
-    console.log(`✅ Producto encontrado: ${data.name}`);
+    console.log(`✅ Producto encontrado por SKU interno: ${data.name}`);
     return data;
   },
 
