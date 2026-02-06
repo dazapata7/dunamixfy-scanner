@@ -5,7 +5,7 @@
 // Maneja: warehouses, scan guide, dispatch, validación
 // =====================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { warehousesService, dispatchesService } from '../services/wmsService';
 import { shipmentResolverService } from '../services/shipmentResolverService';
@@ -23,6 +23,9 @@ export function useWMS() {
   const [carriers, setCarriers] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  // useRef para acceder al estado actual de carriers dentro de funciones
+  const carriersRef = useRef([]);
 
   // =====================================================
   // INICIALIZACIÓN
@@ -43,6 +46,7 @@ export function useWMS() {
 
       setWarehouses(warehousesData);
       setCarriers(carriersData);
+      carriersRef.current = carriersData; // Actualizar ref
 
       console.log(`✅ WMS inicializado: ${warehousesData.length} almacenes, ${carriersData.length} carriers`);
 
@@ -78,22 +82,23 @@ export function useWMS() {
 
     try {
       // 1. Detectar transportadora
-      // IMPORTANTE: Usar carriers del estado actual, no del closure
-      const currentCarriers = carriers;
+      // IMPORTANTE: Usar carriersRef para obtener el estado más reciente
+      let currentCarriers = carriersRef.current;
       console.log(`📋 Carriers cargados: ${currentCarriers.length}`);
       currentCarriers.forEach(c => console.log(`  - ${c.display_name} (${c.code}): ${c.is_active ? 'ACTIVA' : 'INACTIVA'}`));
 
       if (currentCarriers.length === 0) {
         console.error('❌ No hay carriers cargados. Reintentando carga...');
         await loadInitialData();
-        // Intentar de nuevo después de recargar
-        const retriedCarriers = carriers;
-        if (retriedCarriers.length === 0) {
+        // Usar ref para obtener carriers actualizados
+        currentCarriers = carriersRef.current;
+        console.log(`🔄 Después de recargar: ${currentCarriers.length} carriers`);
+        if (currentCarriers.length === 0) {
           throw new Error('No se pudieron cargar las transportadoras. Recargue la página.');
         }
       }
 
-      const detectionResult = procesarCodigoConCarriers(rawCode, currentCarriers.length > 0 ? currentCarriers : carriers);
+      const detectionResult = procesarCodigoConCarriers(rawCode, currentCarriers);
 
       if (!detectionResult.valido) {
         console.error('❌ Código no válido para ninguna transportadora');
