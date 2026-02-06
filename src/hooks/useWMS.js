@@ -99,6 +99,7 @@ export function useWMS() {
       }
 
       const detectionResult = procesarCodigoConCarriers(rawCode, currentCarriers);
+      console.log('🔍 detectionResult recibido en useWMS:', JSON.stringify(detectionResult, null, 2));
 
       if (!detectionResult.valido) {
         console.error('❌ Código no válido para ninguna transportadora');

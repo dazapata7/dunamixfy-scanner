@@ -212,7 +212,7 @@ export function extractCode(rawCode, carrier) {
  *   carrierName: "Coordinadora"
  * }
  */
-export async function procesarCodigoConCarriers(rawCode, carriers) {
+export function procesarCodigoConCarriers(rawCode, carriers) {
   let codigo = rawCode.trim();
 
   // V2.1: Limpiar comillas que pueden venir en QR de Interrápidisimo
