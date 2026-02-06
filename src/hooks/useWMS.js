@@ -98,8 +98,10 @@ export function useWMS() {
         }
       }
 
+      // CRITICAL: Detectar transportadora (procesarCodigoConCarriers retorna objeto sincrónico)
       const detectionResult = procesarCodigoConCarriers(rawCode, currentCarriers);
       console.log('🔍 detectionResult recibido en useWMS:', JSON.stringify(detectionResult, null, 2));
+      console.log('🔍 detectionResult.valido:', detectionResult.valido);
 
       if (!detectionResult.valido) {
         console.error('❌ Código no válido para ninguna transportadora');
