@@ -42,10 +42,18 @@
  */
 export function validateCode(code, carrier) {
   if (!carrier || !carrier.validation_rules) {
+    console.log(`❌ validateCode: carrier o validation_rules no definido`, { carrier });
     return false;
   }
 
   const rules = carrier.validation_rules;
+
+  // DEBUG: Mostrar qué se está validando
+  console.log(`🔍 Validando código contra ${carrier.display_name}:`, {
+    codigo: code,
+    longitud: code.length,
+    reglas: rules
+  });
 
   // V2: Validación por patrón (dinámico)
   if (rules.pattern === 'ends_with_001') {
