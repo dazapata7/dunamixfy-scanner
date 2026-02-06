@@ -34,13 +34,12 @@ export function ScanGuide() {
     }
   }, [operator, operatorId]);
 
-  // Estado para preview de dispatch
-  const [dispatchPreview, setDispatchPreview] = useState(null);
-  const [stockValidation, setStockValidation] = useState(null);
-  const [shipmentRecord, setShipmentRecord] = useState(null);
+  // Estado para batch de dispatches (múltiples escaneos antes de confirmar)
+  const [dispatchesBatch, setDispatchesBatch] = useState([]); // Array de dispatches pendientes
+  const [showBatchSummary, setShowBatchSummary] = useState(false); // Mostrar resumen
 
   // Contadores de sesión
-  const [sessionDispatches, setSessionDispatches] = useState(0);
+  const [sessionSuccess, setSessionSuccess] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
 
   // Último escaneo (para feedback visual como Scanner.jsx)
@@ -197,12 +196,18 @@ export function ScanGuide() {
         setScanAnimation('success');
         playSuccessSound();
         vibrate([100]);
-        toast.success('Guía procesada - Revise el despacho');
+        toast.success(`✅ Guía ${result.dispatch.dispatch_number} agregada`);
 
-        // Guardar para preview
-        setDispatchPreview(result.dispatch);
-        setStockValidation(result.stockValidation);
-        setShipmentRecord(result.shipmentRecord);
+        // Agregar dispatch al batch (acumulando múltiples escaneos)
+        setDispatchesBatch(prev => [...prev, {
+          dispatch: result.dispatch,
+          stockValidation: result.stockValidation,
+          shipmentRecord: result.shipmentRecord,
+          feedbackInfo: result.feedbackInfo
+        }]);
+
+        // Incrementar contador de éxitos
+        setSessionSuccess(prev => prev + 1);
 
         // Actualizar lastScan para feedback visual (ÉXITO)
         setLastScan({
@@ -331,50 +336,173 @@ export function ScanGuide() {
   };
 
   // =====================================================
-  // CONFIRM DISPATCH
+  // BATCH ACTIONS
   // =====================================================
 
-  const handleConfirmDispatch = async () => {
+  const handleFinishScanning = () => {
+    if (dispatchesBatch.length === 0) {
+      toast.error('No hay guías escaneadas para aprobar');
+      return;
+    }
+
+    // Detener scanner y mostrar resumen
+    stopScanner();
+    setShowBatchSummary(true);
+  };
+
+  const handleConfirmBatch = async () => {
     try {
-      await confirmDispatch(dispatchPreview.id, shipmentRecord?.id);
+      console.log(`📦 Confirmando batch de ${dispatchesBatch.length} dispatches...`);
 
-      // Incrementar contador
-      setSessionDispatches(prev => prev + 1);
+      // Confirmar cada dispatch en el batch
+      for (const item of dispatchesBatch) {
+        await confirmDispatch(item.dispatch.id, item.shipmentRecord?.id);
+        console.log(`✅ Dispatch ${item.dispatch.dispatch_number} confirmado`);
+      }
 
-      // Limpiar preview
-      setDispatchPreview(null);
-      setStockValidation(null);
-      setShipmentRecord(null);
+      toast.success(`✅ ${dispatchesBatch.length} despachos confirmados exitosamente`);
 
-      toast.success('Despacho confirmado exitosamente');
+      // Limpiar batch y volver al WMS Home
+      setDispatchesBatch([]);
+      setShowBatchSummary(false);
+      navigate('/wms');
 
     } catch (error) {
-      console.error('❌ Error al confirmar dispatch:', error);
-      toast.error(error.message || 'Error al confirmar el despacho');
+      console.error('❌ Error al confirmar batch:', error);
+      toast.error(error.message || 'Error al confirmar los despachos');
     }
   };
 
-  const handleCancelDispatch = () => {
-    setDispatchPreview(null);
-    setStockValidation(null);
-    setShipmentRecord(null);
-    toast('Despacho cancelado');
+  const handleCancelBatch = () => {
+    // Volver a escanear (reiniciar scanner)
+    setShowBatchSummary(false);
+    setDispatchesBatch([]);
+    startScanner();
+    toast('Batch cancelado - Puede continuar escaneando');
   };
 
   // =====================================================
   // RENDER
   // =====================================================
 
-  // Si hay preview, mostrar componente de confirmación
-  if (dispatchPreview) {
+  // Si está mostrando resumen del batch, mostrar componente de confirmación
+  if (showBatchSummary) {
     return (
-      <DispatchPreview
-        dispatch={dispatchPreview}
-        stockValidation={stockValidation}
-        onConfirm={handleConfirmDispatch}
-        onCancel={handleCancelDispatch}
-        isProcessing={isProcessing}
-      />
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+        <div className="max-w-3xl mx-auto">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-2xl font-bold text-white">
+              📋 Resumen de Escaneo
+            </h1>
+            <div className="text-white/60 text-sm">
+              {dispatchesBatch.length} guías escaneadas
+            </div>
+          </div>
+
+          {/* Lista de dispatches */}
+          <div className="space-y-4 mb-6">
+            {dispatchesBatch.map((item, index) => (
+              <div
+                key={item.dispatch.id}
+                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg"
+              >
+                <div className="flex items-start justify-between mb-4">
+                  <div>
+                    <p className="text-white/60 text-sm mb-1">Despacho #{index + 1}</p>
+                    <p className="text-white font-bold text-xl font-mono">
+                      {item.dispatch.dispatch_number}
+                    </p>
+                  </div>
+                  <div className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-lg">
+                    <p className="text-green-400 text-sm font-medium">DRAFT</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-white/80">
+                    <span className="text-white/60">🚚 Transportadora:</span>
+                    <span className="font-medium">{item.feedbackInfo.carrier}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-white/80">
+                    <span className="text-white/60">📦 Guía:</span>
+                    <span className="font-mono">{item.feedbackInfo.code}</span>
+                  </div>
+                  {item.feedbackInfo.customerName && (
+                    <div className="flex items-center gap-2 text-white/80">
+                      <span className="text-white/60">👤 Cliente:</span>
+                      <span>{item.feedbackInfo.customerName}</span>
+                    </div>
+                  )}
+                  <div className="flex items-center gap-2 text-white/80">
+                    <span className="text-white/60">📦 Items:</span>
+                    <span>{item.feedbackInfo.itemsCount} productos</span>
+                  </div>
+                </div>
+
+                {/* Items del dispatch */}
+                <div className="mt-4 pt-4 border-t border-white/10">
+                  <p className="text-white/60 text-sm mb-2">Productos:</p>
+                  <div className="space-y-2">
+                    {item.dispatch.dispatch_items?.map((dispatchItem, idx) => (
+                      <div key={idx} className="flex items-center justify-between text-sm">
+                        <span className="text-white/80">
+                          {dispatchItem.products?.name || 'Producto'}
+                        </span>
+                        <span className="text-white/60">
+                          Qty: {dispatchItem.qty}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Resumen Total */}
+          <div className="bg-gradient-to-br from-primary-500/20 to-blue-500/20 backdrop-blur-xl rounded-2xl border border-primary-500/30 p-6 shadow-glass-lg mb-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-white/60 text-sm mb-1">Total Guías</p>
+                <p className="text-white font-bold text-3xl">{dispatchesBatch.length}</p>
+              </div>
+              <div>
+                <p className="text-white/60 text-sm mb-1">Total Items</p>
+                <p className="text-white font-bold text-3xl">
+                  {dispatchesBatch.reduce((sum, item) =>
+                    sum + (item.feedbackInfo.itemsCount || 0), 0
+                  )}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex gap-4">
+            <button
+              onClick={handleCancelBatch}
+              className="flex-1 px-6 py-4 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+            >
+              ❌ Cancelar y Volver
+            </button>
+            <button
+              onClick={handleConfirmBatch}
+              disabled={isProcessing}
+              className="flex-1 px-6 py-4 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:from-green-600 hover:to-emerald-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isProcessing ? (
+                <span className="flex items-center justify-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Confirmando...
+                </span>
+              ) : (
+                `✅ Confirmar ${dispatchesBatch.length} Despachos`
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
     );
   }
 
@@ -417,7 +545,11 @@ export function ScanGuide() {
           <div className="flex items-center gap-4 text-sm">
             <div className="flex items-center gap-2 text-green-400">
               <CheckCircle2 className="w-4 h-4" />
-              <span>{sessionDispatches} despachados</span>
+              <span>{sessionSuccess} escaneadas</span>
+            </div>
+            <div className="flex items-center gap-2 text-blue-400">
+              <Package className="w-4 h-4" />
+              <span>{dispatchesBatch.length} pendientes</span>
             </div>
             {sessionErrors > 0 && (
               <div className="flex items-center gap-2 text-red-400">
@@ -426,6 +558,18 @@ export function ScanGuide() {
               </div>
             )}
           </div>
+
+          {/* Botón para finalizar escaneo (solo si hay guías) */}
+          {dispatchesBatch.length > 0 && (
+            <div className="mt-4">
+              <button
+                onClick={handleFinishScanning}
+                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:from-green-600 hover:to-emerald-700 transition-all"
+              >
+                ✅ Finalizar y Aprobar ({dispatchesBatch.length} guías)
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Scanner Container */}
