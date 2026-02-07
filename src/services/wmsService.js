@@ -1062,6 +1062,36 @@ export const dispatchesService = {
   },
 
   /**
+   * Obtener TODOS los despachos del día actual (sin filtro de warehouse)
+   * Para dashboard principal
+   */
+  async getAllTodayDispatches() {
+    console.log(`📊 Consultando TODOS los despachos del día (sin filtro de warehouse)`);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayISO = today.toISOString();
+
+    const { data, error } = await supabase
+      .from('dispatches')
+      .select(`
+        *,
+        dispatch_items(*, products(*)),
+        shipment_record:shipment_records(*, carriers(*))
+      `)
+      .gte('created_at', todayISO)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('❌ Error al consultar todos los despachos del día:', error);
+      throw error;
+    }
+
+    console.log(`✅ ${data.length} despachos encontrados (todos los warehouses)`);
+    return data;
+  },
+
+  /**
    * Obtener despachos del día actual (para dashboard)
    * Incluye shipment_record para metadata de tienda
    */
@@ -1077,7 +1107,7 @@ export const dispatchesService = {
       .select(`
         *,
         dispatch_items(*, product:products(*)),
-        shipment_record:shipment_records(*)
+        shipment_record:shipment_records(*, carriers(*))
       `)
       .eq('warehouse_id', warehouseId)
       .gte('created_at', todayISO)

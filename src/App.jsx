@@ -21,6 +21,7 @@ const CSVImporter = lazy(() => import("./components/wms/CSVImporter"));
 const ReceiptForm = lazy(() => import("./components/wms/ReceiptForm"));
 const AdjustmentForm = lazy(() => import("./components/wms/AdjustmentForm"));
 const DispatchDashboard = lazy(() => import("./components/wms/DispatchDashboard"));
+const DispatchHistory = lazy(() => import("./components/wms/DispatchHistory")); // Historial completo
 const ScanHistory = lazy(() => import("./components/wms/ScanHistory"));
 const WarehouseManagement = lazy(() => import("./components/wms/WarehouseManagement"));
 const ProductManagement = lazy(() => import("./components/wms/ProductManagement"));
@@ -70,7 +71,8 @@ function AppContent() {
               <Route path="/wms/receipt" element={<ReceiptForm />} />
               <Route path="/wms/adjustment" element={<AdjustmentForm />} />
               <Route path="/wms/dashboard" element={<DispatchDashboard />} />
-              <Route path="/wms/history" element={<ScanHistory />} />
+              <Route path="/wms/history" element={<DispatchHistory />} /> {/* Historial completo */}
+              <Route path="/wms/scan-history" element={<ScanHistory />} /> {/* Historial antiguo */}
               <Route path="/wms/manage-warehouses" element={<WarehouseManagement />} />
               <Route path="/wms/manage-products" element={<ProductManagement />} />
 

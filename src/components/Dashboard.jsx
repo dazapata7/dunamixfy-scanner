@@ -5,6 +5,7 @@ import { useRole } from '../hooks/useRole';
 import { ZXingScanner as ScannerComponent } from './ZXingScanner';
 import { Stats } from './Stats';
 import { DesktopDashboard } from './DesktopDashboard';
+import { UnifiedDashboard } from './wms/UnifiedDashboard'; // Dashboard único con datos de dispatches
 import { LogOut, BarChart3, RefreshCw, ShieldAlert, User, Package } from 'lucide-react';
 import { useRealtime } from '../hooks/useRealtime';
 import { useAuth } from '../hooks/useAuth'; // V5: Para obtener usuario y signOut real
@@ -175,91 +176,8 @@ export function Dashboard() {
 
       {/* Content */}
       <div className="relative max-w-4xl mx-auto p-4 space-y-4">
-        {/* Estadísticas de la sesión - Glassmorphism */}
-        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-          <h2 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <div className="w-10 h-10 rounded-2xl bg-primary-500/20 flex items-center justify-center">
-              <BarChart3 className="w-5 h-5 text-primary-400" />
-            </div>
-            <span>Resumen de tu Sesión</span>
-          </h2>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="backdrop-blur-xl bg-gradient-to-br from-primary-500/10 to-cyan-500/10 rounded-2xl p-5 border border-primary-400/20 shadow-glass">
-              <p className="text-sm text-primary-200 mb-2 font-medium">Escaneados</p>
-              <p className="text-4xl font-bold bg-gradient-to-r from-primary-400 to-cyan-400 bg-clip-text text-transparent">
-                {sessionScans}
-              </p>
-            </div>
-
-            <div className="backdrop-blur-xl bg-gradient-to-br from-red-500/10 to-pink-500/10 rounded-2xl p-5 border border-red-400/20 shadow-glass">
-              <p className="text-sm text-red-200 mb-2 font-medium">Repetidos</p>
-              <p className="text-4xl font-bold bg-gradient-to-r from-red-400 to-pink-400 bg-clip-text text-transparent">
-                {sessionRepeated}
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Estadísticas del día - Glassmorphism */}
-        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-          <h2 className="text-lg font-semibold text-white mb-4">
-            Resumen de Hoy
-          </h2>
-
-          <div className="space-y-3">
-            <div className="backdrop-blur-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 rounded-2xl p-5 border border-purple-400/20 shadow-glass">
-              <p className="text-sm text-purple-200 mb-2 font-medium">Total del Día</p>
-              <p className="text-4xl font-bold text-white">{todayScans}</p>
-            </div>
-
-            {/* Estadísticas por Transportadora - Dinámico */}
-            {todayStats.byCarrier && Object.keys(todayStats.byCarrier).length > 0 && (
-              <div className="grid grid-cols-2 gap-3">
-                {Object.entries(todayStats.byCarrier)
-                  .sort(([, a], [, b]) => b - a)
-                  .map(([carrier, count], index) => (
-                    <div
-                      key={carrier}
-                      className={`backdrop-blur-xl bg-gradient-to-br rounded-2xl p-4 border shadow-glass ${
-                        index === 0
-                          ? 'from-blue-500/10 to-cyan-500/10 border-blue-400/20'
-                          : 'from-indigo-500/10 to-purple-500/10 border-indigo-400/20'
-                      }`}
-                    >
-                      <p className="text-sm text-gray-300 mb-1 font-medium">{carrier}</p>
-                      <p className="text-3xl font-bold text-white">{count}</p>
-                    </div>
-                  ))}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Estadísticas por Tienda - Glassmorphism */}
-        {todayStats.byStore && Object.keys(todayStats.byStore).length > 0 && (
-          <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-            <h2 className="text-lg font-semibold text-white mb-4">
-              📊 Guías por Tienda (Hoy)
-            </h2>
-
-            <div className="space-y-2">
-              {Object.entries(todayStats.byStore)
-                .sort(([, a], [, b]) => b - a)
-                .map(([store, count]) => (
-                  <div
-                    key={store}
-                    className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/10 transition-all"
-                  >
-                    <span className="text-gray-200 font-medium">{store}</span>
-                    <span className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-cyan-400 bg-clip-text text-transparent">
-                      {count}
-                    </span>
-                  </div>
-                ))}
-            </div>
-          </div>
-        )}
+        {/* Dashboard Único - Usando tabla dispatches */}
+        <UnifiedDashboard showTitle={true} />
 
         {/* Botones de acción - Glassmorphism */}
         <div className="space-y-3 pb-6">

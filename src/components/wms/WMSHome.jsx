@@ -8,6 +8,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
+import { UnifiedDashboard } from './UnifiedDashboard'; // Dashboard único
 import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings } from 'lucide-react';
 
 export function WMSHome() {
@@ -141,6 +142,11 @@ export function WMSHome() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Dashboard Único - Stats del almacén actual */}
+      <div className="max-w-4xl mx-auto mb-8">
+        <UnifiedDashboard warehouseId={selectedWarehouse.id} showTitle={false} />
       </div>
 
       {/* Cards Grid */}
