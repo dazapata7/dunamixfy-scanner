@@ -85,8 +85,12 @@ export function DispatchDashboard() {
       if (error) throw error;
 
       if (data && data.length > 0 && data[0].success) {
+        // Eliminar del estado local inmediatamente
+        setDispatches(prev => prev.filter(d => d.guide_code !== trackingCode));
+
         toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
-        // Recargar dispatches
+
+        // Recargar dispatches desde BD
         await loadTodayDispatches();
       } else {
         toast.error('No se encontró el dispatch', { id: 'delete' });
