@@ -1077,7 +1077,8 @@ export const dispatchesService = {
       .select(`
         *,
         dispatch_items(*, products(*)),
-        shipment_record:shipment_records(*, carriers(*))
+        shipment_record:shipment_records(*, carriers(*)),
+        operator:operators!dispatches_operator_id_fkey(name)
       `)
       .gte('created_at', todayISO)
       .order('created_at', { ascending: false });
@@ -1107,11 +1108,12 @@ export const dispatchesService = {
       .select(`
         *,
         dispatch_items(*, product:products(*)),
-        shipment_record:shipment_records(*, carriers(*))
+        shipment_record:shipment_records(*, carriers(*)),
+        operator:operators!dispatches_operator_id_fkey(name)
       `)
       .eq('warehouse_id', warehouseId)
       .gte('created_at', todayISO)
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false});
 
     if (error) {
       console.error('❌ Error al consultar despachos del día:', error);

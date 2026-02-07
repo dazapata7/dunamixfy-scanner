@@ -45,7 +45,7 @@ export function DispatchHistory({ warehouseId = null }) {
           dispatch_items(*, products(*)),
           shipment_record:shipment_records(*, carriers(*)),
           warehouse:warehouses(name),
-          operator:operators(name)
+          operator:operators!dispatches_operator_id_fkey(name)
         `)
         .order('created_at', { ascending: false })
         .limit(200);
