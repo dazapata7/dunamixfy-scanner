@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AdminPanel } from './AdminPanel';
 import { ConfigPanel } from './ConfigPanel';
+import { UnifiedDashboard } from './wms/UnifiedDashboard'; // Dashboard único con datos de dispatches
 import { BarChart3, Settings, LogOut, User, Package } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
@@ -163,10 +164,14 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
             )}
           </div>
 
-          {/* Vista de estadísticas en tiempo real - Glassmorphism wrapper */}
+          {/* Vista de estadísticas en tiempo real - Dashboard Único */}
           {activeView === 'stats' && (
-            <div className="backdrop-blur-2xl bg-gradient-to-br from-white/5 to-white/2 rounded-3xl border border-white/10 shadow-glass-lg overflow-hidden">
-              <AdminPanel onBack={() => {}} hideBackButton hideUserBadge />
+            <div>
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <BarChart3 className="w-7 h-7 text-primary-400" />
+                Estadísticas en Tiempo Real
+              </h2>
+              <UnifiedDashboard showTitle={false} />
             </div>
           )}
         </div>
