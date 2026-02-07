@@ -18,9 +18,11 @@ import {
   CheckCircle2,
   Clock,
   BarChart3,
-  Loader2
+  Loader2,
+  Trash2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { supabase } from '../../lib/supabase';
 
 export function DispatchDashboard() {
   const navigate = useNavigate();
@@ -63,6 +65,35 @@ export function DispatchDashboard() {
       toast.error('Error al cargar despachos del día');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  // Función para eliminar dispatch (para pruebas)
+  async function handleDeleteDispatch(trackingCode, dispatchNumber) {
+    if (!confirm(`¿Eliminar guía ${trackingCode}?\n\nEsto es solo para pruebas. Se eliminarán todos los registros relacionados.`)) {
+      return;
+    }
+
+    try {
+      toast.loading('Eliminando dispatch...', { id: 'delete' });
+
+      // Llamar a la función RPC de eliminación
+      const { data, error } = await supabase.rpc('delete_dispatch_for_testing', {
+        p_tracking_code: trackingCode
+      });
+
+      if (error) throw error;
+
+      if (data && data.length > 0 && data[0].success) {
+        toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
+        // Recargar dispatches
+        await loadTodayDispatches();
+      } else {
+        toast.error('No se encontró el dispatch', { id: 'delete' });
+      }
+    } catch (error) {
+      console.error('❌ Error al eliminar dispatch:', error);
+      toast.error(error.message || 'Error al eliminar dispatch', { id: 'delete' });
     }
   }
 
@@ -292,9 +323,9 @@ export function DispatchDashboard() {
                       {storeData.guides.map((guide, idx) => (
                         <div
                           key={idx}
-                          className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-1.5"
+                          className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-1.5 group hover:bg-white/10 transition-all"
                         >
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-1">
                             <span className="text-white/70 text-xs font-mono">
                               {guide.guide_code}
                             </span>
@@ -304,9 +335,18 @@ export function DispatchDashboard() {
                               <Clock className="w-3 h-3 text-orange-400" />
                             )}
                           </div>
-                          <span className="text-white/40 text-xs">
-                            {guide.dispatch_number}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-white/40 text-xs">
+                              {guide.dispatch_number}
+                            </span>
+                            <button
+                              onClick={() => handleDeleteDispatch(guide.guide_code, guide.dispatch_number)}
+                              className="p-1 rounded-md bg-red-500/0 hover:bg-red-500/20 border border-red-500/0 hover:border-red-500/30 text-red-400/0 group-hover:text-red-400 transition-all"
+                              title="Eliminar (solo pruebas)"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
