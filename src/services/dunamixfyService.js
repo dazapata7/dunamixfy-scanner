@@ -18,7 +18,7 @@ export async function markOrderAsUnscanned(guideNumber) {
     console.log(`📤 Marcando guía ${guideNumber} como unscanned en Dunamixfy...`);
 
     const response = await fetch(
-      `${DUNAMIXFY_BASE_URL}/wf/dfx_scanner_get_orderinfo_copy/initialize`,
+      `${DUNAMIXFY_BASE_URL}/wf/dfx_scanner_set_unscanned`,
       {
         method: 'POST',
         headers: {
@@ -66,7 +66,7 @@ export async function markOrderAsUnscanned(guideNumber) {
 export async function getOrderInfo(guideNumber) {
   try {
     const response = await fetch(
-      `${DUNAMIXFY_BASE_URL}/wf/dfx_scanner_get_orderinfo_copy`,
+      `${DUNAMIXFY_BASE_URL}/wf/dfx_scanner_get_orderinfo`,
       {
         method: 'POST',
         headers: {
