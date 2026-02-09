@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productsService } from '../../services/wmsService';
+import { productsService, skuMappingsService } from '../../services/wmsService';
 import {
   ArrowLeft,
   Package,
@@ -18,7 +18,8 @@ import {
   Save,
   X,
   Image as ImageIcon,
-  Barcode as BarcodeIcon
+  Barcode as BarcodeIcon,
+  Link as LinkIcon
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -36,6 +37,15 @@ export function ProductManagement() {
     photo_url: '',
     description: '',
     is_active: true
+  });
+
+  // SKU Mappings state
+  const [skuMappings, setSkuMappings] = useState([]);
+  const [isLoadingMappings, setIsLoadingMappings] = useState(false);
+  const [newMapping, setNewMapping] = useState({
+    source: 'dunamixfy',
+    external_sku: '',
+    notes: ''
   });
 
   useEffect(() => {
@@ -68,7 +78,7 @@ export function ProductManagement() {
     });
   }
 
-  function handleEdit(product) {
+  async function handleEdit(product) {
     setIsCreating(false);
     setEditingProduct(product.id);
     setFormData({
@@ -79,6 +89,9 @@ export function ProductManagement() {
       description: product.description || '',
       is_active: product.is_active
     });
+
+    // Cargar SKU mappings del producto
+    await loadSkuMappings(product.id);
   }
 
   function handleCancel() {
@@ -92,6 +105,69 @@ export function ProductManagement() {
       description: '',
       is_active: true
     });
+    setSkuMappings([]);
+    setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+  }
+
+  async function loadSkuMappings(productId) {
+    setIsLoadingMappings(true);
+    try {
+      const mappings = await skuMappingsService.getByProductId(productId);
+      setSkuMappings(mappings);
+    } catch (error) {
+      console.error('❌ Error al cargar mappings:', error);
+      toast.error('Error al cargar SKU externos');
+    } finally {
+      setIsLoadingMappings(false);
+    }
+  }
+
+  async function handleAddMapping() {
+    if (!newMapping.external_sku.trim()) {
+      toast.error('El SKU externo es requerido');
+      return;
+    }
+
+    if (!editingProduct) {
+      toast.error('Debe guardar el producto primero');
+      return;
+    }
+
+    try {
+      await skuMappingsService.create({
+        product_id: editingProduct,
+        source: newMapping.source,
+        external_sku: newMapping.external_sku.trim(),
+        notes: newMapping.notes.trim() || null,
+        is_active: true
+      });
+
+      toast.success('SKU externo agregado');
+      setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+      await loadSkuMappings(editingProduct);
+    } catch (error) {
+      console.error('❌ Error al agregar mapping:', error);
+      if (error.code === '23505') {
+        toast.error('Este SKU externo ya existe para esta fuente');
+      } else {
+        toast.error(error.message || 'Error al agregar SKU externo');
+      }
+    }
+  }
+
+  async function handleDeleteMapping(mappingId) {
+    if (!confirm('¿Eliminar este SKU externo?')) {
+      return;
+    }
+
+    try {
+      await skuMappingsService.delete(mappingId);
+      toast.success('SKU externo eliminado');
+      await loadSkuMappings(editingProduct);
+    } catch (error) {
+      console.error('❌ Error al eliminar mapping:', error);
+      toast.error(error.message || 'Error al eliminar SKU externo');
+    }
   }
 
   async function handleSave() {
@@ -292,6 +368,127 @@ export function ProductManagement() {
                 Cancelar
               </button>
             </div>
+          </div>
+        )}
+
+        {/* SKU Mappings - Solo mostrar al editar un producto existente */}
+        {editingProduct && !isCreating && (
+          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <LinkIcon className="w-6 h-6 text-blue-400" />
+                <div>
+                  <h2 className="text-xl font-bold text-white">SKU Externos</h2>
+                  <p className="text-white/60 text-sm">Mapeo de SKUs de Dunamixfy e Interrápidisimo</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Agregar nuevo mapping */}
+            <div className="bg-white/5 rounded-2xl border border-white/10 p-4 mb-4">
+              <p className="text-white/80 font-medium mb-3">➕ Agregar SKU Externo</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {/* Source */}
+                <div>
+                  <label className="block text-white/60 text-xs mb-1">Fuente</label>
+                  <select
+                    value={newMapping.source}
+                    onChange={(e) => setNewMapping({ ...newMapping, source: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  >
+                    <option value="dunamixfy">Dunamixfy</option>
+                    <option value="interrapidisimo">Interrápidisimo</option>
+                    <option value="csv">CSV</option>
+                    <option value="manual">Manual</option>
+                    <option value="other">Otro</option>
+                  </select>
+                </div>
+
+                {/* External SKU */}
+                <div>
+                  <label className="block text-white/60 text-xs mb-1">SKU Externo *</label>
+                  <input
+                    type="text"
+                    value={newMapping.external_sku}
+                    onChange={(e) => setNewMapping({ ...newMapping, external_sku: e.target.value })}
+                    placeholder="Ej: 210, ABC-123"
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label className="block text-white/60 text-xs mb-1">Notas (Opcional)</label>
+                  <input
+                    type="text"
+                    value={newMapping.notes}
+                    onChange={(e) => setNewMapping({ ...newMapping, notes: e.target.value })}
+                    placeholder="Notas adicionales"
+                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                  />
+                </div>
+              </div>
+
+              <button
+                onClick={handleAddMapping}
+                className="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-sm flex items-center justify-center gap-2"
+              >
+                <Plus className="w-4 h-4" />
+                Agregar Mapping
+              </button>
+            </div>
+
+            {/* Lista de mappings existentes */}
+            {isLoadingMappings ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="w-6 h-6 text-white/60 animate-spin" />
+              </div>
+            ) : skuMappings.length === 0 ? (
+              <div className="text-center py-8 text-white/40">
+                <p>No hay SKU externos configurados</p>
+                <p className="text-xs mt-1">Agrega el primer mapping arriba</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {skuMappings.map((mapping) => (
+                  <div
+                    key={mapping.id}
+                    className="flex items-center justify-between bg-white/5 rounded-xl border border-white/10 p-3 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex items-center gap-4 flex-1">
+                      {/* Source Badge */}
+                      <div className={`
+                        px-3 py-1 rounded-lg text-xs font-medium
+                        ${mapping.source === 'dunamixfy' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : ''}
+                        ${mapping.source === 'interrapidisimo' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : ''}
+                        ${!['dunamixfy', 'interrapidisimo'].includes(mapping.source) ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30' : ''}
+                      `}>
+                        {mapping.source === 'dunamixfy' ? 'Dunamixfy' :
+                         mapping.source === 'interrapidisimo' ? 'Interrápidisimo' :
+                         mapping.source.toUpperCase()}
+                      </div>
+
+                      {/* External SKU */}
+                      <div className="flex-1">
+                        <p className="text-white font-mono font-bold">{mapping.external_sku}</p>
+                        {mapping.notes && (
+                          <p className="text-white/60 text-xs mt-0.5">{mapping.notes}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Delete Button */}
+                    <button
+                      onClick={() => handleDeleteMapping(mapping.id)}
+                      className="p-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all"
+                      title="Eliminar"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

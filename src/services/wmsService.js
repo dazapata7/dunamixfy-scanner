@@ -1128,11 +1128,121 @@ export const dispatchesService = {
 // =====================================================
 // EXPORT DEFAULT
 // =====================================================
+// SKU MAPPINGS SERVICE (Mapeo de SKUs Externos)
+// =====================================================
+
+export const skuMappingsService = {
+  /**
+   * Obtener todos los mappings de un producto
+   */
+  async getByProductId(productId) {
+    console.log(`🔍 Obteniendo mappings para producto: ${productId}`);
+
+    const { data, error } = await supabase
+      .from('product_sku_mappings')
+      .select('*')
+      .eq('product_id', productId)
+      .eq('is_active', true)
+      .order('source');
+
+    if (error) {
+      console.error('❌ Error al cargar mappings:', error);
+      throw error;
+    }
+
+    console.log(`✅ ${data.length} mappings cargados`);
+    return data;
+  },
+
+  /**
+   * Crear mapping nuevo
+   */
+  async create(mappingData) {
+    console.log('➕ Creando mapping:', mappingData);
+
+    const { data, error } = await supabase
+      .from('product_sku_mappings')
+      .insert([mappingData])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error al crear mapping:', error);
+      throw error;
+    }
+
+    console.log('✅ Mapping creado exitosamente');
+    return data;
+  },
+
+  /**
+   * Actualizar mapping existente
+   */
+  async update(mappingId, mappingData) {
+    console.log(`✏️ Actualizando mapping ${mappingId}:`, mappingData);
+
+    const { data, error } = await supabase
+      .from('product_sku_mappings')
+      .update(mappingData)
+      .eq('id', mappingId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Error al actualizar mapping:', error);
+      throw error;
+    }
+
+    console.log('✅ Mapping actualizado exitosamente');
+    return data;
+  },
+
+  /**
+   * Eliminar mapping (soft delete - marca como inactivo)
+   */
+  async delete(mappingId) {
+    console.log(`🗑️ Eliminando mapping ${mappingId}`);
+
+    const { error } = await supabase
+      .from('product_sku_mappings')
+      .update({ is_active: false })
+      .eq('id', mappingId);
+
+    if (error) {
+      console.error('❌ Error al eliminar mapping:', error);
+      throw error;
+    }
+
+    console.log('✅ Mapping eliminado exitosamente');
+  },
+
+  /**
+   * Eliminar mapping permanentemente
+   */
+  async deletePermanent(mappingId) {
+    console.log(`🗑️ Eliminando permanentemente mapping ${mappingId}`);
+
+    const { error } = await supabase
+      .from('product_sku_mappings')
+      .delete()
+      .eq('id', mappingId);
+
+    if (error) {
+      console.error('❌ Error al eliminar mapping:', error);
+      throw error;
+    }
+
+    console.log('✅ Mapping eliminado permanentemente');
+  }
+};
+
+// =====================================================
 
 export default {
   warehouses: warehousesService,
   products: productsService,
   inventory: inventoryService,
   receipts: receiptsService,
-  dispatches: dispatchesService
+  dispatches: dispatchesService,
+  skuMappings: skuMappingsService
 };
