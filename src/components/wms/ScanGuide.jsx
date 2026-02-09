@@ -98,7 +98,7 @@ export function ScanGuide() {
       html5QrcodeRef.current = new Html5Qrcode('wms-reader');
       console.log('📦 WMS Scanner: html5-qrcode cargado');
 
-      // Configuración ÓPTIMA (copiada de Scanner.jsx)
+      // Configuración ÓPTIMA para QR + Código de Barras
       const config = {
         fps: 10,
         qrbox: function(viewfinderWidth, viewfinderHeight) {
@@ -111,7 +111,27 @@ export function ScanGuide() {
         },
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
-        disableFlip: false
+        disableFlip: false,
+        // Soporte explícito para múltiples formatos de códigos
+        formatsToSupport: [
+          // QR Code
+          0, // QR_CODE
+          // Códigos de barras 1D
+          8, // CODE_128 (usado por muchas transportadoras)
+          9, // CODE_39
+          13, // EAN_13 (estándar retail)
+          14, // EAN_8
+          15, // ITF (Interleaved 2 of 5)
+          17, // UPC_A
+          18, // UPC_E
+          19, // CODE_93
+          20, // CODABAR
+        ],
+        // Mejorar detección de códigos de barras
+        aspectRatio: 1.0, // Ratio cuadrado funciona para QR y barcodes
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true // Usar API nativa del navegador si está disponible
+        }
       };
 
       await html5QrcodeRef.current.start(
@@ -610,8 +630,11 @@ export function ScanGuide() {
 
           {/* Instructions */}
           <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-white/80 text-sm text-center">
-              📦 Apunte la cámara al código de barras o QR de la guía
+            <p className="text-white/80 text-sm text-center font-medium mb-2">
+              📦 Apunte la cámara al código de la guía
+            </p>
+            <p className="text-white/60 text-xs text-center">
+              ✅ Soporta: QR Code • Código de Barras • EAN • UPC
             </p>
           </div>
 
