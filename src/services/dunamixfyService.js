@@ -4,7 +4,7 @@
 // Servicio para comunicarse con la API de Dunamixfy
 // =====================================================
 
-const DUNAMIXFY_BASE_URL = 'https://dunamixfy.bubbleapps.io/version-test/api/1.1';
+const DUNAMIXFY_BASE_URL = 'https://dunamixfy.bubbleapps.io/api/1.1';
 
 /**
  * Marca un pedido como "unscanned" en Dunamixfy
