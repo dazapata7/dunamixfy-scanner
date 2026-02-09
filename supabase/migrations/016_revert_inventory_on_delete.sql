@@ -60,12 +60,19 @@ BEGIN
 
   -- ✅ REVERTIR INVENTARIO SOLO SI DISPATCH ESTÁ CONFIRMED
   IF v_dispatch_status = 'confirmed' THEN
-    -- Por cada dispatch_item, sumar inventario de vuelta
-    UPDATE products p
-    SET available_stock = available_stock + di.qty
+    -- Crear movimientos IN inversos para cada dispatch_item
+    INSERT INTO inventory_movements (movement_type, qty_signed, warehouse_id, product_id, ref_type, ref_id, notes)
+    SELECT
+      'IN'::TEXT,
+      di.qty,
+      d.warehouse_id,
+      di.product_id,
+      'dispatch'::TEXT,
+      v_dispatch_id,
+      'Reversión de dispatch eliminado'::TEXT
     FROM dispatch_items di
-    WHERE di.dispatch_id = v_dispatch_id
-      AND di.product_id = p.id;
+    JOIN dispatches d ON d.id = di.dispatch_id
+    WHERE di.dispatch_id = v_dispatch_id;
 
     GET DIAGNOSTICS v_reverted_items = ROW_COUNT;
 

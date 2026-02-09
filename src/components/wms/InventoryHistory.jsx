@@ -43,8 +43,7 @@ export function InventoryHistory() {
         .from('inventory_movements')
         .select(`
           *,
-          product:products(id, name, sku),
-          dispatch:dispatches(dispatch_number, guide_code)
+          product:products(id, name, sku)
         `)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -53,8 +52,27 @@ export function InventoryHistory() {
 
       if (error) throw error;
 
-      setMovements(data || []);
-      console.log(`✅ ${data?.length || 0} movimientos cargados`);
+      // Obtener detalles de despachos para movimientos con ref_type='dispatch'
+      const dispatchIds = [...new Set(data?.filter(m => m.ref_type === 'dispatch').map(m => m.ref_id) || [])];
+      let dispatchMap = {};
+
+      if (dispatchIds.length > 0) {
+        const { data: dispatchData } = await supabase
+          .from('dispatches')
+          .select('id, dispatch_number, guide_code')
+          .in('id', dispatchIds);
+
+        dispatchMap = Object.fromEntries(dispatchData?.map(d => [d.id, d]) || []);
+      }
+
+      // Enriquecer movimientos con datos de despachos
+      const enrichedData = data?.map(m => ({
+        ...m,
+        dispatch: m.ref_type === 'dispatch' ? dispatchMap[m.ref_id] : null
+      })) || [];
+
+      setMovements(enrichedData);
+      console.log(`✅ ${enrichedData?.length || 0} movimientos cargados`);
 
     } catch (error) {
       console.error('❌ Error al cargar movimientos:', error);
@@ -213,7 +231,7 @@ export function InventoryHistory() {
                     <p className={`font-bold text-lg ${
                       movement.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'
                     }`}>
-                      {movement.movement_type === 'OUT' ? '-' : '+'}{movement.quantity}
+                      {movement.movement_type === 'OUT' ? '-' : '+'}{Math.abs(movement.qty_signed)}
                     </p>
                   </div>
 

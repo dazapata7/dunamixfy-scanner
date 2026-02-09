@@ -1,8 +1,8 @@
 -- =====================================================
--- MIGRATION 017: Drop y recrear función con nuevo return type
+-- MIGRATION 018: Arreglar reversión de inventario usando movimientos
 -- =====================================================
--- La función anterior retornaba 4 columnas, la nueva retorna 5
--- Necesitamos DROP y recrear
+-- En lugar de actualizar una columna inexistente (available_stock),
+-- creamos movimientos IN inversos para revertir el dispatch eliminado
 -- =====================================================
 
 DROP FUNCTION IF EXISTS delete_dispatch_for_testing(TEXT, TEXT);
@@ -22,6 +22,7 @@ DECLARE
   v_dispatch_id UUID;
   v_shipment_record_id UUID;
   v_dispatch_status TEXT;
+  v_warehouse_id UUID;
   v_deleted_items INT := 0;
   v_deleted_movements INT := 0;
   v_deleted_dispatch INT := 0;
@@ -30,20 +31,20 @@ DECLARE
 BEGIN
   -- Buscar dispatch por dispatch_number o guide_code
   IF p_dispatch_number IS NOT NULL THEN
-    SELECT id, shipment_record_id, status INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status
+    SELECT id, shipment_record_id, status, warehouse_id INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status, v_warehouse_id
     FROM dispatches
     WHERE dispatch_number = p_dispatch_number
     LIMIT 1;
   ELSIF p_tracking_code IS NOT NULL THEN
     -- Primero buscar directamente en dispatches.guide_code
-    SELECT id, shipment_record_id, status INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status
+    SELECT id, shipment_record_id, status, warehouse_id INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status, v_warehouse_id
     FROM dispatches
     WHERE guide_code = p_tracking_code
     LIMIT 1;
 
     -- Si no se encuentra, buscar en shipment_records.guide_code
     IF v_dispatch_id IS NULL THEN
-      SELECT d.id, d.shipment_record_id, d.status INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status
+      SELECT d.id, d.shipment_record_id, d.status, d.warehouse_id INTO v_dispatch_id, v_shipment_record_id, v_dispatch_status, v_warehouse_id
       FROM dispatches d
       INNER JOIN shipment_records sr ON sr.id = d.shipment_record_id
       WHERE sr.guide_code = p_tracking_code
@@ -67,13 +68,12 @@ BEGIN
     SELECT
       'IN'::TEXT,
       di.qty,
-      d.warehouse_id,
+      v_warehouse_id,
       di.product_id,
       'dispatch'::TEXT,
       v_dispatch_id,
       'Reversión de dispatch eliminado'::TEXT
     FROM dispatch_items di
-    JOIN dispatches d ON d.id = di.dispatch_id
     WHERE di.dispatch_id = v_dispatch_id;
 
     GET DIAGNOSTICS v_reverted_items = ROW_COUNT;
@@ -87,9 +87,9 @@ BEGIN
   DELETE FROM dispatch_items WHERE dispatch_id = v_dispatch_id;
   GET DIAGNOSTICS v_deleted_items = ROW_COUNT;
 
-  -- ✅ ELIMINAR inventory_movements relacionados
+  -- ✅ ELIMINAR inventory_movements relacionados (solo los OUT originales)
   DELETE FROM inventory_movements
-  WHERE ref_type = 'dispatch' AND ref_id = v_dispatch_id;
+  WHERE ref_type = 'dispatch' AND ref_id = v_dispatch_id AND movement_type = 'OUT';
   GET DIAGNOSTICS v_deleted_movements = ROW_COUNT;
 
   -- ✅ ELIMINAR dispatch
@@ -105,7 +105,7 @@ BEGIN
   -- Retornar resultado exitoso
   RETURN QUERY SELECT
     true,
-    format('Dispatch eliminado: %s items, %s movimientos, %s dispatches, %s shipments. Inventario revertido: %s items',
+    format('Dispatch eliminado: %s items, %s movimientos OUT, %s dispatches, %s shipments. Inventario revertido: %s items (movimientos IN inversos)',
       v_deleted_items, v_deleted_movements, v_deleted_dispatch, v_deleted_shipment, v_reverted_items)::TEXT,
     v_dispatch_id,
     v_shipment_record_id,
@@ -114,4 +114,4 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Comentario
-COMMENT ON FUNCTION delete_dispatch_for_testing IS 'Elimina dispatch y revierte inventario SOLO si dispatch está CONFIRMED. Para estado DRAFT no revierte.';
+COMMENT ON FUNCTION delete_dispatch_for_testing IS 'Elimina dispatch y revierte inventario SOLO si dispatch está CONFIRMED. Revierte creando movimientos IN inversos (no modifica productos). Para estado DRAFT no revierte.';
