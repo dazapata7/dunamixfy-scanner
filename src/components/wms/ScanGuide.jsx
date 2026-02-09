@@ -98,9 +98,9 @@ export function ScanGuide() {
       html5QrcodeRef.current = new Html5Qrcode('wms-reader');
       console.log('📦 WMS Scanner: html5-qrcode cargado');
 
-      // Configuración ÓPTIMA para QR + Código de Barras
+      // Configuración ÓPTIMA para QR + Código de Barras con DETECCIÓN RÁPIDA
       const config = {
-        fps: 10,
+        fps: 30, // Aumentado de 10 a 30 para detección MÁS RÁPIDA
         qrbox: function(viewfinderWidth, viewfinderHeight) {
           // Usar el 90% del área disponible para maximizar detección
           const qrboxWidth = Math.floor(viewfinderWidth * 0.9);
@@ -170,10 +170,77 @@ export function ScanGuide() {
   };
 
   // =====================================================
+  // DETECTION BOX DRAWING (Marco verde alrededor del código)
+  // =====================================================
+
+  const drawDetectionBox = (result) => {
+    try {
+      // Buscar el canvas del scanner
+      const canvas = document.querySelector('#wms-reader canvas');
+      if (!canvas) return;
+
+      const ctx = canvas.getContext('2d');
+      if (!ctx) return;
+
+      // Obtener las coordenadas del código detectado
+      const points = result.resultPoints;
+      if (!points || points.length === 0) return;
+
+      // Limpiar canvas antes de dibujar (sin borrar el video)
+      // No hacemos clearRect para no borrar el feed de la cámara
+
+      // Dibujar marco verde alrededor del código
+      ctx.strokeStyle = '#10b981'; // Verde (green-500)
+      ctx.lineWidth = 4;
+      ctx.shadowColor = '#10b981';
+      ctx.shadowBlur = 15;
+
+      // Determinar si es QR (4+ puntos) o barcode (2 puntos típicamente)
+      if (points.length >= 4) {
+        // QR Code - Dibujar polígono
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      } else if (points.length === 2) {
+        // Barcode - Dibujar rectángulo extendido verticalmente
+        const x1 = Math.min(points[0].x, points[1].x);
+        const x2 = Math.max(points[0].x, points[1].x);
+        const y1 = points[0].y;
+        const y2 = points[1].y;
+        const height = Math.abs(y2 - y1) || 50; // Altura mínima 50px
+        const width = x2 - x1;
+
+        // Expandir el rectángulo para que sea más visible
+        const expandY = height * 2; // Expandir 2x verticalmente
+        const centerY = (y1 + y2) / 2;
+
+        ctx.strokeRect(
+          x1 - 10, // Padding izquierdo
+          centerY - expandY / 2,
+          width + 20, // Padding derecho
+          expandY
+        );
+      }
+
+      // Limpiar después de 800ms (feedback visual rápido)
+      setTimeout(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }, 800);
+
+    } catch (error) {
+      console.warn('⚠️ Error al dibujar marco de detección:', error);
+    }
+  };
+
+  // =====================================================
   // SCAN SUCCESS HANDLER (Adaptado para WMS)
   // =====================================================
 
-  const onScanSuccess = async (decodedText) => {
+  const onScanSuccess = async (decodedText, decodedResult) => {
     // Prevenir escaneos duplicados (copiado de Scanner.jsx)
     if (isProcessing || scanCooldown.current) {
       console.log('⏭️ Escaneo ignorado (procesando o en cooldown)');
@@ -187,6 +254,11 @@ export function ScanGuide() {
     }
 
     console.log('🔍 WMS: Guía detectada:', decodedText);
+
+    // Dibujar marco verde alrededor del código detectado
+    if (decodedResult && decodedResult.result) {
+      drawDetectionBox(decodedResult.result);
+    }
 
     // Activar cooldown INMEDIATAMENTE
     scanCooldown.current = true;

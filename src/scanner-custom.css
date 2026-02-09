@@ -124,6 +124,11 @@
   width: 100% !important;
   max-height: none !important;
   min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  position: absolute !important; /* Posicionar sobre el video */
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 10 !important; /* Por encima del video */
+  pointer-events: none !important; /* No bloquear interacciones */
 }
 
 /* WMS Scanner - Contenedor sin límites */
