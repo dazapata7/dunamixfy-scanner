@@ -112,26 +112,35 @@ export function ScanGuide() {
         },
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
-        disableFlip: false,
+        disableFlip: true, // CAMBIO: Deshabilitar flip para mejorar velocidad de barcode
         // Soporte explícito para múltiples formatos de códigos
         formatsToSupport: [
           // QR Code
           0, // QR_CODE
-          // Códigos de barras 1D
-          8, // CODE_128 (usado por muchas transportadoras)
+          // Códigos de barras 1D (PRIORIZAR CODE_128 primero)
+          8, // CODE_128 (usado por muchas transportadoras) - PRIMERO
+          15, // ITF (Interleaved 2 of 5) - SEGUNDO
           9, // CODE_39
           13, // EAN_13 (estándar retail)
           14, // EAN_8
-          15, // ITF (Interleaved 2 of 5)
           17, // UPC_A
           18, // UPC_E
           19, // CODE_93
           20, // CODABAR
         ],
         // Mejorar detección de códigos de barras
-        aspectRatio: 1.0, // Ratio cuadrado funciona para QR y barcodes
+        aspectRatio: 1.777, // 16:9 ratio - MEJOR para barcodes horizontales
         experimentalFeatures: {
           useBarCodeDetectorIfSupported: true // Usar API nativa del navegador si está disponible
+        },
+        // NUEVO: Configuración avanzada para barcodes
+        videoConstraints: {
+          facingMode: 'environment',
+          focusMode: 'continuous', // Autofocus continuo
+          advanced: [
+            { zoom: 1.0 },
+            { focusDistance: 0.5 }
+          ]
         }
       };
 
@@ -173,30 +182,72 @@ export function ScanGuide() {
   // DETECTION BOX DRAWING (Marco verde alrededor del código)
   // =====================================================
 
-  const drawDetectionBox = (result) => {
+  const drawDetectionBox = (decodedResult) => {
     try {
+      console.log('🎨 Intentando dibujar marco de detección...', decodedResult);
+
       // Buscar el canvas del scanner
       const canvas = document.querySelector('#wms-reader canvas');
-      if (!canvas) return;
+      if (!canvas) {
+        console.warn('⚠️ Canvas no encontrado');
+        return;
+      }
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) return;
+      if (!ctx) {
+        console.warn('⚠️ Contexto 2D no disponible');
+        return;
+      }
 
-      // Obtener las coordenadas del código detectado
-      const points = result.resultPoints;
-      if (!points || points.length === 0) return;
+      // Html5Qrcode puede retornar la estructura de diferentes formas
+      // Intentar obtener los puntos de varias maneras
+      let points = null;
 
-      // Limpiar canvas antes de dibujar (sin borrar el video)
-      // No hacemos clearRect para no borrar el feed de la cámara
+      if (decodedResult.result?.resultPoints) {
+        points = decodedResult.result.resultPoints;
+      } else if (decodedResult.resultPoints) {
+        points = decodedResult.resultPoints;
+      }
+
+      console.log('📍 Puntos detectados:', points);
+
+      // Si no hay puntos, dibujar un marco general en el centro
+      if (!points || points.length === 0) {
+        console.log('⚠️ Sin puntos específicos, dibujando marco general');
+        const centerX = canvas.width / 2;
+        const centerY = canvas.height / 2;
+        const boxWidth = Math.min(canvas.width, canvas.height) * 0.6;
+        const boxHeight = boxWidth * 0.3;
+
+        ctx.strokeStyle = '#10b981';
+        ctx.lineWidth = 6;
+        ctx.shadowColor = '#10b981';
+        ctx.shadowBlur = 20;
+        ctx.strokeRect(
+          centerX - boxWidth / 2,
+          centerY - boxHeight / 2,
+          boxWidth,
+          boxHeight
+        );
+
+        setTimeout(() => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }, 1000);
+        return;
+      }
+
+      // Limpiar canvas
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
       // Dibujar marco verde alrededor del código
       ctx.strokeStyle = '#10b981'; // Verde (green-500)
-      ctx.lineWidth = 4;
+      ctx.lineWidth = 6; // Más grueso para mayor visibilidad
       ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 15;
+      ctx.shadowBlur = 20; // Más glow
 
       // Determinar si es QR (4+ puntos) o barcode (2 puntos típicamente)
       if (points.length >= 4) {
+        console.log('✅ Dibujando QR Code (polígono)');
         // QR Code - Dibujar polígono
         ctx.beginPath();
         ctx.moveTo(points[0].x, points[0].y);
@@ -205,34 +256,35 @@ export function ScanGuide() {
         }
         ctx.closePath();
         ctx.stroke();
-      } else if (points.length === 2) {
+      } else if (points.length >= 2) {
+        console.log('✅ Dibujando Barcode (rectángulo)');
         // Barcode - Dibujar rectángulo extendido verticalmente
         const x1 = Math.min(points[0].x, points[1].x);
         const x2 = Math.max(points[0].x, points[1].x);
         const y1 = points[0].y;
         const y2 = points[1].y;
-        const height = Math.abs(y2 - y1) || 50; // Altura mínima 50px
+        const height = Math.abs(y2 - y1) || 80; // Altura mínima 80px
         const width = x2 - x1;
 
         // Expandir el rectángulo para que sea más visible
-        const expandY = height * 2; // Expandir 2x verticalmente
+        const expandY = Math.max(height * 3, 100); // Expandir 3x verticalmente, mínimo 100px
         const centerY = (y1 + y2) / 2;
 
         ctx.strokeRect(
-          x1 - 10, // Padding izquierdo
+          x1 - 20, // Padding izquierdo
           centerY - expandY / 2,
-          width + 20, // Padding derecho
+          width + 40, // Padding derecho
           expandY
         );
       }
 
-      // Limpiar después de 800ms (feedback visual rápido)
+      // Limpiar después de 1 segundo
       setTimeout(() => {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-      }, 800);
+      }, 1000);
 
     } catch (error) {
-      console.warn('⚠️ Error al dibujar marco de detección:', error);
+      console.error('❌ Error al dibujar marco de detección:', error);
     }
   };
 
@@ -254,11 +306,10 @@ export function ScanGuide() {
     }
 
     console.log('🔍 WMS: Guía detectada:', decodedText);
+    console.log('📦 Resultado completo:', decodedResult);
 
-    // Dibujar marco verde alrededor del código detectado
-    if (decodedResult && decodedResult.result) {
-      drawDetectionBox(decodedResult.result);
-    }
+    // Dibujar marco verde alrededor del código detectado SIEMPRE
+    drawDetectionBox(decodedResult);
 
     // Activar cooldown INMEDIATAMENTE
     scanCooldown.current = true;
@@ -706,9 +757,14 @@ export function ScanGuide() {
             <p className="text-white/80 text-sm text-center font-medium mb-2">
               📦 Apunte la cámara al código de la guía
             </p>
-            <p className="text-white/60 text-xs text-center">
+            <p className="text-white/60 text-xs text-center mb-2">
               ✅ Soporta: QR Code • Código de Barras • EAN • UPC
             </p>
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <p className="text-emerald-400 text-xs text-center font-medium">
+                💡 Tip: Para códigos de barras, manténgalos HORIZONTALES y bien iluminados
+              </p>
+            </div>
           </div>
 
           {/* Último escaneo (copiado de Scanner.jsx) */}
