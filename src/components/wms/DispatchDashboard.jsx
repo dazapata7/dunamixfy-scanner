@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { dispatchesService } from '../../services/wmsService';
+import { dunamixfyService } from '../../services/dunamixfyService';
 import {
   ArrowLeft,
   Package,
@@ -89,6 +90,14 @@ export function DispatchDashboard() {
 
         // Eliminar del estado local inmediatamente
         setDispatches(prev => prev.filter(d => d.id !== dispatchId));
+
+        // 🔗 Marcar como unscanned en Dunamixfy
+        const dunamixfyResponse = await dunamixfyService.markOrderAsUnscanned(trackingCode);
+        if (dunamixfyResponse.success) {
+          console.log(`✅ Guía ${trackingCode} marcada como unscanned en Dunamixfy`);
+        } else {
+          console.warn(`⚠️ No se pudo marcar como unscanned en Dunamixfy:`, dunamixfyResponse.message);
+        }
 
         toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
 
