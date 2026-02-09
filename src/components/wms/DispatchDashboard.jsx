@@ -69,7 +69,7 @@ export function DispatchDashboard() {
   }
 
   // Función para eliminar dispatch (para pruebas)
-  async function handleDeleteDispatch(trackingCode, dispatchNumber) {
+  async function handleDeleteDispatch(dispatchId, trackingCode, dispatchNumber) {
     if (!confirm(`¿Eliminar guía ${trackingCode}?\n\nEsto es solo para pruebas. Se eliminarán todos los registros relacionados.`)) {
       return;
     }
@@ -77,23 +77,27 @@ export function DispatchDashboard() {
     try {
       toast.loading('Eliminando dispatch...', { id: 'delete' });
 
-      // Llamar a la función RPC de eliminación
+      // Llamar a la función RPC de eliminación usando dispatch_number (más directo)
       const { data, error } = await supabase.rpc('delete_dispatch_for_testing', {
-        p_tracking_code: trackingCode
+        p_dispatch_number: dispatchNumber
       });
 
       if (error) throw error;
 
       if (data && data.length > 0 && data[0].success) {
+        console.log(`✅ Dispatch ${dispatchNumber} eliminado. RPC response:`, data[0]);
+
         // Eliminar del estado local inmediatamente
-        setDispatches(prev => prev.filter(d => d.guide_code !== trackingCode));
+        setDispatches(prev => prev.filter(d => d.id !== dispatchId));
 
         toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
 
         // Recargar dispatches desde BD
+        await new Promise(resolve => setTimeout(resolve, 500));
         await loadTodayDispatches();
       } else {
-        toast.error('No se encontró el dispatch', { id: 'delete' });
+        console.error('❌ RPC no retornó éxito:', data);
+        toast.error('Error: ' + (data?.[0]?.message || 'No se encontró el dispatch'), { id: 'delete' });
       }
     } catch (error) {
       console.error('❌ Error al eliminar dispatch:', error);
@@ -344,7 +348,7 @@ export function DispatchDashboard() {
                               {guide.dispatch_number}
                             </span>
                             <button
-                              onClick={() => handleDeleteDispatch(guide.guide_code, guide.dispatch_number)}
+                              onClick={() => handleDeleteDispatch(guide.id, guide.guide_code, guide.dispatch_number)}
                               className="p-1 rounded-md bg-red-500/0 hover:bg-red-500/20 border border-red-500/0 hover:border-red-500/30 text-red-400/0 group-hover:text-red-400 transition-all"
                               title="Eliminar (solo pruebas)"
                             >
