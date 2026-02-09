@@ -35,13 +35,32 @@ export const dunamixfyApi = {
 
       console.log('✅ Respuesta de Dunamixfy CO:', data);
 
-      // Validar si hay error_response (can_ship = NO)
+      // Validar si hay error_response
       if (data && data.error_response) {
-        console.warn('⚠️ Can Ship = NO:', data.error_response);
+        const errorMsg = data.error_response.toLowerCase();
+        let errorType = 'UNKNOWN';
+        let userMessage = data.error_response;
+
+        // Detectar tipo de error por el mensaje
+        if (errorMsg.includes('no esta listo') || errorMsg.includes('no puede') || errorMsg.includes('despachar')) {
+          errorType = 'NOT_READY';
+          userMessage = '⚠️ Pedido no listo para despachar';
+        } else if (errorMsg.includes('no existe') || errorMsg.includes('not found') || errorMsg.includes('no encontrada')) {
+          errorType = 'NOT_FOUND';
+          userMessage = '❌ Número de guía no existe';
+        } else if (errorMsg.includes('ya') && (errorMsg.includes('escaneada') || errorMsg.includes('escaneado') || errorMsg.includes('scanned'))) {
+          errorType = 'ALREADY_SCANNED';
+          userMessage = '🔄 Esta orden ya fue escaneada anteriormente';
+        }
+
+        console.warn(`⚠️ Error de Dunamixfy [${errorType}]:`, data.error_response);
+
         return {
           success: false,
           canShip: false,
-          error: data.error_response,
+          errorType,
+          error: userMessage,
+          rawError: data.error_response,
           data: data.response ? {
             order_id: data.response.order_id,
             firstname: data.response.firstname,
@@ -56,7 +75,8 @@ export const dunamixfyApi = {
         return {
           success: false,
           canShip: null,
-          error: 'Orden no encontrada en Dunamixfy CO'
+          errorType: 'NOT_FOUND',
+          error: '❌ Orden no encontrada en Dunamixfy'
         };
       }
 
