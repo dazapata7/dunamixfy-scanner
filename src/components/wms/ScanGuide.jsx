@@ -102,11 +102,12 @@ export function ScanGuide() {
       const config = {
         fps: 10,
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const qrboxSize = Math.floor(minEdge * 0.7);
+          // Usar el 90% del área disponible para maximizar detección
+          const qrboxWidth = Math.floor(viewfinderWidth * 0.9);
+          const qrboxHeight = Math.floor(viewfinderHeight * 0.9);
           return {
-            width: qrboxSize,
-            height: qrboxSize
+            width: qrboxWidth,
+            height: qrboxHeight
           };
         },
         rememberLastUsedCamera: true,

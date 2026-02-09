@@ -106,7 +106,7 @@
   height: auto !important;
   width: 100% !important;
   max-height: none !important;
-  min-height: auto !important;
+  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
 }
 
 /* WMS Scanner - Video sin restricciones */
@@ -114,8 +114,8 @@
   height: auto !important;
   width: 100% !important;
   max-height: none !important;
-  min-height: auto !important;
-  object-fit: contain !important;
+  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  object-fit: cover !important; /* Usar cover para llenar todo el espacio */
 }
 
 /* WMS Scanner - Canvas sin restricciones */
@@ -123,14 +123,14 @@
   height: auto !important;
   width: 100% !important;
   max-height: none !important;
-  min-height: auto !important;
+  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
 }
 
 /* WMS Scanner - Contenedor sin límites */
 #wms-reader > div {
   height: auto !important;
   max-height: none !important;
-  min-height: auto !important;
+  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
 }
 
 /* WMS Scanner - Marco del qrbox */
@@ -155,7 +155,11 @@
 .scanner-container {
   position: relative;
   width: 100%;
+  min-height: 70vh; /* Mínimo 70% de la altura de la ventana */
   background: rgba(0, 0, 0, 0.3);
   border-radius: 16px;
   overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
