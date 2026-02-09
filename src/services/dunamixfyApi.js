@@ -35,11 +35,11 @@ export const dunamixfyApi = {
 
       console.log('✅ Respuesta de Dunamixfy CO:', data);
 
-      // Validar si hay error_response
-      if (data && data.error_response) {
-        const errorMsg = data.error_response.toLowerCase();
+      // Validar si hay error_response (dentro de data.response)
+      if (data && data.response && data.response.error_response) {
+        const errorMsg = data.response.error_response.toLowerCase();
         let errorType = 'UNKNOWN';
-        let userMessage = data.error_response;
+        let userMessage = data.response.error_response;
 
         // Detectar tipo de error por el mensaje
         if (errorMsg.includes('no esta listo') || errorMsg.includes('no puede') || errorMsg.includes('despachar')) {
@@ -53,25 +53,20 @@ export const dunamixfyApi = {
           userMessage = '🔄 Esta orden ya fue escaneada anteriormente';
         }
 
-        console.warn(`⚠️ Error de Dunamixfy [${errorType}]:`, data.error_response);
+        console.warn(`⚠️ Error de Dunamixfy [${errorType}]:`, data.response.error_response);
 
         return {
           success: false,
           canShip: false,
           errorType,
           error: userMessage,
-          rawError: data.error_response,
-          data: data.response ? {
-            order_id: data.response.order_id,
-            firstname: data.response.firstname,
-            lastname: data.response.lastname,
-            store: data.response.store
-          } : null
+          rawError: data.response.error_response,
+          data: null
         };
       }
 
-      // Validar que la orden existe
-      if (!data || !data.response) {
+      // Validar que la orden existe y tiene datos válidos
+      if (!data || !data.response || data.response.error_response) {
         return {
           success: false,
           canShip: null,
