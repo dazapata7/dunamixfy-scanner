@@ -195,14 +195,29 @@ export function useWMS() {
       }
 
       // 2. Verificar idempotencia (que no exista dispatch con esta guía)
+      console.log(`🔍 Verificando si existe dispatch para guía: ${codigo}`);
       const existingDispatch = await dispatchesService.getByGuideCode(codigo);
+      console.log('📦 Resultado de búsqueda de dispatch existente:', existingDispatch);
 
       if (existingDispatch) {
+        console.warn(`⚠️ DISPATCH EXISTENTE ENCONTRADO:`, {
+          id: existingDispatch.id,
+          status: existingDispatch.status,
+          guide_code: existingDispatch.guide_code,
+          created_at: existingDispatch.created_at,
+          confirmed_at: existingDispatch.confirmed_at
+        });
+
         if (existingDispatch.status === 'confirmed') {
-          throw new Error(`Esta guía ya fue despachada el ${new Date(existingDispatch.confirmed_at).toLocaleString()}`);
+          const confirmedDate = existingDispatch.confirmed_at
+            ? new Date(existingDispatch.confirmed_at).toLocaleString()
+            : 'fecha desconocida';
+
+          console.error(`❌ Guía ${codigo} ya fue confirmada el ${confirmedDate}`);
+          throw new Error(`Esta guía ya fue despachada el ${confirmedDate}`);
         } else {
           // Existe pero en draft, podríamos reutilizarlo o mostrar advertencia
-          console.warn('⚠️ Ya existe un dispatch en draft para esta guía');
+          console.warn(`⚠️ Ya existe un dispatch en DRAFT para esta guía (ID: ${existingDispatch.id})`);
           return {
             dispatch: existingDispatch,
             isDuplicate: true,
@@ -210,6 +225,8 @@ export function useWMS() {
           };
         }
       }
+
+      console.log('✅ No existe dispatch previo para esta guía, continuando...');
 
       // 3. Resolver items del envío según transportadora
       const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId);
