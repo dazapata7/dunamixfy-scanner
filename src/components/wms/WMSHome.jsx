@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { UnifiedDashboard } from './UnifiedDashboard'; // Dashboard único
-import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings } from 'lucide-react';
+import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings, TrendingDown } from 'lucide-react';
 
 export function WMSHome() {
   const navigate = useNavigate();
@@ -90,6 +90,14 @@ export function WMSHome() {
       description: 'Escaneos y trazabilidad',
       path: '/wms/history',
       gradient: 'from-purple-500/10 to-pink-500/10'
+    },
+    {
+      id: 'inventory-history',
+      icon: TrendingDown,
+      title: 'Movimientos',
+      description: 'Entradas y salidas',
+      path: '/wms/inventory-history',
+      gradient: 'from-yellow-500/10 to-orange-500/10'
     },
     {
       id: 'manage-warehouses',

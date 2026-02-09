@@ -1,0 +1,248 @@
+// =====================================================
+// INVENTORY HISTORY - Historial de Movimientos de Inventario
+// =====================================================
+// Muestra todos los movimientos de inventario (IN/OUT)
+// Filtrable por producto, rango de fechas, tipo de movimiento
+// =====================================================
+
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '../../services/supabase';
+import {
+  ArrowLeft,
+  TrendingDown,
+  TrendingUp,
+  Calendar,
+  Package,
+  Loader2,
+  Search,
+  Filter
+} from 'lucide-react';
+import toast from 'react-hot-toast';
+import { format } from 'date-fns';
+import { es } from 'date-fns/locale';
+
+export function InventoryHistory() {
+  const navigate = useNavigate();
+
+  const [movements, setMovements] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'in', 'out'
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+
+  useEffect(() => {
+    loadMovements();
+  }, []);
+
+  async function loadMovements() {
+    setIsLoading(true);
+    try {
+      let query = supabase
+        .from('inventory_movements')
+        .select(`
+          *,
+          product:products(id, name, sku),
+          dispatch:dispatches(dispatch_number, guide_code)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(500);
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      setMovements(data || []);
+      console.log(`✅ ${data?.length || 0} movimientos cargados`);
+
+    } catch (error) {
+      console.error('❌ Error al cargar movimientos:', error);
+      toast.error('Error al cargar historial de movimientos');
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  // Filtrar movimientos según criterios
+  const filteredMovements = movements.filter(movement => {
+    const matchesSearch =
+      movement.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.product?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.dispatch?.dispatch_number?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    const matchesType =
+      typeFilter === 'all' ||
+      movement.movement_type === (typeFilter === 'in' ? 'IN' : 'OUT');
+
+    const movementDate = new Date(movement.created_at);
+    const fromDate = dateFrom ? new Date(dateFrom) : new Date('2000-01-01');
+    const toDate = dateTo ? new Date(dateTo) : new Date('2099-12-31');
+
+    const matchesDate = movementDate >= fromDate && movementDate <= toDate;
+
+    return matchesSearch && matchesType && matchesDate;
+  });
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+        <div className="max-w-6xl mx-auto flex items-center justify-center h-screen">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 text-primary-400 animate-spin mx-auto mb-4" />
+            <p className="text-white/60">Cargando movimientos...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+      <div className="max-w-7xl mx-auto">
+
+        {/* Header */}
+        <div className="mb-6 flex items-center justify-between gap-4">
+          <button
+            onClick={() => navigate('/wms')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Volver
+          </button>
+
+          <h1 className="text-2xl font-bold text-white flex-1 text-center">
+            📊 Historial de Movimientos de Inventario
+          </h1>
+
+          <div className="w-[120px]"></div>
+        </div>
+
+        {/* Filters */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg mb-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-3 w-4 h-4 text-white/40" />
+              <input
+                type="text"
+                placeholder="Buscar producto o guía..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+              />
+            </div>
+
+            {/* Type Filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+            >
+              <option value="all">Todos los tipos</option>
+              <option value="in">Entradas (IN)</option>
+              <option value="out">Salidas (OUT)</option>
+            </select>
+
+            {/* Date From */}
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+            />
+
+            {/* Date To */}
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+            />
+          </div>
+
+          {/* Results count */}
+          <div className="text-white/60 text-sm">
+            Mostrando {filteredMovements.length} de {movements.length} movimientos
+          </div>
+        </div>
+
+        {/* Movements Table */}
+        <div className="space-y-3">
+          {filteredMovements.length === 0 ? (
+            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 text-center">
+              <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
+              <p className="text-white/60">No hay movimientos que coincidan con los filtros</p>
+            </div>
+          ) : (
+            filteredMovements.map((movement) => (
+              <div
+                key={movement.id}
+                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:bg-white/10 transition-all"
+              >
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                  {/* Tipo de movimiento */}
+                  <div className="flex items-center gap-3">
+                    {movement.movement_type === 'OUT' ? (
+                      <div className="p-2 rounded-lg bg-red-500/20">
+                        <TrendingDown className="w-5 h-5 text-red-400" />
+                      </div>
+                    ) : (
+                      <div className="p-2 rounded-lg bg-green-500/20">
+                        <TrendingUp className="w-5 h-5 text-green-400" />
+                      </div>
+                    )}
+                    <div>
+                      <p className="text-white font-medium">
+                        {movement.movement_type === 'OUT' ? 'SALIDA' : 'ENTRADA'}
+                      </p>
+                      <p className="text-white/60 text-sm">{movement.description}</p>
+                    </div>
+                  </div>
+
+                  {/* Producto */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">📦 Producto</p>
+                    <p className="text-white font-medium">{movement.product?.name || 'N/A'}</p>
+                    <p className="text-white/60 text-sm">SKU: {movement.product?.sku || 'N/A'}</p>
+                  </div>
+
+                  {/* Cantidad */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">📊 Cantidad</p>
+                    <p className={`font-bold text-lg ${
+                      movement.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'
+                    }`}>
+                      {movement.movement_type === 'OUT' ? '-' : '+'}{movement.quantity}
+                    </p>
+                  </div>
+
+                  {/* Referencia */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">🔗 Referencia</p>
+                    <p className="text-white font-medium">
+                      {movement.ref_type === 'dispatch' && movement.dispatch
+                        ? movement.dispatch.dispatch_number
+                        : movement.ref_type}
+                    </p>
+                  </div>
+
+                  {/* Fecha */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-1">📅 Fecha</p>
+                    <p className="text-white font-medium">
+                      {format(new Date(movement.created_at), 'dd MMM yyyy HH:mm', { locale: es })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+export default InventoryHistory;
