@@ -98,16 +98,19 @@ export function AdjustmentForm() {
 
     try {
       // Crear movimiento de ajuste
+      // IN = entrada (qty positivo), OUT = salida (qty negativo)
+      const movementType = adjustmentType === 'increase' ? 'IN' : 'OUT';
       const qtySigned = adjustmentType === 'increase' ? quantity : -quantity;
 
       await inventoryService.createMovement({
-        movement_type: 'ADJUST',
+        movement_type: movementType,
         qty_signed: qtySigned,
         warehouse_id: selectedWarehouse.id,
         product_id: selectedProduct,
         user_id: operatorId,
         ref_type: 'adjustment',
         ref_id: null,
+        description: `Ajuste manual: ${adjustmentType === 'increase' ? 'Incremento' : 'Decremento'}`,
         notes: reason
       });
 
