@@ -45,6 +45,20 @@ export function ScanGuide() {
   // Último escaneo (para feedback visual como Scanner.jsx)
   const [lastScan, setLastScan] = useState(null);
 
+  // Calcular estadísticas del batch por categoría
+  const batchStats = {
+    success: dispatchesBatch.filter(item => item.category === 'SUCCESS').length,
+    repeatedToday: dispatchesBatch.filter(item => item.category === 'REPEATED_TODAY').length,
+    repeatedOtherDay: dispatchesBatch.filter(item => item.category === 'REPEATED_OTHER_DAY').length,
+    draftDuplicate: dispatchesBatch.filter(item => item.category === 'DRAFT_DUPLICATE').length,
+    alreadyScanned: dispatchesBatch.filter(item => item.category === 'ALREADY_SCANNED_EXTERNAL').length,
+    errorNotReady: dispatchesBatch.filter(item => item.category === 'ERROR_NOT_READY').length,
+    errorNotFound: dispatchesBatch.filter(item => item.category === 'ERROR_NOT_FOUND').length,
+    errorOther: dispatchesBatch.filter(item => item.category === 'ERROR_OTHER').length,
+    total: dispatchesBatch.length,
+    confirmable: dispatchesBatch.filter(item => item.category === 'SUCCESS').length
+  };
+
   // Si no hay operador, redirigir al login (con pequeño delay para que Zustand cargue del localStorage)
   useEffect(() => {
     // Dar tiempo a Zustand para cargar desde localStorage
@@ -316,54 +330,138 @@ export function ScanGuide() {
     lastScannedCode.current = decodedText;
 
     try {
-      // Procesar guía con WMS
+      // Procesar guía con WMS (ahora retorna categoría en lugar de fallar)
       const result = await scanGuideForDispatch(decodedText, operatorId);
 
-      if (result.isDuplicate) {
-        // Ya existe dispatch para esta guía
-        setScanAnimation('error');
-        playErrorSound();
-        vibrate([200, 100, 200]);
-        toast.error(result.message || 'Guía duplicada');
-        setSessionErrors(prev => prev + 1);
+      console.log('📊 Categoría de guía:', result.category);
 
-        // Actualizar lastScan para feedback visual
-        setLastScan({
-          code: decodedText,
-          carrier: result.feedbackInfo?.carrier || 'Desconocido',
-          isRepeated: true,
-          isError: false
-        });
+      // Clasificar según categoría
+      const category = result.category || 'SUCCESS';
 
-      } else {
-        // Dispatch creado exitosamente
-        setScanAnimation('success');
-        playSuccessSound();
-        vibrate([100]);
-        toast.success(`✅ Guía ${result.dispatch.dispatch_number} agregada`);
+      // SIEMPRE agregar al batch (nuevas + repetidas + errores)
+      setDispatchesBatch(prev => [...prev, {
+        ...result,
+        category,
+        scannedAt: new Date()
+      }]);
 
-        // Agregar dispatch al batch (acumulando múltiples escaneos)
-        setDispatchesBatch(prev => [...prev, {
-          dispatch: result.dispatch,
-          stockValidation: result.stockValidation,
-          shipmentRecord: result.shipmentRecord,
-          feedbackInfo: result.feedbackInfo
-        }]);
+      // Feedback visual y sonoro según categoría
+      switch (category) {
+        case 'SUCCESS':
+          // ✅ Guía nueva procesada exitosamente
+          setScanAnimation('success');
+          playSuccessSound();
+          vibrate([100]);
+          toast.success(`✅ Nueva: ${result.dispatch.dispatch_number}`);
+          setSessionSuccess(prev => prev + 1);
 
-        // Incrementar contador de éxitos
-        setSessionSuccess(prev => prev + 1);
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            customerName: result.feedbackInfo.customerName,
+            orderId: result.feedbackInfo.orderId,
+            storeName: result.feedbackInfo.storeName,
+            itemsCount: result.feedbackInfo.itemsCount,
+            category: 'SUCCESS',
+            isRepeated: false,
+            isError: false
+          });
+          break;
 
-        // Actualizar lastScan para feedback visual (ÉXITO)
-        setLastScan({
-          code: result.feedbackInfo.code,
-          carrier: result.feedbackInfo.carrier,
-          customerName: result.feedbackInfo.customerName,
-          orderId: result.feedbackInfo.orderId,
-          storeName: result.feedbackInfo.storeName,
-          itemsCount: result.feedbackInfo.itemsCount,
-          isRepeated: false,
-          isError: false
-        });
+        case 'REPEATED_TODAY':
+          // ⚠️ Guía repetida de hoy
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200, 100]);
+          toast.error(`⚠️ Repetida HOY - ${result.message}`, { duration: 4000 });
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            category: 'REPEATED_TODAY',
+            message: result.message,
+            isRepeated: true,
+            isError: false
+          });
+          break;
+
+        case 'REPEATED_OTHER_DAY':
+          // 📅 Guía repetida de otro día
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200, 100]);
+          toast.error(`📅 Repetida - ${result.message}`, { duration: 4000 });
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            category: 'REPEATED_OTHER_DAY',
+            message: result.message,
+            isRepeated: true,
+            isError: false
+          });
+          break;
+
+        case 'DRAFT_DUPLICATE':
+          // 📝 Guía con dispatch en borrador
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200]);
+          toast.error(`📝 ${result.message}`, { duration: 3000 });
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            category: 'DRAFT_DUPLICATE',
+            isRepeated: true,
+            isError: false
+          });
+          break;
+
+        case 'ALREADY_SCANNED_EXTERNAL':
+          // 🔄 Ya escaneada en Dunamixfy
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200, 100]);
+          toast.error(`🔄 ${result.message}`, { duration: 4000 });
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            category: 'ALREADY_SCANNED_EXTERNAL',
+            message: result.message,
+            isRepeated: false,
+            isError: true
+          });
+          break;
+
+        case 'ERROR_NOT_READY':
+        case 'ERROR_NOT_FOUND':
+        case 'ERROR_OTHER':
+          // ❌ Errores diversos
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200, 100, 200]);
+          toast.error(`❌ ${result.message}`, { duration: 5000 });
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: result.feedbackInfo.code,
+            carrier: result.feedbackInfo.carrier,
+            category,
+            message: result.message,
+            isRepeated: false,
+            isError: true
+          });
+          break;
+
+        default:
+          console.warn('⚠️ Categoría desconocida:', category);
+          break;
       }
 
     } catch (error) {
@@ -496,15 +594,27 @@ export function ScanGuide() {
 
   const handleConfirmBatch = async () => {
     try {
-      console.log(`📦 Confirmando batch de ${dispatchesBatch.length} dispatches...`);
+      // Solo confirmar guías SUCCESS (nuevas)
+      const successItems = dispatchesBatch.filter(item => item.category === 'SUCCESS');
+      const omittedItems = dispatchesBatch.length - successItems.length;
 
-      // Confirmar cada dispatch en el batch
-      for (const item of dispatchesBatch) {
+      console.log(`📦 Confirmando ${successItems.length} guías nuevas (${omittedItems} omitidas)...`);
+
+      if (successItems.length === 0) {
+        toast.error('No hay guías nuevas para confirmar');
+        return;
+      }
+
+      // Confirmar solo las guías SUCCESS
+      for (const item of successItems) {
         await confirmDispatch(item.dispatch.id, item.shipmentRecord?.id);
         console.log(`✅ Dispatch ${item.dispatch.dispatch_number} confirmado`);
       }
 
-      toast.success(`✅ ${dispatchesBatch.length} despachos confirmados exitosamente`);
+      const successMsg = `✅ ${successItems.length} despacho${successItems.length > 1 ? 's' : ''} confirmado${successItems.length > 1 ? 's' : ''}`;
+      const omittedMsg = omittedItems > 0 ? ` | ⚠️ ${omittedItems} omitida${omittedItems > 1 ? 's' : ''}` : '';
+
+      toast.success(successMsg + omittedMsg, { duration: 5000 });
 
       // Limpiar batch y volver al WMS Home
       setDispatchesBatch([]);
@@ -710,7 +820,7 @@ export function ScanGuide() {
                 onClick={handleFinishScanning}
                 className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:from-green-600 hover:to-emerald-700 transition-all"
               >
-                ✅ Finalizar y Aprobar ({dispatchesBatch.length} guías)
+                ✅ Finalizar y Revisar ({batchStats.total} guías)
               </button>
             </div>
           )}
