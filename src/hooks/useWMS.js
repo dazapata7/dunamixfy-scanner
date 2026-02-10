@@ -153,40 +153,57 @@ export function useWMS() {
             }
           } else if (orderInfo.canShip === false) {
             // ⛔ PEDIDO NO PUEDE SER DESPACHADO (can_ship = NO)
-            console.error('🚫 PEDIDO NO PUEDE SER DESPACHADO:', orderInfo.error);
+            console.error('🚫 PEDIDO CON ERROR:', orderInfo.error);
 
-            const errorMessage = '🚫 PEDIDO NO LISTO PARA DESPACHO!';
+            // Determinar categoría del error
+            let category = 'ERROR_OTHER';
+            if (orderInfo.errorType === 'NOT_READY') {
+              category = 'ERROR_NOT_READY';
+            } else if (orderInfo.errorType === 'NOT_FOUND') {
+              category = 'ERROR_NOT_FOUND';
+            } else if (orderInfo.errorType === 'ALREADY_SCANNED') {
+              category = 'ALREADY_SCANNED_EXTERNAL';
+            }
 
-            toast.error(`${errorMessage}\n${orderInfo.error || ''}`, {
-              duration: 10000,
-              icon: '🚫',
+            toast.error(orderInfo.error || 'Error al procesar guía', {
+              duration: 6000,
+              icon: '⚠️',
               style: {
                 background: '#ef4444',
                 color: '#fff',
-                fontSize: '18px',
+                fontSize: '16px',
                 fontWeight: 'bold',
-                padding: '20px 28px',
-                borderRadius: '16px',
-                border: '3px solid #dc2626',
-                boxShadow: '0 10px 40px rgba(239, 68, 68, 0.5)',
+                padding: '16px 24px',
+                borderRadius: '12px',
               }
             });
 
             // Vibración de alerta
             if (navigator.vibrate) {
-              navigator.vibrate([200, 100, 200, 100, 200]);
+              navigator.vibrate([200, 100, 200]);
             }
 
-            // NO continuar con el dispatch
-            throw new Error('PEDIDO NO LISTO PARA DESPACHO');
+            // NO lanzar error, retornar clasificación
+            return {
+              dispatch: null,
+              category,
+              isDuplicate: category === 'ALREADY_SCANNED_EXTERNAL',
+              hasError: true,
+              errorType: orderInfo.errorType,
+              message: orderInfo.error || 'Error al procesar guía',
+              feedbackInfo: {
+                code: codigo,
+                carrier: carrierName,
+                customerName: customerName || null,
+                orderId,
+                storeName,
+                itemsCount: 0
+              }
+            };
           } else {
             console.warn('⚠️ Orden no encontrada en Dunamixfy:', orderInfo.error);
           }
         } catch (dunamixfyError) {
-          // Si es error de can_ship, re-lanzarlo
-          if (dunamixfyError.message === 'PEDIDO NO LISTO PARA DESPACHO') {
-            throw dunamixfyError;
-          }
           console.error('❌ Error consultando Dunamixfy:', dunamixfyError);
           // Continuar aunque falle la consulta (para otros errores de red)
         }
@@ -210,18 +227,55 @@ export function useWMS() {
 
         if (existingDispatch.status === 'confirmed') {
           const confirmedDate = existingDispatch.confirmed_at
-            ? new Date(existingDispatch.confirmed_at).toLocaleString()
-            : 'fecha desconocida';
+            ? new Date(existingDispatch.confirmed_at)
+            : new Date(existingDispatch.created_at);
 
-          console.error(`❌ Guía ${codigo} ya fue confirmada el ${confirmedDate}`);
-          throw new Error(`Esta guía ya fue despachada el ${confirmedDate}`);
+          const today = new Date();
+          const dispatchDate = new Date(confirmedDate);
+
+          // Verificar si es de hoy (mismo día)
+          const isToday =
+            dispatchDate.getDate() === today.getDate() &&
+            dispatchDate.getMonth() === today.getMonth() &&
+            dispatchDate.getFullYear() === today.getFullYear();
+
+          console.warn(`⚠️ Guía ${codigo} ya fue confirmada ${isToday ? 'HOY' : 'en otro día'}`);
+
+          // NO lanzar error, retornar clasificación
+          return {
+            dispatch: existingDispatch,
+            category: isToday ? 'REPEATED_TODAY' : 'REPEATED_OTHER_DAY',
+            isDuplicate: true,
+            isToday,
+            confirmedAt: confirmedDate,
+            message: isToday
+              ? `Repetida HOY - ${confirmedDate.toLocaleTimeString()}`
+              : `Repetida de ${confirmedDate.toLocaleDateString()}`,
+            feedbackInfo: {
+              code: codigo,
+              carrier: carrierName,
+              customerName: customerName || 'Cliente',
+              orderId,
+              storeName,
+              itemsCount: existingDispatch.dispatch_items?.length || 0
+            }
+          };
         } else {
-          // Existe pero en draft, podríamos reutilizarlo o mostrar advertencia
+          // Existe pero en draft
           console.warn(`⚠️ Ya existe un dispatch en DRAFT para esta guía (ID: ${existingDispatch.id})`);
           return {
             dispatch: existingDispatch,
+            category: 'DRAFT_DUPLICATE',
             isDuplicate: true,
-            message: 'Esta guía ya tiene un despacho en borrador'
+            message: 'Esta guía ya tiene un despacho en borrador',
+            feedbackInfo: {
+              code: codigo,
+              carrier: carrierName,
+              customerName: customerName || 'Cliente',
+              orderId,
+              storeName,
+              itemsCount: existingDispatch.dispatch_items?.length || 0
+            }
           };
         }
       }
@@ -289,7 +343,9 @@ export function useWMS() {
         metadata: shipmentData.metadata,
         stockValidation,
         shipmentRecord: shipmentData.shipmentRecord,
+        category: 'SUCCESS', // ✅ Guía nueva procesada exitosamente
         isDuplicate: false,
+        hasError: false,
         // Info para feedback visual (ScanGuide.jsx lo usa para mostrar al usuario)
         feedbackInfo: {
           code: codigo,
