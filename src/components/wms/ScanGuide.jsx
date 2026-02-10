@@ -12,6 +12,7 @@ import { useStore } from '../../store/useStore';
 import { ArrowLeft, CheckCircle2, XCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { DispatchPreview } from './DispatchPreview';
+import { BatchSummary } from './BatchSummary';
 import '../../scanner-custom.css';
 
 export function ScanGuide() {
@@ -639,7 +640,21 @@ export function ScanGuide() {
   // RENDER
   // =====================================================
 
-  // Si está mostrando resumen del batch, mostrar componente de confirmación
+  // Si está mostrando resumen del batch, usar componente BatchSummary
+  if (showBatchSummary) {
+    return (
+      <BatchSummary
+        batch={dispatchesBatch}
+        stats={batchStats}
+        onConfirm={handleConfirmBatch}
+        onCancel={handleCancelBatch}
+        isProcessing={isProcessing}
+      />
+    );
+  }
+
+  // Render antiguo comentado (por si acaso)
+  /*
   if (showBatchSummary) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
@@ -759,6 +774,7 @@ export function ScanGuide() {
       </div>
     );
   }
+  */
 
   // Mostrar scanner (UI simplificada vs Scanner.jsx)
   return (
