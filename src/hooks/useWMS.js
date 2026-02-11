@@ -191,6 +191,7 @@ export function useWMS() {
               hasError: true,
               errorType: orderInfo.errorType,
               message: orderInfo.error || 'Error al procesar guía',
+              rawError: orderInfo.rawError, // Mensaje original de Dunamixfy sin procesar
               feedbackInfo: {
                 code: codigo,
                 carrier: carrierName,

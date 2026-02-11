@@ -99,6 +99,11 @@ export function DebugGuide() {
         addLog('ℹ️', 'Información de feedback', scanResult.feedbackInfo);
       }
 
+      // NUEVO: Mostrar mensaje RAW de Dunamixfy si existe
+      if (scanResult.rawError) {
+        addLog('🔍', 'Mensaje RAW de Dunamixfy (sin procesar)', { error_response: scanResult.rawError });
+      }
+
       setResult(scanResult);
 
     } catch (error) {
