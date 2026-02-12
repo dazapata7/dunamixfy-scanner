@@ -57,17 +57,22 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
     };
 
     dispatches.forEach(dispatch => {
+      // shipment_record puede ser array o objeto, normalizamos
+      const shipmentRecord = Array.isArray(dispatch.shipment_record)
+        ? dispatch.shipment_record[0]
+        : dispatch.shipment_record;
+
       // Obtener transportadora
-      const carrier = dispatch.shipment_record?.carriers?.display_name ||
-                      dispatch.shipment_record?.carrier_name ||
+      const carrier = shipmentRecord?.carriers?.display_name ||
+                      shipmentRecord?.carrier_name ||
                       'Sin transportadora';
 
       // Agrupar por transportadora
       stats.byCarrier[carrier] = (stats.byCarrier[carrier] || 0) + 1;
 
       // Extraer tienda del raw_payload
-      const store = dispatch.shipment_record?.raw_payload?.store ||
-                    dispatch.shipment_record?.raw_payload?.dropshipper ||
+      const store = shipmentRecord?.raw_payload?.store ||
+                    shipmentRecord?.raw_payload?.dropshipper ||
                     'Sin tienda';
 
       // Agrupar por tienda
