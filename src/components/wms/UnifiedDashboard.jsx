@@ -62,9 +62,14 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
         ? dispatch.shipment_record[0]
         : dispatch.shipment_record;
 
-      // Obtener transportadora
+      // DEBUG: Log para ver qué datos tenemos
+      if (!shipmentRecord) {
+        console.warn('⚠️ Dispatch sin shipment_record:', dispatch.dispatch_number);
+      }
+
+      // Obtener transportadora (buscar en varias ubicaciones)
       const carrier = shipmentRecord?.carriers?.display_name ||
-                      shipmentRecord?.carrier_name ||
+                      dispatch.carrier_name ||
                       'Sin transportadora';
 
       // Agrupar por transportadora
@@ -73,6 +78,7 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
       // Extraer tienda del raw_payload
       const store = shipmentRecord?.raw_payload?.store ||
                     shipmentRecord?.raw_payload?.dropshipper ||
+                    shipmentRecord?.customer_name ||
                     'Sin tienda';
 
       // Agrupar por tienda
