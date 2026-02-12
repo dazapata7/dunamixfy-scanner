@@ -13,6 +13,7 @@ import { inventoryService, productsService } from '../services/wmsService';
 import { procesarCodigoConCarriers } from '../utils/validators';
 import { carriersService, codesService } from '../services/supabase';
 import { dunamixfyApi } from '../services/dunamixfyApi';
+import { dunamixfyService } from '../services/dunamixfyService';
 import toast from 'react-hot-toast';
 
 export function useWMS() {
@@ -468,6 +469,27 @@ export function useWMS() {
       // 2. Marcar shipment_record como PROCESSED
       if (shipmentRecordId) {
         await shipmentResolverService.markAsProcessed(shipmentRecordId);
+      }
+
+      // 3. Marcar orden como SCANNED en Dunamixfy (solo para Coordinadora)
+      if (confirmedDispatch.guide_code && confirmedDispatch.carrier_id) {
+        // Obtener carrier para verificar si es Coordinadora
+        const carrier = carriers.find(c => c.id === confirmedDispatch.carrier_id);
+
+        if (carrier && carrier.code === 'coordinadora') {
+          console.log(`📤 Marcando orden como SCANNED en Dunamixfy...`);
+          try {
+            await dunamixfyService.markOrderAsScanned(confirmedDispatch.guide_code, {
+              warehouse_id: confirmedDispatch.warehouse_id,
+              operator_id: confirmedDispatch.operator_id,
+              dispatch_number: confirmedDispatch.dispatch_number
+            });
+            console.log(`✅ Orden marcada como SCANNED en Dunamixfy`);
+          } catch (dunamixfyError) {
+            // No fallar el dispatch si falla Dunamixfy
+            console.warn('⚠️ Error al marcar como scanned en Dunamixfy:', dunamixfyError);
+          }
+        }
       }
 
       console.log('✅ Dispatch confirmado exitosamente');
