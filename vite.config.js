@@ -10,11 +10,13 @@ export default defineConfig({
     mkcert(), // V2: Plugin para generar certificados SSL válidos automáticamente
     VitePWA({
       registerType: 'autoUpdate',
+      injectRegister: 'auto',
       includeAssets: ['dunfy_fondo_coscuro.png', 'icono_xfy.png'],
       manifest: {
         name: 'Dunamix Scanner',
         short_name: 'Dunamix',
         description: 'Scanner QR/Barcode para control de entregas',
+        version: '1.0.1', // Incrementar versión para forzar actualización
         theme_color: '#00D9C0',
         background_color: '#0a0e1a',
         display: 'standalone',
@@ -35,7 +37,20 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,png,svg,ico}'],
+        // IMPORTANTE: NetworkFirst para evitar caché de archivos JS viejos
+        navigateFallback: null,
         runtimeCaching: [
+          {
+            urlPattern: /\.(?:js|css)$/i,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'assets-cache',
+              expiration: {
+                maxEntries: 60,
+                maxAgeSeconds: 60 * 5 // 5 minutos (caché corto)
+              }
+            }
+          },
           {
             urlPattern: /^https:\/\/.*\.supabase\.co\/.*/i,
             handler: 'NetworkFirst',
