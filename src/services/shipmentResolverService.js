@@ -62,12 +62,22 @@ export const shipmentResolverService = {
       const apiResult = await dunamixfyApi.getOrderInfo(guideCode);
 
       if (!apiResult.success) {
-        throw new Error(apiResult.error || 'Error al consultar orden en Dunamixfy');
+        // ⚠️ RETORNAR ERROR CON CATEGORÍA (no throw)
+        return {
+          success: false,
+          errorType: apiResult.errorType || 'ERROR_OTHER',
+          error: apiResult.error || 'Error al consultar orden en Dunamixfy',
+          rawError: apiResult.rawError
+        };
       }
 
       // 2. Verificar can_ship
       if (apiResult.canShip === false) {
-        throw new Error('Pedido no listo para despachar (can_ship = false)');
+        return {
+          success: false,
+          errorType: 'ERROR_NOT_READY',
+          error: '⚠️ Pedido no listo para despachar (can_ship = false)'
+        };
       }
 
       const orderData = apiResult.data;
@@ -77,7 +87,11 @@ export const shipmentResolverService = {
       const items = this.normalizeCoordinadoraItems(orderData.order_items);
 
       if (items.length === 0) {
-        throw new Error('No se encontraron items en la orden');
+        return {
+          success: false,
+          errorType: 'ERROR_OTHER',
+          error: 'No se encontraron items en la orden'
+        };
       }
 
       // 4. Guardar en shipment_records (si no existe)
@@ -99,6 +113,7 @@ export const shipmentResolverService = {
       console.log(`✅ Envío resuelto desde API: ${items.length} items`);
 
       return {
+        success: true,
         items,
         metadata: {
           guide_code: guideCode,
@@ -112,7 +127,12 @@ export const shipmentResolverService = {
 
     } catch (error) {
       console.error('❌ Error al resolver Coordinadora desde API:', error);
-      throw error;
+      // Retornar error con categoría en lugar de throw
+      return {
+        success: false,
+        errorType: 'ERROR_OTHER',
+        error: error.message || 'Error inesperado al resolver Coordinadora'
+      };
     }
   },
 
@@ -133,18 +153,34 @@ export const shipmentResolverService = {
 
       if (shipmentError) {
         if (shipmentError.code === 'PGRST116') {
-          throw new Error(`Guía no encontrada en sistema. Debe importar CSV primero: ${guideCode}`);
+          return {
+            success: false,
+            errorType: 'ERROR_NOT_FOUND',
+            error: `❌ Guía no encontrada en sistema. Debe importar CSV primero: ${guideCode}`
+          };
         }
-        throw shipmentError;
+        return {
+          success: false,
+          errorType: 'ERROR_OTHER',
+          error: shipmentError.message || 'Error al buscar guía en BD'
+        };
       }
 
       if (shipmentRecord.status === 'PROCESSED') {
-        throw new Error('Esta guía ya fue procesada anteriormente');
+        return {
+          success: false,
+          errorType: 'ALREADY_SCANNED_EXTERNAL',
+          error: '🔄 Esta guía ya fue procesada anteriormente'
+        };
       }
 
       // 2. Validar que tenga items
       if (!shipmentRecord.shipment_items || shipmentRecord.shipment_items.length === 0) {
-        throw new Error('El envío no tiene items asociados');
+        return {
+          success: false,
+          errorType: 'ERROR_OTHER',
+          error: 'El envío no tiene items asociados'
+        };
       }
 
       // 3. Normalizar items a formato estándar
@@ -160,6 +196,7 @@ export const shipmentResolverService = {
       const rawPayload = shipmentRecord.raw_payload || {};
 
       return {
+        success: true,
         items,
         metadata: {
           guide_code: guideCode,
@@ -175,7 +212,12 @@ export const shipmentResolverService = {
 
     } catch (error) {
       console.error('❌ Error al resolver Interrápidisimo desde BD:', error);
-      throw error;
+      // Retornar error con categoría en lugar de throw
+      return {
+        success: false,
+        errorType: 'ERROR_OTHER',
+        error: error.message || 'Error inesperado al resolver Interrápidisimo'
+      };
     }
   },
 

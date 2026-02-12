@@ -286,6 +286,40 @@ export function useWMS() {
       // 3. Resolver items del envío según transportadora
       const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId);
 
+      // 3.1 Verificar si shipmentResolverService retornó error
+      if (!shipmentData.success) {
+        console.error('❌ Error al resolver envío:', shipmentData.error);
+
+        // Determinar categoría del error
+        let category = 'ERROR_OTHER';
+        if (shipmentData.errorType === 'NOT_READY' || shipmentData.errorType === 'ERROR_NOT_READY') {
+          category = 'ERROR_NOT_READY';
+        } else if (shipmentData.errorType === 'NOT_FOUND' || shipmentData.errorType === 'ERROR_NOT_FOUND') {
+          category = 'ERROR_NOT_FOUND';
+        } else if (shipmentData.errorType === 'ALREADY_SCANNED' || shipmentData.errorType === 'ALREADY_SCANNED_EXTERNAL') {
+          category = 'ALREADY_SCANNED_EXTERNAL';
+        }
+
+        // Retornar clasificación en lugar de throw
+        return {
+          dispatch: null,
+          category,
+          isDuplicate: category === 'ALREADY_SCANNED_EXTERNAL',
+          hasError: true,
+          errorType: shipmentData.errorType,
+          message: shipmentData.error || 'Error al procesar guía',
+          rawError: shipmentData.rawError,
+          feedbackInfo: {
+            code: codigo,
+            carrier: carrierName,
+            customerName: null,
+            orderId: null,
+            storeName: null,
+            itemsCount: 0
+          }
+        };
+      }
+
       console.log(`📦 Items resueltos: ${shipmentData.items.length} productos`);
 
       // 4. Mapear SKUs a product_ids (pasando source para mappings externos)
