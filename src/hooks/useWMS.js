@@ -348,6 +348,7 @@ export function useWMS() {
         operator_id: operatorId,
         carrier_id: carrierId,
         guide_code: codigo,
+        shipment_record_id: shipmentData.shipmentRecord?.id || null,  // Asociar shipment_record
         first_scanned_by: operatorId,  // Registrar quién hizo el primer escaneo
         notes: `Creado desde escaneo WMS - ${carrierName}`
       }, itemsWithProducts);
