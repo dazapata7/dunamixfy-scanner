@@ -306,8 +306,8 @@ export function useWMS() {
 
       console.log('✅ No existe duplicado en cache, continuando...');
 
-      // 3. Resolver items del envío según transportadora
-      const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId);
+      // 3. ⚡ OPTIMIZACIÓN: Resolver items sin crear shipment_record (modo rápido)
+      const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId, true);
 
       // 3.1 Verificar si shipmentResolverService retornó error
       if (!shipmentData.success) {
@@ -363,7 +363,9 @@ export function useWMS() {
         created_at: new Date().toISOString(), // Para ordenamiento
         // Items sin procesar (se mapean al confirmar)
         items: shipmentData.items,
-        source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode
+        source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode,
+        // ⚡ Guardar raw_payload para crear shipment_record al confirmar (si no existe)
+        raw_payload: shipmentData.raw_payload || null
       };
 
       // Agregar al cache para validar siguientes escaneos
@@ -462,6 +464,19 @@ export function useWMS() {
     setIsProcessing(true);
 
     try {
+      // 0. ⚡ CREAR SHIPMENT_RECORD SI NO EXISTE (se omitió durante escaneo rápido)
+      let shipmentRecordId = dispatchData.shipment_record_id;
+
+      if (!shipmentRecordId && dispatchData.raw_payload) {
+        console.log('📝 Creando shipment_record omitido durante escaneo rápido...');
+        const shipmentRecord = await shipmentResolverService.createOrUpdateShipmentRecord(
+          dispatchData.raw_payload,
+          dispatchData.items
+        );
+        shipmentRecordId = shipmentRecord.id;
+        console.log(`✅ Shipment record creado: ${shipmentRecordId}`);
+      }
+
       // 1. Mapear SKUs a product_ids
       const itemsWithProducts = await mapSkusToProducts(dispatchData.items, dispatchData.source);
 
@@ -471,7 +486,7 @@ export function useWMS() {
         operator_id: dispatchData.operator_id,
         carrier_id: dispatchData.carrier_id,
         guide_code: dispatchData.guide_code,
-        shipment_record_id: dispatchData.shipment_record_id,
+        shipment_record_id: shipmentRecordId,
         first_scanned_by: dispatchData.first_scanned_by,
         notes: dispatchData.notes
       }, itemsWithProducts);
@@ -482,8 +497,8 @@ export function useWMS() {
       const confirmedDispatch = await dispatchesService.confirm(dispatch.id);
 
       // 4. Marcar shipment_record como PROCESSED
-      if (dispatchData.shipment_record_id) {
-        await shipmentResolverService.markAsProcessed(dispatchData.shipment_record_id);
+      if (shipmentRecordId) {
+        await shipmentResolverService.markAsProcessed(shipmentRecordId);
       }
 
       // 5. Marcar orden como SCANNED en Dunamixfy (solo para Coordinadora)

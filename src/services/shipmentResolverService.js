@@ -19,10 +19,11 @@ export const shipmentResolverService = {
    * Resolver envío según transportadora
    * @param {string} guideCode - Código de guía escaneado
    * @param {string} carrierId - ID de la transportadora
+   * @param {boolean} skipRecord - Si es true, NO crea shipment_record (escaneo rápido)
    * @returns {Promise<Object>} - { items: [{sku, qty}], metadata, shipmentRecord }
    */
-  async resolveShipment(guideCode, carrierId) {
-    console.log(`📦 Resolviendo envío: ${guideCode} (carrier: ${carrierId})`);
+  async resolveShipment(guideCode, carrierId, skipRecord = false) {
+    console.log(`📦 Resolviendo envío: ${guideCode} (carrier: ${carrierId}) ${skipRecord ? '⚡ MODO RÁPIDO' : ''}`);
 
     try {
       // 1. Obtener información de la transportadora
@@ -38,7 +39,7 @@ export const shipmentResolverService = {
 
       // 2. Resolver según transportadora
       if (carrier.code === 'coordinadora') {
-        return await this.resolveCoordinadoraAPI(guideCode, carrier);
+        return await this.resolveCoordinadoraAPI(guideCode, carrier, skipRecord);
       } else if (carrier.code === 'interrapidisimo') {
         return await this.resolveInterrapidisimoDB(guideCode, carrier);
       } else {
@@ -53,8 +54,9 @@ export const shipmentResolverService = {
 
   /**
    * Resolver envío de COORDINADORA desde API Dunamixfy
+   * @param {boolean} skipRecord - Si es true, NO crea shipment_record (solo valida y retorna data)
    */
-  async resolveCoordinadoraAPI(guideCode, carrier) {
+  async resolveCoordinadoraAPI(guideCode, carrier, skipRecord = false) {
     console.log('🌐 Resolviendo desde API Dunamixfy...');
 
     try {
@@ -94,23 +96,27 @@ export const shipmentResolverService = {
         };
       }
 
-      // 4. Guardar en shipment_records (si no existe)
-      const shipmentRecord = await this.createOrUpdateShipmentRecord({
-        carrier_id: carrier.id,
-        guide_code: guideCode,
-        source: 'API',
-        status: 'READY',
-        raw_payload: {
-          order_id: orderData.order_id,
-          customer_name: `${orderData.firstname} ${orderData.lastname}`,
-          store: orderData.store,
-          transportadora: orderData.transportadora,
-          order_items: orderData.order_items,
-          raw_response: orderData.raw_response
-        }
-      }, items);
+      // 4. ⚡ OPTIMIZACIÓN: Si skipRecord=true, NO crear shipment_record (escaneo rápido)
+      let shipmentRecord = null;
 
-      console.log(`✅ Envío resuelto desde API: ${items.length} items`);
+      if (!skipRecord) {
+        shipmentRecord = await this.createOrUpdateShipmentRecord({
+          carrier_id: carrier.id,
+          guide_code: guideCode,
+          source: 'API',
+          status: 'READY',
+          raw_payload: {
+            order_id: orderData.order_id,
+            customer_name: `${orderData.firstname} ${orderData.lastname}`,
+            store: orderData.store,
+            transportadora: orderData.transportadora,
+            order_items: orderData.order_items,
+            raw_response: orderData.raw_response
+          }
+        }, items);
+      }
+
+      console.log(`✅ Envío resuelto desde API: ${items.length} items ${skipRecord ? '(sin crear record - escaneo rápido)' : ''}`);
 
       return {
         success: true,
@@ -122,7 +128,22 @@ export const shipmentResolverService = {
           store: orderData.store,
           source: 'API'
         },
-        shipmentRecord
+        shipmentRecord,
+        // Guardar raw_payload para crear record después (al confirmar)
+        raw_payload: {
+          carrier_id: carrier.id,
+          guide_code: guideCode,
+          source: 'API',
+          status: 'READY',
+          raw_payload: {
+            order_id: orderData.order_id,
+            customer_name: `${orderData.firstname} ${orderData.lastname}`,
+            store: orderData.store,
+            transportadora: orderData.transportadora,
+            order_items: orderData.order_items,
+            raw_response: orderData.raw_response
+          }
+        }
       };
 
     } catch (error) {

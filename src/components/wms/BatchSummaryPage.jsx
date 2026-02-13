@@ -19,7 +19,10 @@ export function BatchSummaryPage() {
   useEffect(() => {
     // Leer datos del batch desde sessionStorage
     const storedBatch = sessionStorage.getItem('wms_batch');
+    console.log('📦 BatchSummaryPage - storedBatch:', storedBatch);
+
     if (!storedBatch) {
+      console.error('❌ No hay datos en sessionStorage');
       toast.error('No hay datos de escaneo');
       navigate('/wms');
       return;
@@ -27,6 +30,10 @@ export function BatchSummaryPage() {
 
     try {
       const data = JSON.parse(storedBatch);
+      console.log('✅ Batch data parseado:', data);
+      console.log('  - dispatches:', data.dispatches?.length);
+      console.log('  - stats:', data.stats);
+      console.log('  - warehouse:', data.warehouse);
       setBatchData(data);
     } catch (error) {
       console.error('Error al parsear batch data:', error);

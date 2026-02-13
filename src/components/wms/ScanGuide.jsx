@@ -667,12 +667,33 @@ export function ScanGuide() {
   // NUEVO: Handler para cerrar scanner (botón X)
   const handleCloseScanner = () => {
     if (dispatchesBatch.length > 0) {
-      // Si hay guías escaneadas, guardar en sessionStorage y navegar a resumen
+      // Recalcular stats con el batch actual (evita closure con valores antiguos)
+      const currentStats = {
+        success: dispatchesBatch.filter(item => item.category === 'SUCCESS').length,
+        repeatedToday: dispatchesBatch.filter(item => item.category === 'REPEATED_TODAY').length,
+        repeatedOtherDay: dispatchesBatch.filter(item => item.category === 'REPEATED_OTHER_DAY').length,
+        draftDuplicate: dispatchesBatch.filter(item => item.category === 'DRAFT_DUPLICATE').length,
+        alreadyScanned: dispatchesBatch.filter(item => item.category === 'ALREADY_SCANNED_EXTERNAL').length,
+        errorNotReady: dispatchesBatch.filter(item => item.category === 'ERROR_NOT_READY').length,
+        errorNotFound: dispatchesBatch.filter(item => item.category === 'ERROR_NOT_FOUND').length,
+        errorOther: dispatchesBatch.filter(item => item.category === 'ERROR_OTHER').length,
+        total: dispatchesBatch.length,
+        confirmable: dispatchesBatch.filter(item => item.category === 'SUCCESS').length
+      };
+
+      // Guardar en sessionStorage y navegar a resumen
       sessionStorage.setItem('wms_batch', JSON.stringify({
         dispatches: dispatchesBatch,
-        stats: batchStats,
+        stats: currentStats,
         warehouse: selectedWarehouse
       }));
+
+      console.log('📦 Batch guardado en sessionStorage:', {
+        totalGuides: dispatchesBatch.length,
+        confirmable: currentStats.confirmable,
+        stats: currentStats
+      });
+
       navigate('/wms/batch-summary');
     } else {
       // Si no hay guías, volver a WMS Home
