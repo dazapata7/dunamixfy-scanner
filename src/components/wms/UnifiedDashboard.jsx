@@ -90,6 +90,16 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
           const qty = item.qty || 0;
           stats.totalProducts += qty;
 
+          // DEBUG: Ver qué datos tiene el item
+          if (!item.products) {
+            console.warn('⚠️ Item sin producto asociado:', {
+              dispatch: dispatch.dispatch_number,
+              item_id: item.id,
+              product_id: item.product_id,
+              sku: item.sku
+            });
+          }
+
           // Agrupar por producto (usando SKU como key)
           const productKey = item.products?.sku || item.sku || 'Desconocido';
           const productName = item.products?.name || productKey;
