@@ -195,6 +195,7 @@ export const csvImportService = {
       sku: row['SKU'] || '',
       qty: row['CANTIDAD'] || '1',
       product_name: row['PRODUCTO'] || '',
+      product_id_external: row['PRODUCTO ID'] || null,  // 🔥 NUEVO: ID del producto en Dunamix
       customer_name: row['NOMBRE CLIENTE'] || '',
       order_id: row['ID'] || '',
       // Campos adicionales (opcionales)
@@ -388,6 +389,7 @@ export const csvImportService = {
         shipment_record_id: shipmentRecordId,
         sku: sku,
         qty: qty,
+        external_product_id: row.product_id_external || null,  // 🔥 ID del producto en Dunamix CSV
         product_id: null  // Se mapeará al procesar el despacho
       }]);
 
