@@ -260,10 +260,23 @@ export const shipmentResolverService = {
     // Si es string, parsear JSON
     if (typeof orderItems === 'string') {
       try {
-        parsedItems = JSON.parse(orderItems);
+        // 🔍 DEBUG: Ver contenido antes de parsear
+        console.log('📝 orderItems string (primeros 300 chars):', orderItems.substring(0, 300));
+
+        // Limpiar posibles caracteres problemáticos
+        let cleanedItems = orderItems
+          .trim()
+          .replace(/\r\n/g, '') // Eliminar saltos de línea Windows
+          .replace(/\n/g, '')   // Eliminar saltos de línea Unix
+          .replace(/\t/g, '');  // Eliminar tabs
+
+        parsedItems = JSON.parse(cleanedItems);
         console.log('✅ orderItems parseado desde JSON string');
       } catch (e) {
         console.error('❌ Error parseando orderItems JSON:', e);
+        console.error('📄 Contenido completo:', orderItems);
+        console.error('📏 Longitud:', orderItems.length);
+        console.error('🔍 Caracteres alrededor posición 199:', orderItems.substring(190, 210));
         return [];
       }
     }
