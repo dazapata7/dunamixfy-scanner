@@ -365,11 +365,23 @@ export function useWMS() {
    * Crear y confirmar dispatch desde datos en memoria (escaneo rápido)
    */
   const createAndConfirmDispatch = async (dispatchData) => {
-    console.log(`⚡ Creando y confirmando dispatch desde memoria...`);
+    console.log(`⚡ Creando y confirmando dispatch: ${dispatchData.guide_code}`);
     setIsProcessing(true);
 
     try {
-      // 0. ⚡ CREAR SHIPMENT_RECORD SI NO EXISTE (se omitió durante escaneo rápido)
+      // 0.0 VALIDAR QUE NO EXISTA YA EN BD (prevenir duplicados)
+      const { data: existing } = await supabase
+        .from('dispatches')
+        .select('id, dispatch_number, status, guide_code')
+        .eq('guide_code', dispatchData.guide_code)
+        .maybeSingle();
+
+      if (existing) {
+        console.warn(`⚠️ Dispatch ya existe para guía ${dispatchData.guide_code}:`, existing);
+        throw new Error(`Guía ${dispatchData.guide_code} ya fue procesada (${existing.dispatch_number})`);
+      }
+
+      // 0.1 CREAR SHIPMENT_RECORD SI NO EXISTE (se omitió durante escaneo rápido)
       let shipmentRecordId = dispatchData.shipment_record_id;
 
       if (!shipmentRecordId && dispatchData.raw_payload) {

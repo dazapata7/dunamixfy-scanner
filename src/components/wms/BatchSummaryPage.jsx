@@ -56,25 +56,48 @@ export function BatchSummaryPage() {
         return;
       }
 
-      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO
+      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO con manejo de errores individuales
       toast.loading(`Confirmando ${confirmableDispatches.length} guías...`, { id: 'confirm-batch' });
 
       const confirmPromises = confirmableDispatches.map(item =>
         createAndConfirmDispatch(item.dispatch)
+          .then(result => ({ success: true, result }))
+          .catch(error => ({ success: false, error, guide: item.dispatch.guide_code }))
       );
 
-      await Promise.all(confirmPromises);
+      const results = await Promise.allSettled(confirmPromises);
 
-      toast.success(`✅ ${confirmableDispatches.length} despachos confirmados`, { id: 'confirm-batch' });
+      // Contar éxitos y errores
+      const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+      const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
 
-      // Limpiar sessionStorage
+      console.log('📊 Resultados confirmación:', { total: results.length, successful, failed: failed.length });
+
+      if (failed.length > 0) {
+        console.error('❌ Guías con error:', failed.map(f => f.value?.guide || 'unknown'));
+      }
+
+      // Limpiar sessionStorage SIEMPRE (incluso si hay errores)
       sessionStorage.removeItem('wms_batch');
 
-      // Volver a WMS Home
+      if (successful > 0) {
+        if (failed.length > 0) {
+          toast.success(`✅ ${successful} confirmados, ⚠️ ${failed.length} con error`, { id: 'confirm-batch', duration: 5000 });
+        } else {
+          toast.success(`✅ ${successful} despachos confirmados`, { id: 'confirm-batch' });
+        }
+      } else {
+        toast.error(`❌ Error al confirmar despachos`, { id: 'confirm-batch' });
+      }
+
+      // Volver a WMS Home (siempre, incluso si hubo errores)
       navigate('/wms');
     } catch (error) {
-      console.error('Error al confirmar batch:', error);
-      toast.error('Error al confirmar despachos');
+      console.error('Error crítico al confirmar batch:', error);
+      toast.error('Error crítico al confirmar despachos', { id: 'confirm-batch' });
+      // Limpiar sessionStorage incluso en error crítico
+      sessionStorage.removeItem('wms_batch');
+      navigate('/wms');
     }
   };
 
