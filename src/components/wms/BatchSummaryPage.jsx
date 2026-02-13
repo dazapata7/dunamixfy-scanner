@@ -56,13 +56,33 @@ export function BatchSummaryPage() {
         return;
       }
 
-      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO con manejo de errores individuales
-      toast.loading(`Confirmando ${confirmableDispatches.length} guías...`, { id: 'confirm-batch' });
+      // 🔥 AGRUPAR items por guide_code (Interrápidisimo puede tener múltiples items por guía)
+      const dispatchesByGuide = new Map();
 
-      const confirmPromises = confirmableDispatches.map(item =>
-        createAndConfirmDispatch(item.dispatch)
+      confirmableDispatches.forEach(item => {
+        const guideCode = item.dispatch.guide_code;
+
+        if (!dispatchesByGuide.has(guideCode)) {
+          // Primera vez que vemos esta guía - usar tal cual
+          dispatchesByGuide.set(guideCode, item.dispatch);
+        } else {
+          // Ya existe - combinar items
+          const existing = dispatchesByGuide.get(guideCode);
+          existing.items = [...existing.items, ...item.dispatch.items];
+          console.log(`📦 Combinando items para guía ${guideCode}: ${existing.items.length} items totales`);
+        }
+      });
+
+      const uniqueDispatches = Array.from(dispatchesByGuide.values());
+      console.log(`📊 Dispatches únicos después de agrupar: ${uniqueDispatches.length} (de ${confirmableDispatches.length} escaneados)`);
+
+      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO con manejo de errores individuales
+      toast.loading(`Confirmando ${uniqueDispatches.length} guías...`, { id: 'confirm-batch' });
+
+      const confirmPromises = uniqueDispatches.map(dispatch =>
+        createAndConfirmDispatch(dispatch)
           .then(result => ({ success: true, result }))
-          .catch(error => ({ success: false, error, guide: item.dispatch.guide_code }))
+          .catch(error => ({ success: false, error, guide: dispatch.guide_code }))
       );
 
       const results = await Promise.allSettled(confirmPromises);
