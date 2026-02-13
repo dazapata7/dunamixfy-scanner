@@ -39,6 +39,9 @@ export function ScanGuide() {
   const [dispatchesBatch, setDispatchesBatch] = useState([]); // Array de dispatches pendientes
   const [showBatchSummary, setShowBatchSummary] = useState(false); // Mostrar resumen
 
+  // Transportadora bloqueada para este batch (primera transportadora escaneada)
+  const [batchCarrier, setBatchCarrier] = useState(null); // { id, name, code }
+
   // Contadores de sesión
   const [sessionSuccess, setSessionSuccess] = useState(0);
   const [sessionErrors, setSessionErrors] = useState(0);
@@ -344,6 +347,40 @@ export function ScanGuide() {
       const result = await scanGuideForDispatch(decodedText, operatorId);
 
       console.log('📊 Categoría de guía:', result.category);
+      console.log('🚚 Transportadora detectada:', result.carrierInfo);
+
+      // 🔒 VALIDAR TRANSPORTADORA DEL BATCH
+      // Si ya hay una transportadora bloqueada, verificar que coincida
+      if (batchCarrier) {
+        if (result.carrierInfo && result.carrierInfo.id !== batchCarrier.id) {
+          // ❌ Transportadora diferente - RECHAZAR
+          setScanAnimation('error');
+          playErrorSound();
+          vibrate([200, 100, 200]);
+          toast.error(
+            `❌ Este batch es solo para ${batchCarrier.name}\n` +
+            `Escaneaste una guía de ${result.carrierInfo.name}`,
+            { duration: 5000 }
+          );
+          setSessionErrors(prev => prev + 1);
+
+          setLastScan({
+            code: decodedText,
+            carrier: result.carrierInfo.name,
+            category: 'ERROR_OTHER',
+            message: `Este batch es solo para ${batchCarrier.name}`,
+            isRepeated: false,
+            isError: true
+          });
+
+          // NO agregar al batch
+          return;
+        }
+      } else if (result.carrierInfo) {
+        // Primera guía del batch - BLOQUEAR a esta transportadora
+        console.log(`🔒 Batch bloqueado a: ${result.carrierInfo.name}`);
+        setBatchCarrier(result.carrierInfo);
+      }
 
       // Clasificar según categoría
       const category = result.category || 'SUCCESS';
@@ -720,12 +757,24 @@ export function ScanGuide() {
             </svg>
           </button>
 
-          <h1 className="text-lg font-bold text-white">
-            Escanear Guías
-          </h1>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-lg font-bold text-white">
+              Escanear Guías
+            </h1>
 
-          <div className="text-white/60 text-sm">
-            {selectedWarehouse?.name}
+            <div className="text-white/60 text-sm">
+              {selectedWarehouse?.name}
+            </div>
+
+            {/* Indicador de transportadora bloqueada */}
+            {batchCarrier && (
+              <div className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-blue-500/20 border border-blue-400/30">
+                <div className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                <span className="text-xs font-medium text-blue-300">
+                  Solo {batchCarrier.name}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

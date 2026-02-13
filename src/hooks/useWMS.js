@@ -180,6 +180,7 @@ export function useWMS() {
             message: isToday
               ? `Repetida HOY - ${confirmedDate.toLocaleTimeString()}`
               : `Repetida de ${confirmedDate.toLocaleDateString()}`,
+            carrierInfo: { id: carrierId, name: carrierName, code: carrierCode },
             feedbackInfo: {
               code: codigo,
               carrier: carrierName,
@@ -197,6 +198,7 @@ export function useWMS() {
             category: 'DRAFT_DUPLICATE',
             isDuplicate: true,
             message: 'Esta guía ya tiene un despacho en borrador',
+            carrierInfo: { id: carrierId, name: carrierName, code: carrierCode },
             feedbackInfo: {
               code: codigo,
               carrier: carrierName,
@@ -237,6 +239,7 @@ export function useWMS() {
           errorType: shipmentData.errorType,
           message: shipmentData.error || 'Error al procesar guía',
           rawError: shipmentData.rawError,
+          carrierInfo: { id: carrierId, name: carrierName, code: carrierCode },
           feedbackInfo: {
             code: codigo,
             carrier: carrierName,
@@ -285,6 +288,7 @@ export function useWMS() {
         category: 'SUCCESS', // ✅ Guía nueva procesada exitosamente
         isDuplicate: false,
         hasError: false,
+        carrierInfo: { id: carrierId, name: carrierName, code: carrierCode },
         // Info para feedback visual (ScanGuide.jsx lo usa para mostrar al usuario)
         feedbackInfo: {
           code: codigo,
