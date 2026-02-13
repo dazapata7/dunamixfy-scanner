@@ -339,7 +339,7 @@ export const csvImportService = {
     // 1. Verificar si ya existe shipment_record para esta guía
     const { data: existing, error: checkError } = await supabase
       .from('shipment_records')
-      .select('id')
+      .select('id, status')
       .eq('guide_code', guideCode)
       .eq('carrier_id', carrierId)
       .single();
@@ -347,9 +347,19 @@ export const csvImportService = {
     let shipmentRecordId;
 
     if (existing) {
-      // Ya existe, usar el existente
+      // Ya existe - actualizar status a READY (permite re-escaneo)
       shipmentRecordId = existing.id;
-      console.log(`📝 Guía existente: ${guideCode} - agregando item`);
+
+      if (existing.status !== 'READY') {
+        await supabase
+          .from('shipment_records')
+          .update({ status: 'READY' })
+          .eq('id', existing.id);
+
+        console.log(`🔄 Guía existente: ${guideCode} - status actualizado a READY`);
+      } else {
+        console.log(`📝 Guía existente: ${guideCode} - ya está READY`);
+      }
 
     } else {
       // Crear nuevo shipment_record con metadata completa
@@ -382,23 +392,44 @@ export const csvImportService = {
       console.log(`📝 Nueva guía creada: ${guideCode}`);
     }
 
-    // 2. Crear shipment_item (puede haber múltiples items por guía)
-    const { error: itemError } = await supabase
+    // 2. Verificar si ya existe este item (mismo SKU + external_product_id en esta guía)
+    const { data: existingItem } = await supabase
       .from('shipment_items')
-      .insert([{
-        shipment_record_id: shipmentRecordId,
-        sku: sku,
-        qty: qty,
-        external_product_id: row.product_id_external || null,  // 🔥 ID del producto en Dunamix CSV
-        product_id: null  // Se mapeará al procesar el despacho
-      }]);
+      .select('id, qty')
+      .eq('shipment_record_id', shipmentRecordId)
+      .eq('sku', sku)
+      .eq('external_product_id', row.product_id_external || null)
+      .maybeSingle();
 
-    if (itemError) {
-      // Si es duplicado (mismo SKU en la misma guía), podría ser un error
-      if (itemError.code === '23505') {
-        throw new Error(`SKU ${sku} duplicado en guía ${guideCode}`);
+    if (existingItem) {
+      // Item ya existe - actualizar cantidad si cambió
+      if (existingItem.qty !== qty) {
+        await supabase
+          .from('shipment_items')
+          .update({ qty: qty })
+          .eq('id', existingItem.id);
+
+        console.log(`🔄 Item actualizado: ${sku} - cantidad ${existingItem.qty} → ${qty}`);
+      } else {
+        console.log(`✓ Item ya existe: ${sku} (sin cambios)`);
       }
-      throw itemError;
+    } else {
+      // Item nuevo - insertar
+      const { error: itemError } = await supabase
+        .from('shipment_items')
+        .insert([{
+          shipment_record_id: shipmentRecordId,
+          sku: sku,
+          qty: qty,
+          external_product_id: row.product_id_external || null,  // 🔥 ID del producto en Dunamix CSV
+          product_id: null  // Se mapeará al procesar el despacho
+        }]);
+
+      if (itemError) {
+        throw itemError;
+      }
+
+      console.log(`✅ Item nuevo creado: ${sku}`);
     }
 
     return shipmentRecordId;
