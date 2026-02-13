@@ -920,10 +920,14 @@ export const dispatchesService = {
     console.log(`✅ Confirmando despacho: ${dispatchId}`);
 
     try {
-      // 1. Obtener despacho y sus items
+      // 1. Obtener despacho con sus items y shipment_record (para order_id)
       const { data: dispatch, error: dispatchError } = await supabase
         .from('dispatches')
-        .select('*, dispatch_items(*)')
+        .select(`
+          *,
+          dispatch_items(*),
+          shipment_records(id, guide_code, raw_payload)
+        `)
         .eq('id', dispatchId)
         .single();
 
@@ -932,6 +936,14 @@ export const dispatchesService = {
       if (dispatch.status === 'confirmed') {
         throw new Error('Este despacho ya fue confirmado');
       }
+
+      // Extraer order_id del shipment_record.raw_payload
+      let externalOrderId = null;
+      if (dispatch.shipment_records && dispatch.shipment_records.raw_payload) {
+        externalOrderId = dispatch.shipment_records.raw_payload.order_id || null;
+      }
+
+      console.log(`📋 Order ID externo: ${externalOrderId || 'N/A'}`);
 
       // 2. Validar stock disponible
       const stockValidation = await inventoryService.validateStock(
@@ -948,7 +960,7 @@ export const dispatchesService = {
         throw new Error(`Stock insuficiente: ${insufficientItems}`);
       }
 
-      // 3. Crear movimientos OUT para cada item
+      // 3. Crear movimientos OUT para cada item (con order_id y carrier_id para rastreabilidad)
       const movements = dispatch.dispatch_items.map(item => ({
         movement_type: 'OUT',
         qty_signed: -item.qty,  // Negativo para salida
@@ -957,6 +969,8 @@ export const dispatchesService = {
         user_id: dispatch.operator_id,
         ref_type: 'dispatch',
         ref_id: dispatch.id,
+        external_order_id: externalOrderId,  // ID de orden externa (Dunamixfy, Interrápidisimo)
+        carrier_id: dispatch.carrier_id,     // Transportadora
         notes: `Despacho ${dispatch.dispatch_number}${dispatch.guide_code ? ` - Guía ${dispatch.guide_code}` : ''}`
       }));
 

@@ -129,9 +129,9 @@ export function ScanGuide() {
       const config = {
         fps: 30, // Aumentado de 10 a 30 para detección MÁS RÁPIDA
         qrbox: function(viewfinderWidth, viewfinderHeight) {
-          // Usar el 90% del área disponible para maximizar detección
-          const qrboxWidth = Math.floor(viewfinderWidth * 0.9);
-          const qrboxHeight = Math.floor(viewfinderHeight * 0.9);
+          // 🔥 CAMBIO: Usar el 95% para MAXIMIZAR detección de barcodes largos (Interrápidisimo)
+          const qrboxWidth = Math.floor(viewfinderWidth * 0.95);
+          const qrboxHeight = Math.floor(viewfinderHeight * 0.95);
           return {
             width: qrboxWidth,
             height: qrboxHeight
@@ -139,7 +139,7 @@ export function ScanGuide() {
         },
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
-        disableFlip: true, // CAMBIO: Deshabilitar flip para mejorar velocidad de barcode
+        disableFlip: false, // 🔥 ACTIVAR flip para mejorar detección de barcodes largos (Interrápidisimo)
         // Soporte explícito para múltiples formatos de códigos
         formatsToSupport: [
           // QR Code
@@ -372,6 +372,14 @@ export function ScanGuide() {
             isRepeated: false,
             isError: true
           });
+
+          // ⚠️ IMPORTANTE: Liberar cooldown ANTES de return
+          setTimeout(() => {
+            scanCooldown.current = false;
+            lastScannedCode.current = null;
+            setScanAnimation(null);
+            console.log('✅ Cooldown liberado después de rechazo por transportadora');
+          }, 500);
 
           // NO agregar al batch
           return;
