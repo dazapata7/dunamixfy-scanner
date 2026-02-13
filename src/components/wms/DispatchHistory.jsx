@@ -227,7 +227,7 @@ export function DispatchHistory({ warehouseId = null }) {
                     {/* Delete Button */}
                     <button
                       onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
-                      className="p-2 rounded-lg bg-red-500/0 hover:bg-red-500/20 border border-red-500/0 hover:border-red-500/30 text-red-400/0 group-hover:text-red-400 transition-all opacity-0 group-hover:opacity-100"
+                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all"
                       title="Eliminar (solo pruebas)"
                     >
                       <Trash2 className="w-4 h-4" />

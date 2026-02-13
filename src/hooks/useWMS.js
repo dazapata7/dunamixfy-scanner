@@ -145,103 +145,8 @@ export function useWMS() {
 
       console.log(`🚚 Transportadora detectada: ${carrierName} (${codigo})`);
 
-      // 1.5. VALIDACIÓN DUNAMIXFY (solo Coordinadora)
-      // Consultar información de la orden y validar can_ship ANTES de continuar
-      const isCoordinadora = carrierName.toLowerCase().includes('coordinadora');
-      let customerName = null;
-      let orderId = null;
-      let storeName = null;
-
-      if (isCoordinadora) {
-        try {
-          console.log('🌐 [COORDINADORA] Consultando orden en Dunamixfy...');
-          const orderInfo = await dunamixfyApi.getOrderInfo(codigo);
-
-          if (orderInfo.success) {
-            console.log('✅ Orden encontrada en Dunamixfy:', orderInfo.data);
-
-            // Extraer info del cliente
-            const firstName = orderInfo.data.firstname || '';
-            const lastName = orderInfo.data.lastname || '';
-            customerName = `${firstName} ${lastName}`.trim();
-            orderId = orderInfo.data.order_id || null;
-            storeName = orderInfo.data.store || null;
-
-            // Mostrar info del cliente
-            if (customerName) {
-              toast.success(`👤 ${customerName}`, {
-                duration: 4000,
-                icon: '📦',
-                style: {
-                  background: '#3b82f6',
-                  color: '#fff',
-                  fontSize: '16px',
-                  fontWeight: 'bold',
-                  padding: '16px 24px',
-                  borderRadius: '12px',
-                }
-              });
-            }
-          } else if (orderInfo.canShip === false) {
-            // ⛔ PEDIDO NO PUEDE SER DESPACHADO (can_ship = NO)
-            console.error('🚫 PEDIDO CON ERROR:', orderInfo.error);
-
-            // Determinar categoría del error
-            let category = 'ERROR_OTHER';
-            if (orderInfo.errorType === 'NOT_READY') {
-              category = 'ERROR_NOT_READY';
-            } else if (orderInfo.errorType === 'NOT_FOUND') {
-              category = 'ERROR_NOT_FOUND';
-            } else if (orderInfo.errorType === 'ALREADY_SCANNED') {
-              category = 'ALREADY_SCANNED_EXTERNAL';
-            }
-
-            toast.error(orderInfo.error || 'Error al procesar guía', {
-              duration: 6000,
-              icon: '⚠️',
-              style: {
-                background: '#ef4444',
-                color: '#fff',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                padding: '16px 24px',
-                borderRadius: '12px',
-              }
-            });
-
-            // Vibración de alerta
-            if (navigator.vibrate) {
-              navigator.vibrate([200, 100, 200]);
-            }
-
-            // NO lanzar error, retornar clasificación
-            return {
-              dispatch: null,
-              category,
-              isDuplicate: category === 'ALREADY_SCANNED_EXTERNAL',
-              hasError: true,
-              errorType: orderInfo.errorType,
-              message: orderInfo.error || 'Error al procesar guía',
-              rawError: orderInfo.rawError, // Mensaje original de Dunamixfy sin procesar
-              feedbackInfo: {
-                code: codigo,
-                carrier: carrierName,
-                customerName: customerName || null,
-                orderId,
-                storeName,
-                itemsCount: 0
-              }
-            };
-          } else {
-            console.warn('⚠️ Orden no encontrada en Dunamixfy:', orderInfo.error);
-          }
-        } catch (dunamixfyError) {
-          console.error('❌ Error consultando Dunamixfy:', dunamixfyError);
-          // Continuar aunque falle la consulta (para otros errores de red)
-        }
-      } else {
-        console.log(`ℹ️ [${carrierName}] No requiere consulta a Dunamixfy`);
-      }
+      // ⚡ OPTIMIZACIÓN: Eliminada consulta previa a Dunamixfy
+      // Los datos vienen directamente de resolveShipment() más abajo
 
       // 2. OPTIMIZACIÓN: Validación rápida contra cache (O(1) - instantáneo)
       console.log(`🔍 Validando duplicados en cache (${todayDispatchesCache.current.size} dispatches)...`);
@@ -278,9 +183,9 @@ export function useWMS() {
             feedbackInfo: {
               code: codigo,
               carrier: carrierName,
-              customerName: customerName || 'Cliente',
-              orderId,
-              storeName,
+              customerName: 'Cliente', // No necesitamos consultar de nuevo
+              orderId: null,
+              storeName: null,
               itemsCount: cachedDispatch.dispatch_items?.length || 0
             }
           };
@@ -295,9 +200,9 @@ export function useWMS() {
             feedbackInfo: {
               code: codigo,
               carrier: carrierName,
-              customerName: customerName || 'Cliente',
-              orderId,
-              storeName,
+              customerName: 'Cliente', // No necesitamos consultar de nuevo
+              orderId: null,
+              storeName: null,
               itemsCount: cachedDispatch.dispatch_items?.length || 0
             }
           };
@@ -384,9 +289,9 @@ export function useWMS() {
         feedbackInfo: {
           code: codigo,
           carrier: carrierName,
-          customerName: customerName || shipmentData.metadata?.customer_name,
-          orderId: orderId || shipmentData.metadata?.order_id,
-          storeName: storeName || shipmentData.metadata?.store,
+          customerName: shipmentData.metadata?.customer_name,
+          orderId: shipmentData.metadata?.order_id,
+          storeName: shipmentData.metadata?.store,
           itemsCount: shipmentData.items.length
         }
       };

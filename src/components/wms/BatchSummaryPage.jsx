@@ -56,12 +56,16 @@ export function BatchSummaryPage() {
         return;
       }
 
-      // Crear y confirmar cada dispatch (ahora se crean en BD al confirmar)
-      for (const item of confirmableDispatches) {
-        await createAndConfirmDispatch(item.dispatch);
-      }
+      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO
+      toast.loading(`Confirmando ${confirmableDispatches.length} guías...`, { id: 'confirm-batch' });
 
-      toast.success(`✅ ${confirmableDispatches.length} despachos confirmados`);
+      const confirmPromises = confirmableDispatches.map(item =>
+        createAndConfirmDispatch(item.dispatch)
+      );
+
+      await Promise.all(confirmPromises);
+
+      toast.success(`✅ ${confirmableDispatches.length} despachos confirmados`, { id: 'confirm-batch' });
 
       // Limpiar sessionStorage
       sessionStorage.removeItem('wms_batch');
