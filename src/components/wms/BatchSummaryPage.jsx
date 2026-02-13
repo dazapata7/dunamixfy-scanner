@@ -103,3 +103,5 @@ export function BatchSummaryPage() {
     />
   );
 }
+
+export default BatchSummaryPage;
