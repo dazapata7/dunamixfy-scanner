@@ -24,7 +24,7 @@ export function ScanGuide() {
   const scanCooldown = useRef(false);
 
   // WMS Hook
-  const { scanGuideForDispatch, confirmDispatch, isProcessing, selectedWarehouse } = useWMS();
+  const { scanGuideForDispatch, confirmDispatch, isProcessing, selectedWarehouse, loadTodayDispatchesCache } = useWMS();
   const { operator, operatorId } = useStore();
 
   // DEBUG: Verificar operatorId
@@ -86,6 +86,15 @@ export function ScanGuide() {
 
     return () => clearTimeout(timer);
   }, [selectedWarehouse, navigate]);
+
+  // Cargar cache de dispatches del día al iniciar
+  useEffect(() => {
+    if (!selectedWarehouse) return;
+
+    // Cargar dispatches del día en cache para validación rápida
+    console.log('🔄 Cargando cache de dispatches del día...');
+    loadTodayDispatchesCache(selectedWarehouse.id);
+  }, [selectedWarehouse]);
 
   // Inicializar scanner solo si hay operador Y almacén
   useEffect(() => {

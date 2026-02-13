@@ -28,6 +28,9 @@ export function useWMS() {
   // useRef para acceder al estado actual de carriers dentro de funciones
   const carriersRef = useRef([]);
 
+  // CACHE: Dispatches del día para validación rápida de duplicados
+  const todayDispatchesCache = useRef(new Map()); // Map<guide_code, dispatch>
+
   // =====================================================
   // INICIALIZACIÓN
   // =====================================================
@@ -35,6 +38,33 @@ export function useWMS() {
   useEffect(() => {
     loadInitialData();
   }, []);
+
+  /**
+   * Cargar dispatches del día en cache para validación rápida
+   */
+  async function loadTodayDispatchesCache(warehouseId) {
+    if (!warehouseId) {
+      console.warn('⚠️ No hay warehouse seleccionado, no se carga cache');
+      return;
+    }
+
+    console.log('🔄 Cargando cache de dispatches del día...');
+    try {
+      const dispatches = await dispatchesService.getTodayDispatches(warehouseId);
+
+      // Crear Map para búsqueda O(1)
+      const cache = new Map();
+      dispatches.forEach(dispatch => {
+        cache.set(dispatch.guide_code, dispatch);
+      });
+
+      todayDispatchesCache.current = cache;
+      console.log(`✅ Cache cargado: ${cache.size} dispatches del día`);
+    } catch (error) {
+      console.error('❌ Error al cargar cache de dispatches:', error);
+      todayDispatchesCache.current = new Map(); // Cache vacío
+    }
+  }
 
   async function loadInitialData() {
     setIsLoading(true);
@@ -213,10 +243,68 @@ export function useWMS() {
         console.log(`ℹ️ [${carrierName}] No requiere consulta a Dunamixfy`);
       }
 
-      // 2. OPTIMIZACIÓN: Verificación de duplicados movida a background
-      // NO bloqueamos el escaneo esperando esta query
-      // La validación se hace al confirmar el batch
-      console.log('⚡ Escaneo rápido - validación de duplicados diferida al confirmar');
+      // 2. OPTIMIZACIÓN: Validación rápida contra cache (O(1) - instantáneo)
+      console.log(`🔍 Validando duplicados en cache (${todayDispatchesCache.current.size} dispatches)...`);
+      const cachedDispatch = todayDispatchesCache.current.get(codigo);
+
+      if (cachedDispatch) {
+        console.warn(`⚠️ DUPLICADO ENCONTRADO EN CACHE:`, cachedDispatch);
+
+        if (cachedDispatch.status === 'confirmed') {
+          const confirmedDate = cachedDispatch.confirmed_at
+            ? new Date(cachedDispatch.confirmed_at)
+            : new Date(cachedDispatch.created_at);
+
+          const today = new Date();
+          const dispatchDate = new Date(confirmedDate);
+
+          // Verificar si es de hoy
+          const isToday =
+            dispatchDate.getDate() === today.getDate() &&
+            dispatchDate.getMonth() === today.getMonth() &&
+            dispatchDate.getFullYear() === today.getFullYear();
+
+          console.warn(`⚠️ Guía ${codigo} ya fue confirmada ${isToday ? 'HOY' : 'en otro día'}`);
+
+          return {
+            dispatch: cachedDispatch,
+            category: isToday ? 'REPEATED_TODAY' : 'REPEATED_OTHER_DAY',
+            isDuplicate: true,
+            isToday,
+            confirmedAt: confirmedDate,
+            message: isToday
+              ? `Repetida HOY - ${confirmedDate.toLocaleTimeString()}`
+              : `Repetida de ${confirmedDate.toLocaleDateString()}`,
+            feedbackInfo: {
+              code: codigo,
+              carrier: carrierName,
+              customerName: customerName || 'Cliente',
+              orderId,
+              storeName,
+              itemsCount: cachedDispatch.dispatch_items?.length || 0
+            }
+          };
+        } else {
+          // Existe pero en draft
+          console.warn(`⚠️ Ya existe un dispatch en DRAFT para esta guía en el batch actual`);
+          return {
+            dispatch: cachedDispatch,
+            category: 'DRAFT_DUPLICATE',
+            isDuplicate: true,
+            message: 'Esta guía ya tiene un despacho en borrador',
+            feedbackInfo: {
+              code: codigo,
+              carrier: carrierName,
+              customerName: customerName || 'Cliente',
+              orderId,
+              storeName,
+              itemsCount: cachedDispatch.dispatch_items?.length || 0
+            }
+          };
+        }
+      }
+
+      console.log('✅ No existe duplicado en cache, continuando...');
 
       // 3. Resolver items del envío según transportadora
       const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId);
@@ -261,22 +349,30 @@ export function useWMS() {
       // Todos los datos se guardan en memoria y se crean al confirmar el batch
       console.log('⚡ Escaneo rápido - datos guardados en memoria (NO en BD)');
 
-      // Retornar datos en memoria (sin crear dispatch en BD)
+      // Crear dispatch temporal en memoria
+      const tempDispatch = {
+        // Dispatch temporal en memoria (sin ID)
+        warehouse_id: selectedWarehouse.id,
+        operator_id: operatorId,
+        carrier_id: carrierId,
+        guide_code: codigo,
+        shipment_record_id: shipmentData.shipmentRecord?.id || null,
+        first_scanned_by: operatorId,
+        notes: `Creado desde escaneo WMS - ${carrierName}`,
+        status: 'draft',
+        created_at: new Date().toISOString(), // Para ordenamiento
+        // Items sin procesar (se mapean al confirmar)
+        items: shipmentData.items,
+        source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode
+      };
+
+      // Agregar al cache para validar siguientes escaneos
+      todayDispatchesCache.current.set(codigo, tempDispatch);
+      console.log(`✅ Guía agregada al cache (total: ${todayDispatchesCache.current.size})`);
+
+      // Retornar datos en memoria
       return {
-        dispatch: {
-          // Dispatch temporal en memoria (sin ID)
-          warehouse_id: selectedWarehouse.id,
-          operator_id: operatorId,
-          carrier_id: carrierId,
-          guide_code: codigo,
-          shipment_record_id: shipmentData.shipmentRecord?.id || null,
-          first_scanned_by: operatorId,
-          notes: `Creado desde escaneo WMS - ${carrierName}`,
-          status: 'draft',
-          // Items sin procesar (se mapean al confirmar)
-          items: shipmentData.items,
-          source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode
-        },
+        dispatch: tempDispatch,
         metadata: shipmentData.metadata,
         shipmentRecord: shipmentData.shipmentRecord,
         category: 'SUCCESS', // ✅ Guía nueva procesada exitosamente
@@ -519,7 +615,8 @@ export function useWMS() {
     confirmDispatch,
     createAndConfirmDispatch, // Nueva función para escaneo rápido
     cancelDispatch,
-    loadInitialData
+    loadInitialData,
+    loadTodayDispatchesCache // Cargar cache de dispatches del día
   };
 }
 
