@@ -88,8 +88,8 @@ export function BatchSummaryPage() {
 
   return (
     <BatchSummary
-      dispatches={batchData.dispatches}
-      batchStats={batchData.stats}
+      batch={batchData.dispatches}
+      stats={batchData.stats}
       onConfirm={handleConfirm}
       onCancel={handleCancel}
       isProcessing={isProcessing}
