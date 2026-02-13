@@ -134,10 +134,30 @@ export function ProductManagement() {
     }
 
     try {
+      // VALIDACIÓN: Verificar si el SKU externo ya existe en OTRO producto
+      const allMappings = await skuMappingsService.getAll();
+      const duplicateInOtherProduct = allMappings.find(
+        m => m.source === newMapping.source &&
+             m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase() &&
+             m.product_id !== editingProduct
+      );
+
+      if (duplicateInOtherProduct) {
+        // Obtener nombre del producto donde ya existe
+        const productWithDuplicate = products.find(p => p.id === duplicateInOtherProduct.product_id);
+        const productName = productWithDuplicate?.name || 'otro producto';
+
+        toast.error(
+          `❌ El SKU "${newMapping.external_sku}" de ${newMapping.source === 'dunamixfy' ? 'Coordinadora' : 'Interrápidisimo'} ya está asignado a: ${productName}`,
+          { duration: 5000 }
+        );
+        return;
+      }
+
       await skuMappingsService.create({
         product_id: editingProduct,
         source: newMapping.source,
-        external_sku: newMapping.external_sku.trim(),
+        external_sku: newMapping.external_sku.trim().toUpperCase(),
         notes: newMapping.notes.trim() || null,
         is_active: true
       });
@@ -396,11 +416,8 @@ export function ProductManagement() {
                     onChange={(e) => setNewMapping({ ...newMapping, source: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
                   >
-                    <option value="dunamixfy">Dunamixfy</option>
+                    <option value="dunamixfy">Coordinadora (Dunamixfy)</option>
                     <option value="interrapidisimo">Interrápidisimo</option>
-                    <option value="csv">CSV</option>
-                    <option value="manual">Manual</option>
-                    <option value="other">Otro</option>
                   </select>
                 </div>
 

@@ -1133,6 +1133,23 @@ export const dispatchesService = {
 
 export const skuMappingsService = {
   /**
+   * Obtener TODOS los mappings (para validación de duplicados)
+   */
+  async getAll() {
+    const { data, error } = await supabase
+      .from('product_sku_mappings')
+      .select('*')
+      .eq('is_active', true);
+
+    if (error) {
+      console.error('❌ Error al cargar todos los mappings:', error);
+      throw error;
+    }
+
+    return data;
+  },
+
+  /**
    * Obtener todos los mappings de un producto
    */
   async getByProductId(productId) {
