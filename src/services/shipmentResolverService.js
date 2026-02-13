@@ -270,6 +270,14 @@ export const shipmentResolverService = {
           .replace(/\n/g, '')   // Eliminar saltos de línea Unix
           .replace(/\t/g, '');  // Eliminar tabs
 
+        // 🔥 FIX: Si NO empieza con '[', envolver en array
+        // Dunamixfy a veces retorna: {"sku":"446"},{"sku":"448"}
+        // En lugar de: [{"sku":"446"},{"sku":"448"}]
+        if (!cleanedItems.startsWith('[')) {
+          console.log('🔧 orderItems sin corchetes - envolviéndolo en array');
+          cleanedItems = `[${cleanedItems}]`;
+        }
+
         parsedItems = JSON.parse(cleanedItems);
         console.log('✅ orderItems parseado desde JSON string');
       } catch (e) {
