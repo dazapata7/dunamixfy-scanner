@@ -299,12 +299,12 @@ export const shipmentResolverService = {
    */
   async createOrUpdateShipmentRecord(shipmentData, items) {
     try {
-      // 1. Verificar si ya existe
+      // 1. Verificar si ya existe (maybeSingle no lanza 406 si no encuentra)
       const { data: existing, error: checkError } = await supabase
         .from('shipment_records')
         .select('*')
         .eq('guide_code', shipmentData.guide_code)
-        .single();
+        .maybeSingle();
 
       let shipmentRecord;
 
