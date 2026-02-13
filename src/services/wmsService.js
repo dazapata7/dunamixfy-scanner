@@ -1107,7 +1107,7 @@ export const dispatchesService = {
       .from('dispatches')
       .select(`
         *,
-        dispatch_items(*, product:products(*)),
+        dispatch_items(*, products(*)),
         shipment_record:shipment_records(*, carriers(*)),
         operator:operators!dispatches_operator_id_fkey(name)
       `)
