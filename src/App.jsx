@@ -15,6 +15,7 @@ const Dashboard = lazy(() => import("./components/Dashboard"));
 const WMSHome = lazy(() => import("./components/wms/WMSHome"));
 const WarehouseSelector = lazy(() => import("./components/wms/WarehouseSelector"));
 const ScanGuide = lazy(() => import("./components/wms/ScanGuide"));
+const BatchSummaryPage = lazy(() => import("./components/wms/BatchSummaryPage"));
 const DebugGuide = lazy(() => import("./components/wms/DebugGuide"));
 const DispatchPreview = lazy(() => import("./components/wms/DispatchPreview"));
 const InventoryList = lazy(() => import("./components/wms/InventoryList"));
@@ -68,6 +69,7 @@ function AppContent() {
               <Route path="/wms" element={<WMSHome />} />
               <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
               <Route path="/wms/scan-guide" element={<ScanGuide />} />
+              <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
               <Route path="/wms/debug-guide" element={<DebugGuide />} />
               <Route path="/wms/inventory" element={<InventoryList />} />
               <Route path="/wms/import-csv" element={<CSVImporter />} />
@@ -106,6 +108,7 @@ function AppContent() {
             <Route path="/wms" element={<WMSHome />} />
             <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
             <Route path="/wms/scan-guide" element={<ScanGuide />} />
+            <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
             <Route path="/wms/debug-guide" element={<DebugGuide />} />
             <Route path="/wms/inventory" element={<InventoryList />} />
             <Route path="/wms/import-csv" element={<CSVImporter />} />

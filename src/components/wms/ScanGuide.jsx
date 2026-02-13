@@ -655,177 +655,156 @@ export function ScanGuide() {
 
   // Código antiguo de resumen inline removido - ahora usamos BatchSummary component
 
-  // Mostrar scanner (UI simplificada vs Scanner.jsx)
+  // NUEVO: Handler para cerrar scanner (botón X)
+  const handleCloseScanner = () => {
+    if (dispatchesBatch.length > 0) {
+      // Si hay guías escaneadas, guardar en sessionStorage y navegar a resumen
+      sessionStorage.setItem('wms_batch', JSON.stringify({
+        dispatches: dispatchesBatch,
+        stats: batchStats,
+        warehouse: selectedWarehouse
+      }));
+      navigate('/wms/batch-summary');
+    } else {
+      // Si no hay guías, volver a WMS Home
+      navigate('/wms');
+    }
+  };
+
+  // Mostrar scanner (UI FULL-SCREEN con overlays)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-2xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+    <div className="fixed inset-0 bg-black">
+      {/* Scanner (fondo completo) */}
+      <div id="wms-reader" className="absolute inset-0 scanner-container" />
+
+      {/* Header overlay (semi-transparente) */}
+      <div className="absolute top-0 left-0 right-0 z-10">
+        <div className="flex items-center justify-between p-4 bg-dark-950/85 backdrop-blur-xl border-b border-white/10">
           <button
-            onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+            onClick={handleCloseScanner}
+            className="flex items-center justify-center w-10 h-10 rounded-full bg-white/10 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/20 transition-all"
+            aria-label="Cerrar scanner"
           >
-            <ArrowLeft className="w-4 h-4" />
-            Volver
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
           </button>
+
+          <h1 className="text-lg font-bold text-white">
+            Escanear Guías
+          </h1>
 
           <div className="text-white/60 text-sm">
             {selectedWarehouse?.name}
           </div>
         </div>
+      </div>
 
-        {/* Title Card */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-4 rounded-2xl bg-white/10">
-              <Package className="w-8 h-8 text-white" />
+      {/* Footer overlay (semi-transparente) - Contador + Último escaneo */}
+      <div className="absolute bottom-0 left-0 right-0 z-10">
+        <div className="p-4 bg-dark-950/85 backdrop-blur-xl border-t border-white/10">
+          {/* Contador de stats */}
+          <div className="flex items-center justify-around mb-4 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-green-400">{batchStats.success}</div>
+              <div className="text-white/60 text-xs">✅ Nuevas</div>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">
-                Escanear Guía
-              </h1>
-              <p className="text-white/60 text-sm mt-1">
-                Despacho de pedidos
-              </p>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-yellow-400">
+                {batchStats.repeatedToday + batchStats.repeatedOtherDay + batchStats.draftDuplicate}
+              </div>
+              <div className="text-white/60 text-xs">⚠️ Repetidas</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-red-400">
+                {batchStats.errorNotReady + batchStats.errorNotFound + batchStats.errorOther + batchStats.alreadyScanned}
+              </div>
+              <div className="text-white/60 text-xs">❌ Errores</div>
             </div>
           </div>
 
-          {/* Session Stats */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-green-400">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>{sessionSuccess} escaneadas</span>
-            </div>
-            <div className="flex items-center gap-2 text-blue-400">
-              <Package className="w-4 h-4" />
-              <span>{dispatchesBatch.length} pendientes</span>
-            </div>
-            {sessionErrors > 0 && (
-              <div className="flex items-center gap-2 text-red-400">
-                <XCircle className="w-4 h-4" />
-                <span>{sessionErrors} errores</span>
-              </div>
-            )}
-          </div>
-
-          {/* Botón para finalizar escaneo (solo si hay guías) */}
-          {dispatchesBatch.length > 0 && (
-            <div className="mt-4">
-              <button
-                onClick={handleFinishScanning}
-                className="w-full px-4 py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:from-green-600 hover:to-emerald-700 transition-all"
-              >
-                ✅ Finalizar y Revisar ({batchStats.total} guías)
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Scanner Container */}
-        <div className="relative bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg overflow-hidden">
-          {/* Scanner */}
-          <div id="wms-reader" className="rounded-2xl overflow-hidden scanner-container" />
-
-          {/* Scan Animation Ring (copiado de Scanner.jsx) */}
-          {scanAnimation && (
-            <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-              <div className={`
-                w-32 h-32 rounded-full
-                ${scanAnimation === 'success' ? 'bg-green-500/20 border-green-500' : 'bg-red-500/20 border-red-500'}
-                border-4 animate-ping
-              `} />
-              <div className="absolute">
-                {scanAnimation === 'success' ? (
-                  <CheckCircle2 className="w-16 h-16 text-green-400" />
-                ) : (
-                  <XCircle className="w-16 h-16 text-red-400" />
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Processing Overlay */}
-          {isProcessing && (
-            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center">
-              <div className="text-center text-white">
-                <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-lg font-medium">Procesando guía...</p>
-                <p className="text-sm text-white/60 mt-2">
-                  Validando stock y creando despacho
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Instructions */}
-          <div className="mt-6 p-4 rounded-xl bg-white/5 border border-white/10">
-            <p className="text-white/80 text-sm text-center font-medium mb-2">
-              📦 Apunte la cámara al código de la guía
-            </p>
-            <p className="text-white/60 text-xs text-center mb-2">
-              ✅ Soporta: QR Code • Código de Barras • EAN • UPC
-            </p>
-            <div className="mt-3 pt-3 border-t border-white/10">
-              <p className="text-emerald-400 text-xs text-center font-medium">
-                💡 Tip: Para códigos de barras, manténgalos HORIZONTALES y bien iluminados
-              </p>
-            </div>
-          </div>
-
-          {/* Último escaneo (copiado de Scanner.jsx) */}
+          {/* Último escaneo (compacto) */}
           {lastScan && (
-            <div className="mt-6">
-              <div className={`backdrop-blur-2xl rounded-3xl p-6 shadow-glass-lg border transition-all duration-300 ${
-                lastScan.isError || lastScan.isRepeated
-                  ? 'bg-gradient-to-br from-red-500/20 to-pink-500/20 border-red-400/30'
-                  : 'bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-400/30'
-              }`}>
-                <div className="flex items-start gap-4">
-                  {lastScan.isError || lastScan.isRepeated ? (
-                    <div className="w-12 h-12 rounded-2xl bg-red-500/20 flex items-center justify-center flex-shrink-0">
-                      <XCircle className="w-7 h-7 text-red-400" />
-                    </div>
-                  ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-green-500/20 flex items-center justify-center flex-shrink-0">
-                      <CheckCircle2 className="w-7 h-7 text-green-400" />
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-xl font-bold text-white truncate mb-1.5">
-                      {lastScan.code}
-                    </p>
-                    <p className="text-base text-white/80 font-medium mb-2">
-                      {lastScan.carrier}
-                    </p>
-                    {lastScan.customerName && (
-                      <p className="text-sm text-white/70 mb-2">
-                        👤 {lastScan.customerName}
-                      </p>
-                    )}
-                    {lastScan.itemsCount && (
-                      <p className="text-sm text-white/70 mb-2">
-                        📦 {lastScan.itemsCount} productos
-                      </p>
-                    )}
-                    <p className={`text-sm font-bold px-3 py-1.5 rounded-xl inline-block ${
-                      lastScan.isError || lastScan.isRepeated
-                        ? 'bg-red-500/30 text-red-100'
-                        : 'bg-green-500/30 text-green-100'
-                    }`}>
-                      {lastScan.isError
-                        ? `🚫 ${lastScan.errorMessage || 'ERROR'}`
-                        : lastScan.isRepeated
-                          ? '⚠️ DUPLICADO - YA EXISTE'
-                          : '✅ LISTO PARA REVISAR'
-                      }
-                    </p>
-                  </div>
+            <div className={`p-3 rounded-xl border ${
+              lastScan.isError || lastScan.isRepeated
+                ? 'bg-red-500/20 border-red-400/30'
+                : 'bg-green-500/20 border-green-400/30'
+            }`}>
+              <div className="flex items-center gap-3">
+                {lastScan.isError || lastScan.isRepeated ? (
+                  <XCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
+                ) : (
+                  <CheckCircle2 className="w-5 h-5 text-green-400 flex-shrink-0" />
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-white truncate">
+                    {lastScan.customerName || lastScan.code}
+                  </p>
+                  <p className="text-xs text-white/60 truncate">
+                    {lastScan.carrier}
+                    {lastScan.itemsCount && ` • ${lastScan.itemsCount} productos`}
+                  </p>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs font-bold ${
+                  lastScan.isError || lastScan.isRepeated
+                    ? 'bg-red-500/30 text-red-100'
+                    : 'bg-green-500/30 text-green-100'
+                }`}>
+                  {lastScan.isError
+                    ? '🚫'
+                    : lastScan.isRepeated
+                      ? '⚠️'
+                      : '✅'
+                  }
                 </div>
               </div>
             </div>
           )}
+
+          {/* Tip de escaneo */}
+          {!lastScan && (
+            <div className="text-center">
+              <p className="text-white/60 text-xs mb-1">
+                💡 Para códigos de barras, manténgalos <span className="text-emerald-400 font-semibold">HORIZONTALES</span>
+              </p>
+              <p className="text-white/40 text-xs">
+                ✅ Soporta QR • Código de Barras • EAN • UPC
+              </p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Scan Animation Ring */}
+      {scanAnimation && (
+        <div className="absolute inset-0 pointer-events-none flex items-center justify-center z-20">
+          <div className={`
+            w-32 h-32 rounded-full
+            ${scanAnimation === 'success' ? 'bg-green-500/20 border-green-500' : 'bg-red-500/20 border-red-500'}
+            border-4 animate-ping
+          `} />
+          <div className="absolute">
+            {scanAnimation === 'success' ? (
+              <CheckCircle2 className="w-16 h-16 text-green-400" />
+            ) : (
+              <XCircle className="w-16 h-16 text-red-400" />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Processing Overlay */}
+      {isProcessing && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-30">
+          <div className="text-center text-white">
+            <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
+            <p className="text-lg font-medium">Procesando guía...</p>
+            <p className="text-sm text-white/60 mt-2">
+              Validando stock y creando despacho
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
