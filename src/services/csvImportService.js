@@ -179,6 +179,17 @@ export const csvImportService = {
    * Mapea columnas específicas de Dunamix
    */
   normalizeDunamixRow(row) {
+    // Extraer nombre de tienda
+    let storeName = row['NOMBRE TIENDA'] || null;
+
+    // Si NOMBRE TIENDA es null, usar DROPSHIPPER pero quitando el código (ID)
+    if (!storeName || storeName === 'null' || storeName.trim() === '') {
+      const dropshipper = row['DROPSHIPPER'] || '';
+      // Formato: "Nombre (ID)" → extraer solo "Nombre"
+      const match = dropshipper.match(/^(.+?)\s*\(/);
+      storeName = match ? match[1].trim() : dropshipper;
+    }
+
     return {
       guide_code: row['NÚMERO GUIA'] || row['NUMERO GUIA'] || '',
       sku: row['SKU'] || '',
@@ -188,8 +199,12 @@ export const csvImportService = {
       order_id: row['ID'] || '',
       // Campos adicionales (opcionales)
       warehouse_name: row['BODEGA'] || '',
+      store_name: storeName || 'Sin tienda',
+      dropshipper: row['DROPSHIPPER'] || '',
       status: row['ESTATUS'] || '',
-      carrier: row['TRANSPORTADORA'] || ''
+      carrier: row['TRANSPORTADORA'] || '',
+      // Metadata adicional
+      tienda_column: row['TIENDA'] || null
     };
   },
 
@@ -350,10 +365,11 @@ export const csvImportService = {
             // Metadata de Dunamix para dashboard
             order_id: row.order_id || null,
             customer_name: row.customer_name || null,
-            store: row.product_name ? null : (row.warehouse_name || 'Sin tienda'),  // Usar BODEGA o NOMBRE TIENDA
-            dropshipper: row.customer_name || null,  // DROPSHIPPER del Excel
+            store: row.store_name || 'Sin tienda',   // NOMBRE TIENDA o DROPSHIPPER (sin ID)
+            dropshipper: row.dropshipper || null,    // DROPSHIPPER completo con ID
             warehouse: row.warehouse_name || null,   // BODEGA
-            status: row.status || null               // ESTATUS
+            status: row.status || null,              // ESTATUS
+            tienda: row.tienda_column || null        // Columna TIENDA adicional
           }
         }])
         .select()
