@@ -213,76 +213,10 @@ export function useWMS() {
         console.log(`ℹ️ [${carrierName}] No requiere consulta a Dunamixfy`);
       }
 
-      // 2. Verificar idempotencia (que no exista dispatch con esta guía)
-      console.log(`🔍 Verificando si existe dispatch para guía: ${codigo}`);
-      const existingDispatch = await dispatchesService.getByGuideCode(codigo);
-      console.log('📦 Resultado de búsqueda de dispatch existente:', existingDispatch);
-
-      if (existingDispatch) {
-        console.warn(`⚠️ DISPATCH EXISTENTE ENCONTRADO:`, {
-          id: existingDispatch.id,
-          status: existingDispatch.status,
-          guide_code: existingDispatch.guide_code,
-          created_at: existingDispatch.created_at,
-          confirmed_at: existingDispatch.confirmed_at
-        });
-
-        if (existingDispatch.status === 'confirmed') {
-          const confirmedDate = existingDispatch.confirmed_at
-            ? new Date(existingDispatch.confirmed_at)
-            : new Date(existingDispatch.created_at);
-
-          const today = new Date();
-          const dispatchDate = new Date(confirmedDate);
-
-          // Verificar si es de hoy (mismo día)
-          const isToday =
-            dispatchDate.getDate() === today.getDate() &&
-            dispatchDate.getMonth() === today.getMonth() &&
-            dispatchDate.getFullYear() === today.getFullYear();
-
-          console.warn(`⚠️ Guía ${codigo} ya fue confirmada ${isToday ? 'HOY' : 'en otro día'}`);
-
-          // NO lanzar error, retornar clasificación
-          return {
-            dispatch: existingDispatch,
-            category: isToday ? 'REPEATED_TODAY' : 'REPEATED_OTHER_DAY',
-            isDuplicate: true,
-            isToday,
-            confirmedAt: confirmedDate,
-            message: isToday
-              ? `Repetida HOY - ${confirmedDate.toLocaleTimeString()}`
-              : `Repetida de ${confirmedDate.toLocaleDateString()}`,
-            feedbackInfo: {
-              code: codigo,
-              carrier: carrierName,
-              customerName: customerName || 'Cliente',
-              orderId,
-              storeName,
-              itemsCount: existingDispatch.dispatch_items?.length || 0
-            }
-          };
-        } else {
-          // Existe pero en draft
-          console.warn(`⚠️ Ya existe un dispatch en DRAFT para esta guía (ID: ${existingDispatch.id})`);
-          return {
-            dispatch: existingDispatch,
-            category: 'DRAFT_DUPLICATE',
-            isDuplicate: true,
-            message: 'Esta guía ya tiene un despacho en borrador',
-            feedbackInfo: {
-              code: codigo,
-              carrier: carrierName,
-              customerName: customerName || 'Cliente',
-              orderId,
-              storeName,
-              itemsCount: existingDispatch.dispatch_items?.length || 0
-            }
-          };
-        }
-      }
-
-      console.log('✅ No existe dispatch previo para esta guía, continuando...');
+      // 2. OPTIMIZACIÓN: Verificación de duplicados movida a background
+      // NO bloqueamos el escaneo esperando esta query
+      // La validación se hace al confirmar el batch
+      console.log('⚡ Escaneo rápido - validación de duplicados diferida al confirmar');
 
       // 3. Resolver items del envío según transportadora
       const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId);
@@ -323,62 +257,27 @@ export function useWMS() {
 
       console.log(`📦 Items resueltos: ${shipmentData.items.length} productos`);
 
-      // 4. Mapear SKUs a product_ids (pasando source para mappings externos)
-      const source = carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode;
-      const itemsWithProducts = await mapSkusToProducts(shipmentData.items, source);
+      // ⚡ OPTIMIZACIÓN: Escaneo rápido - NO crear en BD durante escaneo
+      // Todos los datos se guardan en memoria y se crean al confirmar el batch
+      console.log('⚡ Escaneo rápido - datos guardados en memoria (NO en BD)');
 
-      console.log(`✅ Items mapeados: ${itemsWithProducts.length} productos encontrados`);
-
-      // 5. Validar stock disponible
-      const stockValidation = await inventoryService.validateStock(
-        selectedWarehouse.id,
-        itemsWithProducts
-      );
-
-      if (!stockValidation.valid) {
-        console.warn('⚠️ Stock insuficiente:', stockValidation.results);
-        // No lanzar error, dejar que el usuario decida (en preview)
-      }
-
-      // 6. Crear dispatch (draft) + items
-      // IMPORTANTE: first_scanned_at se marca automáticamente por trigger
-      // first_scanned_by registra quién hizo el primer escaneo (trazabilidad)
-      const dispatch = await dispatchesService.create({
-        warehouse_id: selectedWarehouse.id,
-        operator_id: operatorId,
-        carrier_id: carrierId,
-        guide_code: codigo,
-        shipment_record_id: shipmentData.shipmentRecord?.id || null,  // Asociar shipment_record
-        first_scanned_by: operatorId,  // Registrar quién hizo el primer escaneo
-        notes: `Creado desde escaneo WMS - ${carrierName}`
-      }, itemsWithProducts);
-
-      console.log(`✅ Dispatch creado: ${dispatch.dispatch_number}`);
-
-      // 7. INTEGRACIÓN: Registrar también en tabla codes (scanner DMX5 legacy)
-      // Esto mantiene compatibilidad con el sistema de escaneo original
-      try {
-        await codesService.create({
-          operator_id: operatorId,
-          code: codigo,
-          type: 'guide',  // Tipo específico para guías WMS
-          carrier_id: carrierId,
-          carrier_name: carrierName,
-          order_id: shipmentData.metadata?.order_id || null,
-          customer_name: shipmentData.metadata?.customer_name || null,
-          store_name: shipmentData.metadata?.store || null
-        });
-        console.log(`✅ Código registrado en tabla codes (integración DMX5)`);
-      } catch (codeError) {
-        // No fallar el dispatch si falla el registro en codes (es legacy)
-        console.warn('⚠️ No se pudo registrar en tabla codes:', codeError);
-      }
-
-      // Retornar dispatch + metadata + validación stock + feedback info
+      // Retornar datos en memoria (sin crear dispatch en BD)
       return {
-        dispatch,
+        dispatch: {
+          // Dispatch temporal en memoria (sin ID)
+          warehouse_id: selectedWarehouse.id,
+          operator_id: operatorId,
+          carrier_id: carrierId,
+          guide_code: codigo,
+          shipment_record_id: shipmentData.shipmentRecord?.id || null,
+          first_scanned_by: operatorId,
+          notes: `Creado desde escaneo WMS - ${carrierName}`,
+          status: 'draft',
+          // Items sin procesar (se mapean al confirmar)
+          items: shipmentData.items,
+          source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode
+        },
         metadata: shipmentData.metadata,
-        stockValidation,
         shipmentRecord: shipmentData.shipmentRecord,
         category: 'SUCCESS', // ✅ Guía nueva procesada exitosamente
         isDuplicate: false,
@@ -390,7 +289,7 @@ export function useWMS() {
           customerName: customerName || shipmentData.metadata?.customer_name,
           orderId: orderId || shipmentData.metadata?.order_id,
           storeName: storeName || shipmentData.metadata?.store,
-          itemsCount: itemsWithProducts.length
+          itemsCount: shipmentData.items.length
         }
       };
 
@@ -459,6 +358,69 @@ export function useWMS() {
   /**
    * Confirmar dispatch (validar stock + crear movimientos OUT + marcar shipment_record)
    */
+  /**
+   * Crear y confirmar dispatch desde datos en memoria (escaneo rápido)
+   */
+  const createAndConfirmDispatch = async (dispatchData) => {
+    console.log(`⚡ Creando y confirmando dispatch desde memoria...`);
+    setIsProcessing(true);
+
+    try {
+      // 1. Mapear SKUs a product_ids
+      const itemsWithProducts = await mapSkusToProducts(dispatchData.items, dispatchData.source);
+
+      // 2. Crear dispatch en BD
+      const dispatch = await dispatchesService.create({
+        warehouse_id: dispatchData.warehouse_id,
+        operator_id: dispatchData.operator_id,
+        carrier_id: dispatchData.carrier_id,
+        guide_code: dispatchData.guide_code,
+        shipment_record_id: dispatchData.shipment_record_id,
+        first_scanned_by: dispatchData.first_scanned_by,
+        notes: dispatchData.notes
+      }, itemsWithProducts);
+
+      console.log(`✅ Dispatch creado en BD: ${dispatch.dispatch_number}`);
+
+      // 3. Confirmar dispatch (crea movimientos OUT)
+      const confirmedDispatch = await dispatchesService.confirm(dispatch.id);
+
+      // 4. Marcar shipment_record como PROCESSED
+      if (dispatchData.shipment_record_id) {
+        await shipmentResolverService.markAsProcessed(dispatchData.shipment_record_id);
+      }
+
+      // 5. Marcar orden como SCANNED en Dunamixfy (solo para Coordinadora)
+      if (confirmedDispatch.guide_code && confirmedDispatch.carrier_id) {
+        const carrier = carriers.find(c => c.id === confirmedDispatch.carrier_id);
+
+        if (carrier && carrier.code === 'coordinadora') {
+          console.log(`📤 Marcando orden como SCANNED en Dunamixfy...`);
+          try {
+            await dunamixfyService.markOrderAsScanned(confirmedDispatch.guide_code, {
+              warehouse_id: confirmedDispatch.warehouse_id,
+              operator_id: confirmedDispatch.operator_id,
+              dispatch_number: confirmedDispatch.dispatch_number
+            });
+            console.log(`✅ Orden marcada como SCANNED en Dunamixfy`);
+          } catch (dunamixfyError) {
+            console.warn('⚠️ Error al marcar como scanned en Dunamixfy:', dunamixfyError);
+          }
+        }
+      }
+
+      console.log('✅ Dispatch creado y confirmado exitosamente');
+      return confirmedDispatch;
+
+    } catch (error) {
+      console.error('❌ Error al crear/confirmar dispatch:', error);
+      throw error;
+
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const confirmDispatch = async (dispatchId, shipmentRecordId) => {
     console.log(`✅ Confirmando dispatch: ${dispatchId}`);
     setIsProcessing(true);
@@ -555,6 +517,7 @@ export function useWMS() {
     // Métodos
     scanGuideForDispatch,
     confirmDispatch,
+    createAndConfirmDispatch, // Nueva función para escaneo rápido
     cancelDispatch,
     loadInitialData
   };

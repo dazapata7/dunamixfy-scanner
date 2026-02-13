@@ -497,12 +497,12 @@ export function ScanGuide() {
     // Limpiar animación después de 2 segundos
     setTimeout(() => setScanAnimation(null), 2000);
 
-    // Liberar cooldown después de 2 segundos
+    // Liberar cooldown rápido para escaneo continuo
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
       console.log('✅ Cooldown liberado, listo para siguiente escaneo');
-    }, 2000);
+    }, 500); // Reducido de 2000ms a 500ms para escaneo ultra-rápido
   };
 
   const onScanError = (error) => {

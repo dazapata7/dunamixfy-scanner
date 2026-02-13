@@ -13,7 +13,7 @@ import toast from 'react-hot-toast';
 
 export function BatchSummaryPage() {
   const navigate = useNavigate();
-  const { confirmDispatch, isProcessing } = useWMS();
+  const { createAndConfirmDispatch, isProcessing } = useWMS();
   const [batchData, setBatchData] = useState(null);
 
   useEffect(() => {
@@ -49,9 +49,9 @@ export function BatchSummaryPage() {
         return;
       }
 
-      // Confirmar cada dispatch
+      // Crear y confirmar cada dispatch (ahora se crean en BD al confirmar)
       for (const item of confirmableDispatches) {
-        await confirmDispatch(item.dispatch.id);
+        await createAndConfirmDispatch(item.dispatch);
       }
 
       toast.success(`✅ ${confirmableDispatches.length} despachos confirmados`);
