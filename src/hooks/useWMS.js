@@ -11,7 +11,7 @@ import { warehousesService, dispatchesService } from '../services/wmsService';
 import { shipmentResolverService } from '../services/shipmentResolverService';
 import { inventoryService, productsService } from '../services/wmsService';
 import { procesarCodigoConCarriers } from '../utils/validators';
-import { carriersService, codesService } from '../services/supabase';
+import { carriersService, codesService, supabase } from '../services/supabase';
 import { dunamixfyApi } from '../services/dunamixfyApi';
 import { dunamixfyService } from '../services/dunamixfyService';
 import toast from 'react-hot-toast';
