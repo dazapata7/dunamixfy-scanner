@@ -33,6 +33,9 @@ export function RemoteScannerClient() {
   // Realtime
   const realtimeChannel = useRef(null);
 
+  // Heartbeat (ping cada 30s para detectar desconexiones)
+  const heartbeatInterval = useRef(null);
+
   // Feedback visual
   const [lastFeedback, setLastFeedback] = useState(null); // { success, message, timestamp }
   const [scanAnimation, setScanAnimation] = useState(null); // 'success' | 'error'
@@ -47,20 +50,54 @@ export function RemoteScannerClient() {
 
     connectToSession();
 
+    // ⚡ NUEVO: Detectar cierre de pestaña/navegador
+    const handleBeforeUnload = () => {
+      if (session?.id) {
+        // Usar sendBeacon para garantizar que se envíe incluso al cerrar
+        const payload = {
+          session_id: session.id,
+          event_type: 'client_disconnected',
+          payload: { client_id: clientId, timestamp: new Date().toISOString() },
+          client_id: clientId
+        };
+
+        // Intentar enviar con fetch keepalive (más confiable que sendBeacon para APIs)
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/rest/v1/remote_scanner_events`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`
+          },
+          body: JSON.stringify(payload),
+          keepalive: true // CRÍTICO: mantiene la petición viva al cerrar
+        }).catch(err => console.warn('Error al notificar desconexión:', err));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
     return () => {
-      // Cleanup
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+
+      // Limpiar heartbeat
+      if (heartbeatInterval.current) {
+        clearInterval(heartbeatInterval.current);
+      }
+
+      // Cleanup normal
       if (realtimeChannel.current) {
         remoteScannerService.unsubscribe(realtimeChannel.current);
       }
 
-      // Notificar desconexión
+      // Notificar desconexión (por si acaso)
       if (session?.id) {
         remoteScannerService.notifyClientDisconnected(session.id, clientId);
       }
 
       stopScanner();
     };
-  }, [sessionCode]);
+  }, [sessionCode, session?.id, clientId]);
 
   /**
    * Conectar a sesión remota
@@ -89,6 +126,19 @@ export function RemoteScannerClient() {
 
       toast.success(`Conectado a sesión ${sessionCode}`);
       setIsConnected(true);
+
+      // ⚡ NUEVO: Iniciar heartbeat (ping cada 30s)
+      heartbeatInterval.current = setInterval(() => {
+        if (foundSession.id) {
+          console.log('💓 Heartbeat enviado');
+          remoteScannerService.createEvent(
+            foundSession.id,
+            'client_connected', // Reusamos este tipo como "ping"
+            { client_id: clientId, timestamp: new Date().toISOString(), heartbeat: true },
+            clientId
+          ).catch(err => console.warn('Error al enviar heartbeat:', err));
+        }
+      }, 30000); // Cada 30 segundos
 
       // Iniciar scanner
       startScanner();
