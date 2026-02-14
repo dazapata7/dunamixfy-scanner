@@ -9,7 +9,7 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { UnifiedDashboard } from './UnifiedDashboard'; // Dashboard único
-import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings, TrendingDown } from 'lucide-react';
+import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings, TrendingDown, Monitor } from 'lucide-react';
 
 export function WMSHome() {
   const navigate = useNavigate();
@@ -50,6 +50,14 @@ export function WMSHome() {
       description: 'Despacho de pedidos',
       path: '/wms/scan-guide',
       gradient: 'from-primary-500/10 to-cyan-500/10'
+    },
+    {
+      id: 'remote-scanner',
+      icon: Monitor,
+      title: 'Remote Scanner',
+      description: 'PC + Móvil conectado',
+      path: '/wms/remote-scanner/host',
+      gradient: 'from-pink-500/10 to-rose-500/10'
     },
     {
       id: 'receipt',
