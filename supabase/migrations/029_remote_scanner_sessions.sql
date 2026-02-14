@@ -119,21 +119,24 @@ CREATE POLICY "Enable all for remote_scanner_events"
 CREATE OR REPLACE FUNCTION cleanup_old_scanner_sessions()
 RETURNS INTEGER AS $$
 DECLARE
-  deleted_count INTEGER;
+  deleted_count INTEGER := 0;
+  temp_count INTEGER;
 BEGIN
   -- Eliminar sesiones completadas hace más de 24 horas
   DELETE FROM remote_scanner_sessions
   WHERE status = 'completed'
     AND completed_at < NOW() - INTERVAL '24 hours';
 
-  GET DIAGNOSTICS deleted_count = ROW_COUNT;
+  GET DIAGNOSTICS temp_count = ROW_COUNT;
+  deleted_count := deleted_count + temp_count;
 
   -- También eliminar sesiones activas abandonadas (más de 8 horas sin actividad)
   DELETE FROM remote_scanner_sessions
   WHERE status = 'active'
     AND updated_at < NOW() - INTERVAL '8 hours';
 
-  GET DIAGNOSTICS deleted_count = deleted_count + ROW_COUNT;
+  GET DIAGNOSTICS temp_count = ROW_COUNT;
+  deleted_count := deleted_count + temp_count;
 
   RETURN deleted_count;
 END;
