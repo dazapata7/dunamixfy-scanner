@@ -43,7 +43,8 @@ export function InventoryHistory() {
         .from('inventory_movements')
         .select(`
           *,
-          product:products(id, name, sku)
+          product:products(id, name, sku),
+          carrier:carriers(id, display_name, code)
         `)
         .order('created_at', { ascending: false })
         .limit(500);
@@ -68,7 +69,8 @@ export function InventoryHistory() {
       // Enriquecer movimientos con datos de despachos
       const enrichedData = data?.map(m => ({
         ...m,
-        dispatch: m.ref_type === 'dispatch' ? dispatchMap[m.ref_id] : null
+        dispatch: m.ref_type === 'dispatch' ? dispatchMap[m.ref_id] : null,
+        guide_code: m.ref_type === 'dispatch' && dispatchMap[m.ref_id] ? dispatchMap[m.ref_id].guide_code : null
       })) || [];
 
       setMovements(enrichedData);
@@ -87,7 +89,10 @@ export function InventoryHistory() {
     const matchesSearch =
       movement.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       movement.product?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.dispatch?.dispatch_number?.toLowerCase().includes(searchTerm.toLowerCase());
+      movement.dispatch?.dispatch_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.guide_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.carrier?.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      movement.external_order_id?.toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesType =
       typeFilter === 'all' ||
@@ -196,60 +201,72 @@ export function InventoryHistory() {
             filteredMovements.map((movement) => (
               <div
                 key={movement.id}
-                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:bg-white/10 transition-all"
+                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 hover:bg-white/10 transition-all"
               >
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-center">
+                <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-center text-sm">
                   {/* Tipo de movimiento */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     {movement.movement_type === 'OUT' ? (
-                      <div className="p-2 rounded-lg bg-red-500/20">
-                        <TrendingDown className="w-5 h-5 text-red-400" />
+                      <div className="p-1.5 rounded-lg bg-red-500/20">
+                        <TrendingDown className="w-4 h-4 text-red-400" />
                       </div>
                     ) : (
-                      <div className="p-2 rounded-lg bg-green-500/20">
-                        <TrendingUp className="w-5 h-5 text-green-400" />
+                      <div className="p-1.5 rounded-lg bg-green-500/20">
+                        <TrendingUp className="w-4 h-4 text-green-400" />
                       </div>
                     )}
                     <div>
-                      <p className="text-white font-medium">
+                      <p className="text-white font-medium text-xs">
                         {movement.movement_type === 'OUT' ? 'SALIDA' : 'ENTRADA'}
                       </p>
-                      <p className="text-white/60 text-sm">{movement.description}</p>
                     </div>
                   </div>
 
                   {/* Producto */}
                   <div>
-                    <p className="text-white/40 text-xs mb-1">📦 Producto</p>
-                    <p className="text-white font-medium">{movement.product?.name || 'N/A'}</p>
-                    <p className="text-white/60 text-sm">SKU: {movement.product?.sku || 'N/A'}</p>
+                    <p className="text-white/40 text-xs mb-0.5">📦 Producto</p>
+                    <p className="text-white font-medium text-xs truncate">{movement.product?.name || 'N/A'}</p>
                   </div>
 
                   {/* Cantidad */}
                   <div>
-                    <p className="text-white/40 text-xs mb-1">📊 Cantidad</p>
-                    <p className={`font-bold text-lg ${
+                    <p className="text-white/40 text-xs mb-0.5">📊 Cant</p>
+                    <p className={`font-bold ${
                       movement.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'
                     }`}>
                       {movement.movement_type === 'OUT' ? '-' : '+'}{Math.abs(movement.qty_signed)}
                     </p>
                   </div>
 
-                  {/* Referencia */}
+                  {/* Transportadora */}
                   <div>
-                    <p className="text-white/40 text-xs mb-1">🔗 Referencia</p>
-                    <p className="text-white font-medium">
-                      {movement.ref_type === 'dispatch' && movement.dispatch
-                        ? movement.dispatch.dispatch_number
-                        : movement.ref_type}
+                    <p className="text-white/40 text-xs mb-0.5">🚚 Transportadora</p>
+                    <p className="text-white font-medium text-xs truncate">
+                      {movement.carrier?.display_name || 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Guía */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5">📋 Guía</p>
+                    <p className="text-white font-medium text-xs font-mono truncate">
+                      {movement.guide_code || movement.dispatch?.guide_code || 'N/A'}
+                    </p>
+                  </div>
+
+                  {/* Orden Externa */}
+                  <div>
+                    <p className="text-white/40 text-xs mb-0.5">🔢 Orden</p>
+                    <p className="text-white font-medium text-xs font-mono truncate">
+                      {movement.external_order_id || 'N/A'}
                     </p>
                   </div>
 
                   {/* Fecha */}
                   <div>
-                    <p className="text-white/40 text-xs mb-1">📅 Fecha</p>
-                    <p className="text-white font-medium">
-                      {format(new Date(movement.created_at), 'dd MMM yyyy HH:mm', { locale: es })}
+                    <p className="text-white/40 text-xs mb-0.5">📅 Fecha</p>
+                    <p className="text-white font-medium text-xs">
+                      {format(new Date(movement.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                     </p>
                   </div>
                 </div>
