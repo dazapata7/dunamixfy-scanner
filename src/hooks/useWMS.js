@@ -470,11 +470,35 @@ export function useWMS(cacheOpts = {}) {
     }
   };
 
-  const confirmDispatch = async (dispatchId, shipmentRecordId) => {
-    console.log(`✅ Confirmando dispatch: ${dispatchId}`);
+  const confirmDispatch = async (dispatchOrId, shipmentRecordId) => {
     setIsProcessing(true);
 
     try {
+      let dispatchId = dispatchOrId;
+
+      // 🔥 FIX: Si dispatch es un objeto sin ID, crearlo en BD primero
+      if (typeof dispatchOrId === 'object' && !dispatchOrId.id) {
+        console.log('🔄 Dispatch temporal detectado - creando en BD primero...');
+        const tempDispatch = dispatchOrId;
+
+        //Crear dispatch en BD
+        const createdDispatch = await dispatchesService.create({
+          warehouse_id: tempDispatch.warehouse_id,
+          operator_id: tempDispatch.operator_id,
+          carrier_id: tempDispatch.carrier_id,
+          guide_code: tempDispatch.guide_code,
+          shipment_record_id: tempDispatch.shipment_record_id,
+          first_scanned_by: tempDispatch.first_scanned_by,
+          notes: tempDispatch.notes,
+          items: tempDispatch.items
+        });
+
+        dispatchId = createdDispatch.id;
+        console.log(`✅ Dispatch creado en BD con ID: ${dispatchId}`);
+      }
+
+      console.log(`✅ Confirmando dispatch: ${dispatchId}`);
+
       // 1. Confirmar dispatch (crea movimientos OUT)
       const confirmedDispatch = await dispatchesService.confirm(dispatchId);
 

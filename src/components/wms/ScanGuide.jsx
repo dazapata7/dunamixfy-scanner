@@ -678,8 +678,9 @@ export function ScanGuide() {
 
       // Confirmar solo las guías SUCCESS
       for (const item of successItems) {
-        await confirmDispatch(item.dispatch.id, item.shipmentRecord?.id);
-        console.log(`✅ Dispatch ${item.dispatch.dispatch_number} confirmado`);
+        // 🔥 Pasar dispatch completo (puede ser temporal sin ID o con ID de BD)
+        await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+        console.log(`✅ Dispatch confirmado`);
       }
 
       const successMsg = `✅ ${successItems.length} despacho${successItems.length > 1 ? 's' : ''} confirmado${successItems.length > 1 ? 's' : ''}`;

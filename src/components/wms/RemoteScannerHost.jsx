@@ -386,7 +386,8 @@ export function RemoteScannerHost() {
       toast.loading(`Confirmando ${validItems.length} despachos...`, { id: 'confirm' });
 
       for (const item of validItems) {
-        await confirmDispatch(item.dispatch.id, item.shipmentRecord?.id);
+        // 🔥 Pasar dispatch completo (puede ser temporal sin ID o con ID de BD)
+        await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
       }
 
       toast.success(`✅ ${validItems.length} despachos confirmados`, { id: 'confirm' });
