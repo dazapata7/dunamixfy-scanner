@@ -84,6 +84,8 @@ export function ProductManagement() {
       type: 'simple'  // ⭐ NUEVO
     });
     setComboComponents([]);  // ⭐ NUEVO: Limpiar componentes
+    setSkuMappings([]);      // ⭐ NUEVO: Limpiar SKU mappings
+    setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' }); // Reset form
 
     // ⭐ Cargar productos disponibles anticipadamente
     try {
@@ -194,12 +196,43 @@ export function ProductManagement() {
       return;
     }
 
-    if (!editingProduct) {
-      toast.error('Debe guardar el producto primero');
-      return;
-    }
-
     try {
+      // ⭐ Si estamos CREANDO (no editando), guardar en estado local
+      if (isCreating) {
+        // Verificar duplicado local
+        const duplicateLocal = skuMappings.find(
+          m => m.source === newMapping.source &&
+               m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase()
+        );
+
+        if (duplicateLocal) {
+          toast.error('Este SKU externo ya fue agregado');
+          return;
+        }
+
+        // Agregar al estado local (se guardará en BD al hacer Save)
+        setSkuMappings([
+          ...skuMappings,
+          {
+            id: `temp-${Date.now()}`, // ID temporal
+            source: newMapping.source,
+            external_sku: newMapping.external_sku.trim().toUpperCase(),
+            notes: newMapping.notes.trim() || null,
+            is_active: true
+          }
+        ]);
+
+        toast.success('SKU externo agregado (se guardará al crear el producto)');
+        setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+        return;
+      }
+
+      // ⭐ Si estamos EDITANDO, guardar directamente en BD
+      if (!editingProduct) {
+        toast.error('Debe guardar el producto primero');
+        return;
+      }
+
       // VALIDACIÓN: Verificar si el SKU externo ya existe en OTRO producto
       const allMappings = await skuMappingsService.getAll();
       const duplicateInOtherProduct = allMappings.find(
@@ -247,6 +280,14 @@ export function ProductManagement() {
     }
 
     try {
+      // ⭐ Si estamos CREANDO, eliminar del estado local
+      if (isCreating) {
+        setSkuMappings(skuMappings.filter(m => m.id !== mappingId));
+        toast.success('SKU externo eliminado');
+        return;
+      }
+
+      // ⭐ Si estamos EDITANDO, eliminar de BD
       await skuMappingsService.delete(mappingId);
       toast.success('SKU externo eliminado');
       await loadSkuMappings(editingProduct);
@@ -296,6 +337,24 @@ export function ProductManagement() {
       if (formData.type === 'combo') {
         await comboProductsService.setComponents(productId, comboComponents);
         console.log(`✅ Componentes guardados para combo ${productId}`);
+      }
+
+      // ⭐ NUEVO: Guardar SKU mappings si los hay (especialmente al crear)
+      if (isCreating && skuMappings.length > 0) {
+        for (const mapping of skuMappings) {
+          try {
+            await skuMappingsService.create({
+              product_id: productId,
+              source: mapping.source,
+              external_sku: mapping.external_sku.trim().toUpperCase(),
+              notes: mapping.notes?.trim() || null,
+              is_active: true
+            });
+            console.log(`✅ SKU mapping creado: ${mapping.source} - ${mapping.external_sku}`);
+          } catch (error) {
+            console.error('❌ Error al crear SKU mapping:', error);
+          }
+        }
       }
 
       handleCancel();
@@ -580,8 +639,8 @@ export function ProductManagement() {
           </div>
         )}
 
-        {/* SKU Mappings - Solo mostrar al editar un producto existente */}
-        {editingProduct && !isCreating && (
+        {/* SKU Mappings - Mostrar tanto en edición como en creación */}
+        {(editingProduct || isCreating) && (
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-3">
