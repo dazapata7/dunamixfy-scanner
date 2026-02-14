@@ -185,11 +185,12 @@ export function AdjustmentForm() {
               value={selectedProduct}
               onChange={(e) => setSelectedProduct(e.target.value)}
               className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+              style={{ colorScheme: 'dark' }}
               required
             >
-              <option value="">Seleccionar producto...</option>
+              <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Seleccionar producto...</option>
               {products.map(p => (
-                <option key={p.id} value={p.id}>
+                <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
                   {p.sku} - {p.name}
                 </option>
               ))}

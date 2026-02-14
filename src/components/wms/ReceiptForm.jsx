@@ -170,11 +170,12 @@ export function ReceiptForm() {
                           value={item.product_id}
                           onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
                           className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                          style={{ colorScheme: 'dark' }}
                           required
                         >
-                          <option value="">Seleccionar...</option>
+                          <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Seleccionar...</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id}>
+                            <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
                               {p.sku} - {p.name}
                             </option>
                           ))}

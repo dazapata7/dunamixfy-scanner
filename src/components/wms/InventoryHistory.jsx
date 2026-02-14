@@ -164,10 +164,11 @@ export function InventoryHistory() {
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value)}
               className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="all">Todos los tipos</option>
-              <option value="in">Entradas (IN)</option>
-              <option value="out">Salidas (OUT)</option>
+              <option value="all" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Todos los tipos</option>
+              <option value="in" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Entradas (IN)</option>
+              <option value="out" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Salidas (OUT)</option>
             </select>
 
             {/* Date From */}

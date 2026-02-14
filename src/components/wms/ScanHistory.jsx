@@ -212,11 +212,12 @@ export function ScanHistory() {
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="today">Hoy</option>
-              <option value="week">Última semana</option>
-              <option value="month">Último mes</option>
-              <option value="all">Todo</option>
+              <option value="today" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Hoy</option>
+              <option value="week" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Última semana</option>
+              <option value="month" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Último mes</option>
+              <option value="all" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Todo</option>
             </select>
 
             {/* Status Filter */}
@@ -224,10 +225,11 @@ export function ScanHistory() {
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
               className="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+              style={{ colorScheme: 'dark' }}
             >
-              <option value="all">Todos los estados</option>
-              <option value="confirmed">Confirmados</option>
-              <option value="draft">Pendientes</option>
+              <option value="all" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Todos los estados</option>
+              <option value="confirmed" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Confirmados</option>
+              <option value="draft" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Pendientes</option>
             </select>
           </div>
         </div>

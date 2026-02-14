@@ -71,7 +71,7 @@ export function ProductManagement() {
     }
   }
 
-  function handleCreate() {
+  async function handleCreate() {
     setIsCreating(true);
     setEditingProduct(null);
     setFormData({
@@ -84,6 +84,14 @@ export function ProductManagement() {
       type: 'simple'  // ⭐ NUEVO
     });
     setComboComponents([]);  // ⭐ NUEVO: Limpiar componentes
+
+    // ⭐ Cargar productos disponibles anticipadamente
+    try {
+      const allProducts = await productsService.getAll();
+      setAvailableProducts(allProducts.filter(p => p.type === 'simple' || !p.type));
+    } catch (error) {
+      console.error('Error al cargar productos:', error);
+    }
   }
 
   async function handleEdit(product) {
@@ -399,10 +407,11 @@ export function ProductManagement() {
                   value={formData.type}
                   onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                   className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  style={{ colorScheme: 'dark' }}
                   disabled={!isCreating} // No permitir cambiar tipo en edición
                 >
-                  <option value="simple">Simple (Producto Individual)</option>
-                  <option value="combo">Combo (Compuesto de otros productos)</option>
+                  <option value="simple" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Simple (Producto Individual)</option>
+                  <option value="combo" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Combo (Compuesto de otros productos)</option>
                 </select>
               </div>
 
@@ -515,10 +524,11 @@ export function ProductManagement() {
                                 }
                               }}
                               className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                              style={{ colorScheme: 'dark' }}
                             >
-                              <option value="">Selecciona un producto...</option>
+                              <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Selecciona un producto...</option>
                               {availableProducts.map(p => (
-                                <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                                <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>{p.name} ({p.sku})</option>
                               ))}
                             </select>
                           </div>
@@ -594,9 +604,10 @@ export function ProductManagement() {
                     value={newMapping.source}
                     onChange={(e) => setNewMapping({ ...newMapping, source: e.target.value })}
                     className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
+                    style={{ colorScheme: 'dark' }}
                   >
-                    <option value="dunamixfy">Coordinadora (Dunamixfy)</option>
-                    <option value="interrapidisimo">Interrápidisimo</option>
+                    <option value="dunamixfy" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Coordinadora (Dunamixfy)</option>
+                    <option value="interrapidisimo" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Interrápidisimo</option>
                   </select>
                 </div>
 
