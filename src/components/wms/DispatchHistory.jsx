@@ -18,7 +18,8 @@ import {
   Trash2,
   Loader2,
   Search,
-  Download
+  Download,
+  CheckCircle
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -67,6 +68,25 @@ export function DispatchHistory({ warehouseId = null }) {
       toast.error('Error al cargar historial de despachos');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function handleConfirmDispatch(dispatchId, dispatchNumber) {
+    if (!confirm(`¿Confirmar dispatch ${dispatchNumber}?\n\nEsto actualizará el inventario y marcará el pedido como confirmado.`)) {
+      return;
+    }
+
+    try {
+      toast.loading('Confirmando dispatch...', { id: 'confirm' });
+
+      await dispatchesService.confirm(dispatchId);
+
+      toast.success('Dispatch confirmado exitosamente', { id: 'confirm' });
+      await loadHistory();
+
+    } catch (error) {
+      console.error('❌ Error al confirmar dispatch:', error);
+      toast.error(error.message || 'Error al confirmar dispatch', { id: 'confirm' });
     }
   }
 
@@ -194,113 +214,93 @@ export function DispatchHistory({ warehouseId = null }) {
                                 'Sin tienda';
               const carrierName = dispatch.shipment_record?.carriers?.display_name || 'Sin transportadora';
               const orderDate = dispatch.shipment_record?.raw_payload?.order_date || dispatch.created_at;
+              const isDraft = dispatch.status !== 'confirmed';
 
               return (
                 <div
                   key={dispatch.id}
-                  className="group bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg hover:bg-white/10 transition-all"
+                  className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-3 shadow-glass-lg hover:bg-white/10 transition-all"
                 >
-                  {/* Header Row */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        {/* Guía */}
-                        <span className="text-white font-bold text-lg font-mono">
-                          📦 {dispatch.guide_code}
-                        </span>
+                  {/* Compact Header: Guía + Status + Actions */}
+                  <div className="flex items-center justify-between gap-3 mb-3">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      {/* Guía */}
+                      <span className="text-white font-bold text-sm font-mono truncate">
+                        📦 {dispatch.guide_code}
+                      </span>
 
-                        {/* Status Badge */}
-                        <span className={`px-3 py-1 rounded-lg text-xs font-medium ${
-                          dispatch.status === 'confirmed'
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                            : 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                        }`}>
-                          {dispatch.status === 'confirmed' ? 'CONFIRMADO' : 'BORRADOR'}
-                        </span>
-                      </div>
-
-                      <p className="text-white/40 text-sm">
-                        Dispatch: {dispatch.dispatch_number}
-                      </p>
+                      {/* Status Badge */}
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${
+                        isDraft
+                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
+                          : 'bg-green-500/20 text-green-400 border border-green-500/30'
+                      }`}>
+                        {isDraft ? 'CONFIRMADO' : 'BORRADOR'}
+                      </span>
                     </div>
 
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
-                      className="p-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all"
-                      title="Eliminar (solo pruebas)"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {/* Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      {isDraft && (
+                        <button
+                          onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
+                          className="p-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 hover:border-green-500/30 text-green-400 transition-all"
+                          title="Confirmar dispatch"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                        </button>
+                      )}
+                      <button
+                        onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
+                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* Grid de Información */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  {/* Compact Info Grid */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
                     {/* Transportadora */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <p className="text-white/40 text-xs mb-1">🚚 Transportadora</p>
-                      <p className="text-white font-medium">{carrierName}</p>
+                    <div>
+                      <p className="text-white/40 mb-0.5">🚚 Transportadora</p>
+                      <p className="text-white font-medium truncate" title={carrierName}>{carrierName}</p>
                     </div>
 
                     {/* Tienda */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <p className="text-white/40 text-xs mb-1">🏪 Tienda</p>
-                      <p className="text-white font-medium truncate" title={storeName}>
-                        {storeName}
-                      </p>
+                    <div>
+                      <p className="text-white/40 mb-0.5">🏪 Tienda</p>
+                      <p className="text-white font-medium truncate" title={storeName}>{storeName}</p>
                     </div>
 
                     {/* Cliente */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                      <p className="text-white/40 text-xs mb-1">👤 Cliente</p>
-                      <p className="text-white font-medium truncate" title={customerName}>
-                        {customerName}
+                    <div>
+                      <p className="text-white/40 mb-0.5">👤 Cliente</p>
+                      <p className="text-white font-medium truncate" title={customerName}>{customerName}</p>
+                    </div>
+
+                    {/* Fecha Despacho */}
+                    <div>
+                      <p className="text-white/40 mb-0.5">📅 Fecha</p>
+                      <p className="text-white font-medium">
+                        {format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                       </p>
                     </div>
                   </div>
 
-                  {/* Fechas */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    {/* Fecha del Pedido */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-blue-400" />
-                      <div>
-                        <p className="text-white/40 text-xs">Fecha del Pedido</p>
-                        <p className="text-white text-sm">
-                          {format(new Date(orderDate), 'dd MMM yyyy HH:mm', { locale: es })}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Fecha de Despacho (Escaneo) */}
-                    <div className="bg-white/5 rounded-xl p-3 border border-white/10 flex items-center gap-2">
-                      <Calendar className="w-4 h-4 text-green-400" />
-                      <div>
-                        <p className="text-white/40 text-xs">Fecha de Despacho (Escaneo)</p>
-                        <p className="text-white text-sm">
-                          {format(new Date(dispatch.created_at), 'dd MMM yyyy HH:mm', { locale: es })}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Productos */}
-                  <div className="bg-white/5 rounded-xl p-3 border border-white/10">
-                    <p className="text-white/40 text-xs mb-2">📦 Productos ({dispatch.dispatch_items?.length || 0})</p>
-                    <div className="space-y-1">
+                  {/* Productos - Compact */}
+                  <div className="mt-2 pt-2 border-t border-white/10">
+                    <p className="text-white/40 text-[10px] mb-1">📦 Productos ({dispatch.dispatch_items?.length || 0})</p>
+                    <div className="text-xs text-white/80">
                       {dispatch.dispatch_items?.map((item, idx) => (
-                        <div key={idx} className="flex items-center justify-between text-sm">
-                          <span className="text-white/80">
-                            {item.products?.name || 'Producto'}
-                          </span>
-                          <span className="text-white/60">
-                            Qty: {item.qty}
-                          </span>
-                        </div>
+                        <span key={idx}>
+                          {item.products?.name || 'Producto'} <span className="text-white/60">x{item.qty}</span>
+                          {idx < dispatch.dispatch_items.length - 1 && <span className="text-white/40"> • </span>}
+                        </span>
                       ))}
                     </div>
                   </div>
-
                 </div>
               );
             })
