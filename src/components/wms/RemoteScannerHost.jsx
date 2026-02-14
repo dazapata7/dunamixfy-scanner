@@ -208,13 +208,16 @@ export function RemoteScannerHost() {
         clientId // Tracking de qué cliente escaneó
       }]);
 
-      // Actualizar stats
-      const newStats = {
-        total_scanned: sessionStats.total_scanned + 1,
-        total_success: result.category === 'SUCCESS' ? sessionStats.total_success + 1 : sessionStats.total_success,
-        total_errors: result.category !== 'SUCCESS' ? sessionStats.total_errors + 1 : sessionStats.total_errors
-      };
-      setSessionStats(newStats);
+      // Actualizar stats (functional update para evitar stale state)
+      let newStats;
+      setSessionStats(prev => {
+        newStats = {
+          total_scanned: prev.total_scanned + 1,
+          total_success: result.category === 'SUCCESS' ? prev.total_success + 1 : prev.total_success,
+          total_errors: result.category !== 'SUCCESS' ? prev.total_errors + 1 : prev.total_errors
+        };
+        return newStats;
+      });
 
       // Actualizar stats en BD
       await remoteScannerService.updateStats(currentSession.id, newStats);
@@ -255,13 +258,16 @@ export function RemoteScannerHost() {
         { error: error.message }
       );
 
-      // Actualizar stats con error
-      const newStats = {
-        ...sessionStats,
-        total_scanned: sessionStats.total_scanned + 1,
-        total_errors: sessionStats.total_errors + 1
-      };
-      setSessionStats(newStats);
+      // Actualizar stats con error (functional update)
+      let newStats;
+      setSessionStats(prev => {
+        newStats = {
+          total_scanned: prev.total_scanned + 1,
+          total_success: prev.total_success,
+          total_errors: prev.total_errors + 1
+        };
+        return newStats;
+      });
       await remoteScannerService.updateStats(currentSession.id, newStats);
     }
   }
