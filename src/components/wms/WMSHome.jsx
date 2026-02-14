@@ -120,7 +120,7 @@ export function WMSHome() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
       {/* Header */}
-      <div className="max-w-4xl mx-auto mb-8">
+      <div className="max-w-7xl mx-auto mb-8">
         {/* Back Button */}
         <button
           onClick={() => navigate('/dashboard')}
@@ -153,12 +153,12 @@ export function WMSHome() {
       </div>
 
       {/* Dashboard Único - Stats del almacén actual */}
-      <div className="max-w-4xl mx-auto mb-8">
+      <div className="max-w-7xl mx-auto mb-8">
         <UnifiedDashboard warehouseId={selectedWarehouse.id} showTitle={false} />
       </div>
 
       {/* Cards Grid */}
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {cards.map((card) => {
           const Icon = card.icon;
 
