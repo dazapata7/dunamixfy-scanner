@@ -100,27 +100,7 @@ export function DesktopDashboard({ onLogout, isAdmin = false }) {
 
         {/* Content */}
         <div className="relative max-w-7xl mx-auto p-8">
-          <div className={`grid ${isAdmin ? 'grid-cols-3' : 'grid-cols-2'} gap-6 mb-8`}>
-            {/* Botón Estadísticas - Glassmorphism */}
-            <button
-              onClick={() => setActiveView('stats-detail')}
-              className="group backdrop-blur-2xl bg-gradient-to-br from-primary-500/20 to-cyan-500/20 hover:from-primary-500/30 hover:to-cyan-500/30 p-6 rounded-2xl shadow-glass-lg transition-all duration-300 transform hover:scale-105 border border-primary-400/30 hover:border-primary-400/50 relative overflow-hidden"
-            >
-              {/* Efecto de brillo al hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -skew-x-12 group-hover:translate-x-full transition-transform duration-1000"></div>
-
-              <div className="relative flex items-center justify-between">
-                <div className="text-left">
-                  <div className="w-16 h-16 rounded-2xl bg-primary-500/20 flex items-center justify-center mb-4 group-hover:bg-primary-500/30 transition-all">
-                    <BarChart3 className="w-9 h-9 text-primary-400" />
-                  </div>
-                  <h2 className="text-2xl font-bold text-white mb-3">Estadísticas Avanzadas</h2>
-                  <p className="text-primary-100 text-base">Ver análisis detallado y reportes completos</p>
-                </div>
-                <div className="text-7xl opacity-10 group-hover:opacity-20 transition-opacity">📊</div>
-              </div>
-            </button>
-
+          <div className={`grid ${isAdmin ? 'grid-cols-2' : 'grid-cols-1'} gap-6 mb-8`}>
             {/* Botón WMS - Glassmorphism */}
             <button
               onClick={() => navigate('/wms')}
