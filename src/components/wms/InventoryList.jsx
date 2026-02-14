@@ -1,15 +1,27 @@
 // =====================================================
 // INVENTORY LIST - Dunamix WMS
 // =====================================================
-// Visualización de stock actual por almacén
-// Búsqueda, filtros, indicadores visuales
+// Visualización de stock estilo dashboard con grid de productos
+// Stats superiores + búsqueda/filtros + tarjetas de productos
 // =====================================================
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../../hooks/useInventory';
 import { useStore } from '../../store/useStore';
-import { ArrowLeft, Search, Package, AlertCircle, TrendingUp, RefreshCw } from 'lucide-react';
+import {
+  ArrowLeft,
+  Search,
+  Package,
+  AlertCircle,
+  TrendingUp,
+  RefreshCw,
+  Filter,
+  Eye,
+  EyeOff,
+  Warehouse,
+  DollarSign
+} from 'lucide-react';
 
 export function InventoryList() {
   const navigate = useNavigate();
@@ -17,6 +29,7 @@ export function InventoryList() {
   const { stock, isLoading, search, reload } = useInventory(selectedWarehouse?.id);
 
   const [searchInput, setSearchInput] = useState('');
+  const [hideOutOfStock, setHideOutOfStock] = useState(false);
 
   // Verificar almacén seleccionado
   if (!selectedWarehouse) {
@@ -35,94 +48,147 @@ export function InventoryList() {
     reload();
   };
 
-  // Función para determinar el color según el stock
-  const getStockColor = (qty) => {
-    if (qty === 0) return 'text-red-400';
-    if (qty < 10) return 'text-orange-400';
-    if (qty < 50) return 'text-yellow-400';
-    return 'text-green-400';
-  };
+  // Calcular estadísticas
+  const totalProducts = stock.length;
+  const outOfStock = stock.filter(s => s.qty_on_hand === 0).length;
+  const lowStock = stock.filter(s => s.qty_on_hand > 0 && s.qty_on_hand < 10).length;
+  const totalUnits = stock.reduce((sum, s) => sum + s.qty_on_hand, 0);
 
-  const getStockBadge = (qty) => {
-    if (qty === 0) return { text: 'Sin stock', color: 'bg-red-500/20 text-red-300 border-red-500/30' };
-    if (qty < 10) return { text: 'Bajo', color: 'bg-orange-500/20 text-orange-300 border-orange-500/30' };
-    if (qty < 50) return { text: 'Medio', color: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30' };
-    return { text: 'Disponible', color: 'bg-green-500/20 text-green-300 border-green-500/30' };
+  // Filtrar productos
+  const filteredStock = hideOutOfStock
+    ? stock.filter(s => s.qty_on_hand > 0)
+    : stock;
+
+  // Función para determinar el estado del stock
+  const getStockStatus = (qty) => {
+    if (qty === 0) return {
+      label: 'Sin stock',
+      color: 'bg-red-500/20 text-red-400 border-red-500/30',
+      icon: '🔴'
+    };
+    if (qty < 10) return {
+      label: 'Stock bajo',
+      color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+      icon: '🟠'
+    };
+    return {
+      label: 'Disponible',
+      color: 'bg-green-500/20 text-green-400 border-green-500/30',
+      icon: '🟢'
+    };
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-[1600px] mx-auto">
 
-        {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <button
-            onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver
-          </button>
-
-          <button
-            onClick={handleReload}
-            disabled={isLoading}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all disabled:opacity-50"
-          >
-            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            Actualizar
-          </button>
+        {/* Header con título */}
+        <div className="mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-3xl font-bold text-white mb-2">Gestión de Inventarios</h1>
+              <p className="text-white/60">Administra productos, stock y bodegas en un solo lugar</p>
+            </div>
+            <button
+              onClick={() => navigate('/wms')}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Volver
+            </button>
+          </div>
         </div>
 
-        {/* Title Card */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="p-4 rounded-2xl bg-white/10">
-              <Package className="w-8 h-8 text-white" />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          {/* Total Productos */}
+          <div className="bg-gradient-to-br from-cyan-500/10 to-cyan-500/5 backdrop-blur-xl rounded-2xl border border-cyan-500/20 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-cyan-500/20">
+                <Package className="w-5 h-5 text-cyan-400" />
+              </div>
+              <p className="text-white/60 text-sm font-medium">PRODUCTOS</p>
             </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">
-                Inventario
-              </h1>
-              <p className="text-white/60 text-sm mt-1">
-                {selectedWarehouse.name}
-              </p>
-            </div>
+            <p className="text-3xl font-bold text-white mb-1">{totalProducts}</p>
+            <p className="text-cyan-400 text-xs">Total de referencias</p>
+            {outOfStock > 0 && (
+              <p className="text-orange-400 text-xs mt-1">⚠️ {outOfStock} con stock crítico</p>
+            )}
           </div>
 
-          {/* Search Bar */}
-          <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+          {/* Almacenes */}
+          <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 backdrop-blur-xl rounded-2xl border border-blue-500/20 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-blue-500/20">
+                <Warehouse className="w-5 h-5 text-blue-400" />
+              </div>
+              <p className="text-white/60 text-sm font-medium">ALMACENES</p>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">1</p>
+            <p className="text-blue-400 text-xs">{selectedWarehouse.name}</p>
+          </div>
+
+          {/* Unidades Totales */}
+          <div className="bg-gradient-to-br from-purple-500/10 to-purple-500/5 backdrop-blur-xl rounded-2xl border border-purple-500/20 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-purple-500/20">
+                <TrendingUp className="w-5 h-5 text-purple-400" />
+              </div>
+              <p className="text-white/60 text-sm font-medium">UNIDADES EN STOCK</p>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">{totalUnits.toLocaleString()}</p>
+            <p className="text-purple-400 text-xs">Unidades de productos</p>
+          </div>
+
+          {/* Stock Bajo */}
+          <div className="bg-gradient-to-br from-orange-500/10 to-orange-500/5 backdrop-blur-xl rounded-2xl border border-orange-500/20 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-orange-500/20">
+                <AlertCircle className="w-5 h-5 text-orange-400" />
+              </div>
+              <p className="text-white/60 text-sm font-medium">STOCK BAJO</p>
+            </div>
+            <p className="text-3xl font-bold text-white mb-1">{lowStock}</p>
+            <p className="text-orange-400 text-xs">Productos con menos de 10 unidades</p>
+          </div>
+        </div>
+
+        {/* Filtros y Búsqueda */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6 flex items-center gap-4 flex-wrap">
+          {/* Búsqueda */}
+          <div className="flex-1 min-w-[300px] relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
             <input
               type="text"
-              placeholder="Buscar por SKU o nombre..."
+              placeholder="Buscar por nombre, SKU o categoría..."
               value={searchInput}
               onChange={handleSearch}
-              className="
-                w-full pl-12 pr-4 py-3
-                rounded-xl
-                bg-white/5 backdrop-blur-xl
-                border border-white/10
-                text-white placeholder-white/40
-                focus:outline-none focus:ring-2 focus:ring-primary-500/50
-                transition-all
-              "
+              className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all"
             />
           </div>
 
-          {/* Summary */}
-          <div className="mt-4 flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2 text-white/60">
-              <Package className="w-4 h-4" />
-              <span>{stock.length} productos</span>
-            </div>
-            {stock.filter(s => s.qty_on_hand === 0).length > 0 && (
-              <div className="flex items-center gap-2 text-red-400">
-                <AlertCircle className="w-4 h-4" />
-                <span>{stock.filter(s => s.qty_on_hand === 0).length} sin stock</span>
-              </div>
-            )}
-          </div>
+          {/* Toggle Ocultar Sin Stock */}
+          <button
+            onClick={() => setHideOutOfStock(!hideOutOfStock)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl border transition-all ${
+              hideOutOfStock
+                ? 'bg-green-500/20 border-green-500/30 text-green-400'
+                : 'bg-white/5 border-white/10 text-white/60 hover:bg-white/10'
+            }`}
+          >
+            {hideOutOfStock ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            <span className="text-sm">{hideOutOfStock ? 'Mostrar todos' : 'Ocultar sin stock'}</span>
+          </button>
+
+          {/* Botón Actualizar */}
+          <button
+            onClick={handleReload}
+            disabled={isLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all disabled:opacity-50"
+          >
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="text-sm">Actualizar</span>
+          </button>
         </div>
 
         {/* Loading State */}
@@ -135,81 +201,79 @@ export function InventoryList() {
           </div>
         )}
 
-        {/* Stock List */}
-        {!isLoading && stock.length > 0 && (
-          <div className="space-y-3">
-            {stock.map((item, index) => {
-              const badge = getStockBadge(item.qty_on_hand);
+        {/* Grid de Productos */}
+        {!isLoading && filteredStock.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {filteredStock.map((item, index) => {
+              const status = getStockStatus(item.qty_on_hand);
 
               return (
                 <div
                   key={index}
-                  className="
-                    bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10
-                    p-5 shadow-glass-lg
-                    hover:bg-white/10 hover:border-white/20
-                    transition-all
-                  "
+                  className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 hover:bg-white/10 hover:border-white/20 transition-all"
                 >
-                  <div className="flex items-start gap-4">
-                    {/* Product Photo */}
-                    <div className="flex-shrink-0">
-                      {item.photo_url ? (
-                        <img
-                          src={item.photo_url}
-                          alt={item.product_name}
-                          className="w-20 h-20 rounded-xl object-cover border border-white/10"
-                          onError={(e) => {
-                            // Si falla la carga de imagen, mostrar placeholder
-                            e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className={`w-20 h-20 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center ${item.photo_url ? 'hidden' : 'flex'}`}
-                        style={{ display: item.photo_url ? 'none' : 'flex' }}
-                      >
-                        <Package className="w-8 h-8 text-white/30" />
-                      </div>
+                  {/* Imagen del Producto */}
+                  <div className="relative mb-3">
+                    {item.photo_url ? (
+                      <img
+                        src={item.photo_url}
+                        alt={item.product_name}
+                        className="w-full h-32 object-cover rounded-xl border border-white/10"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div
+                      className={`w-full h-32 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center ${item.photo_url ? 'hidden' : 'flex'}`}
+                      style={{ display: item.photo_url ? 'none' : 'flex' }}
+                    >
+                      <Package className="w-12 h-12 text-white/30" />
                     </div>
 
-                    {/* Product Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <span className="font-mono text-white/80 text-sm bg-white/5 px-3 py-1 rounded-lg border border-white/10">
-                          {item.sku}
-                        </span>
-                        <span className={`
-                          text-xs px-2 py-1 rounded-lg border
-                          ${badge.color}
-                        `}>
-                          {badge.text}
-                        </span>
+                    {/* Badge de Stock */}
+                    <div className="absolute top-2 left-2">
+                      <span className={`text-[10px] px-2 py-1 rounded-lg border font-medium ${status.color}`}>
+                        {status.icon} {status.label}
+                      </span>
+                    </div>
+
+                    {/* Badge SKU */}
+                    <div className="absolute top-2 right-2">
+                      <span className="text-[10px] px-2 py-1 rounded-lg bg-white/10 backdrop-blur-xl border border-white/20 text-white/80 font-mono">
+                        #{item.sku}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Info del Producto */}
+                  <div>
+                    <h3 className="text-white font-medium text-sm mb-2 truncate" title={item.product_name}>
+                      {item.product_name}
+                    </h3>
+
+                    {/* Stats Grid */}
+                    <div className="grid grid-cols-2 gap-2 text-xs">
+                      {/* Stock */}
+                      <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                        <p className="text-white/40 mb-0.5">📦 STOCK</p>
+                        <p className="text-white font-bold">{item.qty_on_hand}</p>
+                        <p className="text-white/60 text-[10px]">Disponible</p>
                       </div>
 
-                      <h3 className="text-white font-medium mb-1 truncate">
-                        {item.product_name}
-                      </h3>
-
-                      {item.barcode && (
-                        <p className="text-white/40 text-xs font-mono truncate">
-                          Barcode: {item.barcode}
-                        </p>
+                      {/* Barcode (si existe) */}
+                      {item.barcode ? (
+                        <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                          <p className="text-white/40 mb-0.5">🔖 SKU</p>
+                          <p className="text-white font-medium font-mono text-[10px]">{item.sku}</p>
+                        </div>
+                      ) : (
+                        <div className="bg-white/5 rounded-lg p-2 border border-white/10">
+                          <p className="text-white/40 mb-0.5">🔖 SKU</p>
+                          <p className="text-white font-medium font-mono text-[10px]">{item.sku}</p>
+                        </div>
                       )}
-                    </div>
-
-                    {/* Stock Quantity */}
-                    <div className="text-right flex-shrink-0">
-                      <div className={`
-                        text-3xl font-bold
-                        ${getStockColor(item.qty_on_hand)}
-                      `}>
-                        {item.qty_on_hand}
-                      </div>
-                      <p className="text-xs text-white/40 mt-1">
-                        unidades
-                      </p>
                     </div>
                   </div>
                 </div>
@@ -219,35 +283,34 @@ export function InventoryList() {
         )}
 
         {/* Empty State */}
-        {!isLoading && stock.length === 0 && (
-          <div className="text-center py-12">
+        {!isLoading && filteredStock.length === 0 && (
+          <div className="text-center py-12 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10">
             <div className="inline-flex p-4 rounded-2xl bg-white/5 mb-4">
               <Package className="w-12 h-12 text-white/40" />
             </div>
             <h3 className="text-white font-medium mb-2">
-              {searchInput ? 'No se encontraron productos' : 'Inventario vacío'}
+              {searchInput ? 'No se encontraron productos' : hideOutOfStock ? 'No hay productos con stock' : 'Inventario vacío'}
             </h3>
             <p className="text-white/60 text-sm mb-6">
               {searchInput
                 ? `No hay productos que coincidan con "${searchInput}"`
-                : 'Aún no hay productos en el inventario de este almacén'
+                : hideOutOfStock
+                  ? 'Todos los productos están sin stock. Desactiva el filtro para verlos.'
+                  : 'Aún no hay productos en el inventario de este almacén'
               }
             </p>
-            {searchInput && (
+            {(searchInput || hideOutOfStock) && (
               <button
-                onClick={handleReload}
+                onClick={() => {
+                  setSearchInput('');
+                  setHideOutOfStock(false);
+                  reload();
+                }}
                 className="px-6 py-3 rounded-xl bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-all"
               >
                 Ver todos los productos
               </button>
             )}
-          </div>
-        )}
-
-        {/* Info Footer */}
-        {!isLoading && stock.length > 0 && (
-          <div className="mt-6 text-center text-white/40 text-sm">
-            <p>Stock calculado en tiempo real desde movimientos de inventario</p>
           </div>
         )}
       </div>
