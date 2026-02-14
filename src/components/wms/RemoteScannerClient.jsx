@@ -176,9 +176,12 @@ export function RemoteScannerClient() {
    * Recibir feedback del PC
    */
   function handleFeedback(payload) {
-    console.log('✅ Feedback recibido:', payload);
+    console.log('✅ Feedback recibido del PC:', payload);
 
     const { success, message } = payload;
+
+    // Cerrar toast de "Procesando..."
+    toast.dismiss('processing');
 
     // Actualizar feedback visual
     setLastFeedback({
@@ -205,11 +208,12 @@ export function RemoteScannerClient() {
       setScanAnimation(null);
     }, 1000);
 
-    // Liberar cooldown para siguiente escaneo
+    // 🔥 FIX: Liberar cooldown INMEDIATAMENTE para poder escanear siguiente código
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
-    }, 1500);
+      console.log('✅ Cooldown liberado - Listo para siguiente escaneo');
+    }, 1000); // Reducido de 1500ms a 1000ms
   }
 
   /**
@@ -306,6 +310,49 @@ export function RemoteScannerClient() {
   };
 
   /**
+   * Dibujar marco verde alrededor del código detectado
+   */
+  const drawDetectionBox = (decodedResult) => {
+    const canvas = document.querySelector('#remote-client-reader canvas');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Limpiar canvas anterior
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // Dibujar marco verde
+    ctx.strokeStyle = '#22c55e'; // Verde success
+    ctx.lineWidth = 4;
+
+    if (decodedResult.result.format?.formatName === 'QR_CODE') {
+      // QR Code: dibujar polígono
+      const points = decodedResult.result.cornerPoints;
+      if (points && points.length > 0) {
+        ctx.beginPath();
+        ctx.moveTo(points[0].x, points[0].y);
+        for (let i = 1; i < points.length; i++) {
+          ctx.lineTo(points[i].x, points[i].y);
+        }
+        ctx.closePath();
+        ctx.stroke();
+      }
+    } else {
+      // Barcode: dibujar rectángulo
+      const box = decodedResult.result.boundingBox;
+      if (box) {
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+      }
+    }
+
+    // Limpiar después de 500ms
+    setTimeout(() => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }, 500);
+  };
+
+  /**
    * Escaneo exitoso - Enviar al PC
    */
   const onScanSuccess = async (decodedText, decodedResult) => {
@@ -320,7 +367,10 @@ export function RemoteScannerClient() {
       return;
     }
 
-    console.log('🔍 Código detectado:', decodedText);
+    console.log('🔍 Código detectado:', decodedText, decodedResult);
+
+    // 🎯 Dibujar marco verde inmediatamente
+    drawDetectionBox(decodedResult);
 
     // Activar cooldown
     scanCooldown.current = true;
@@ -334,6 +384,9 @@ export function RemoteScannerClient() {
 
       // Feedback visual inmediato (antes de recibir respuesta del PC)
       toast.loading('Procesando en PC...', { id: 'processing' });
+
+      // Vibración inmediata
+      vibrate([50]);
 
     } catch (error) {
       console.error('❌ Error al enviar escaneo:', error);
