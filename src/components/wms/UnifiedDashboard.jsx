@@ -143,15 +143,29 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
         </div>
       )}
 
-      {/* Total Pedidos Escaneados */}
-      <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-white/60 font-medium">Total Pedidos Escaneados</p>
-          <Package className="w-5 h-5 text-blue-400" />
+      {/* Stats principales en grid - Desktop: 2 columnas */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Total Pedidos Escaneados */}
+        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-white/60 font-medium">Total Pedidos Escaneados</p>
+            <Package className="w-5 h-5 text-blue-400" />
+          </div>
+          <p className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
+            {stats.totalDispatches}
+          </p>
         </div>
-        <p className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-cyan-400 bg-clip-text text-transparent">
-          {stats.totalDispatches}
-        </p>
+
+        {/* Total Productos */}
+        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-white/60 font-medium">Total Productos Despachados</p>
+            <Box className="w-5 h-5 text-purple-400" />
+          </div>
+          <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+            {stats.totalProducts}
+          </p>
+        </div>
       </div>
 
       {/* Desgloce por Transportadora */}
@@ -161,7 +175,7 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
             <TrendingUp className="w-5 h-5 text-green-400" />
             Desgloce por Transportadora
           </h3>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {Object.entries(stats.byCarrier)
               .sort(([, a], [, b]) => b - a)
               .map(([carrier, count], index) => (
@@ -183,70 +197,62 @@ export function UnifiedDashboard({ warehouseId = null, showTitle = true, compact
         </div>
       )}
 
-      {/* Total Productos */}
-      <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-        <div className="flex items-center justify-between mb-2">
-          <p className="text-sm text-white/60 font-medium">Total Productos Despachados</p>
-          <Box className="w-5 h-5 text-purple-400" />
-        </div>
-        <p className="text-4xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
-          {stats.totalProducts}
-        </p>
+      {/* Grid de 2 columnas para Tiendas y Productos */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Pedidos por Tiendas */}
+        {Object.keys(stats.byStore).length > 0 && (
+          <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Store className="w-5 h-5 text-blue-400" />
+              Pedidos por Tiendas
+            </h3>
+            <div className="space-y-2">
+              {Object.entries(stats.byStore)
+                .sort(([, a], [, b]) => b - a)
+                .map(([store, count]) => (
+                  <div
+                    key={store}
+                    className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <span className="text-gray-200 font-medium truncate pr-4">{store}</span>
+                    <span className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-cyan-400 bg-clip-text text-transparent">
+                      {count}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
+
+        {/* Desgloce por Productos */}
+        {Object.keys(stats.byProduct).length > 0 && (
+          <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
+            <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
+              <Box className="w-5 h-5 text-purple-400" />
+              Desgloce por Productos
+            </h3>
+            <div className="space-y-2">
+              {Object.entries(stats.byProduct)
+                .sort((a, b) => b[1].qty - a[1].qty)
+                .map(([sku, product]) => (
+                  <div
+                    key={sku}
+                    className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <div className="flex-1 min-w-0 mr-3">
+                      <p className="text-white font-medium truncate">{product.name}</p>
+                      <p className="text-white/40 text-sm">{sku}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary-400">{product.qty}</p>
+                      <p className="text-white/40 text-xs">uds</p>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        )}
       </div>
-
-      {/* Pedidos por Tiendas */}
-      {Object.keys(stats.byStore).length > 0 && (
-        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Store className="w-5 h-5 text-blue-400" />
-            Pedidos por Tiendas
-          </h3>
-          <div className="space-y-2">
-            {Object.entries(stats.byStore)
-              .sort(([, a], [, b]) => b - a)
-              .map(([store, count]) => (
-                <div
-                  key={store}
-                  className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/10 transition-all"
-                >
-                  <span className="text-gray-200 font-medium">{store}</span>
-                  <span className="text-2xl font-bold bg-gradient-to-r from-primary-400 to-cyan-400 bg-clip-text text-transparent">
-                    {count}
-                  </span>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
-
-      {/* Desgloce por Productos */}
-      {Object.keys(stats.byProduct).length > 0 && (
-        <div className="backdrop-blur-2xl bg-gradient-to-br from-white/10 to-white/5 rounded-3xl p-6 border border-white/20 shadow-glass-lg">
-          <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
-            <Box className="w-5 h-5 text-purple-400" />
-            Desgloce por Productos
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {Object.entries(stats.byProduct)
-              .sort((a, b) => b[1].qty - a[1].qty)  // Ordenar por cantidad DESC
-              .map(([sku, product]) => (
-                <div
-                  key={sku}
-                  className="backdrop-blur-xl bg-white/5 rounded-2xl p-4 flex items-center justify-between border border-white/10 hover:bg-white/10 transition-all"
-                >
-                  <div className="flex-1 min-w-0 mr-3">
-                    <p className="text-white font-medium truncate">{product.name}</p>
-                    <p className="text-white/40 text-sm">{sku}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-2xl font-bold text-primary-400">{product.qty}</p>
-                    <p className="text-white/40 text-xs">uds</p>
-                  </div>
-                </div>
-              ))}
-          </div>
-        </div>
-      )}
 
       {/* Si no hay datos */}
       {stats.totalDispatches === 0 && (
