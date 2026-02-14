@@ -52,6 +52,7 @@ export function RemoteScannerHost() {
 
   // Estado de la sesión
   const [session, setSession] = useState(null);
+  const sessionRef = useRef(null); // 🔥 REF para evitar stale state en callbacks
   const [isCreatingSession, setIsCreatingSession] = useState(false);
   const [sessionStatus, setSessionStatus] = useState('active'); // 'active' | 'paused' | 'completed'
 
@@ -121,6 +122,7 @@ export function RemoteScannerHost() {
       );
 
       setSession(newSession);
+      sessionRef.current = newSession; // 🔥 Sincronizar ref
       console.log('✅ Sesión creada:', newSession);
 
       // Subscribirse a eventos via Realtime
@@ -184,9 +186,10 @@ export function RemoteScannerHost() {
 
     console.log(`📦 Procesando escaneo remoto: ${code} (cliente: ${clientId})`);
 
-    // 🔥 VALIDAR que session existe
-    if (!session?.id) {
-      console.error('❌ Sesión no disponible');
+    // 🔥 USAR REF en lugar de state (evita stale closure)
+    const currentSession = sessionRef.current;
+    if (!currentSession?.id) {
+      console.error('❌ Sesión no disponible en ref');
       return;
     }
 
@@ -214,7 +217,7 @@ export function RemoteScannerHost() {
       setSessionStats(newStats);
 
       // Actualizar stats en BD
-      await remoteScannerService.updateStats(session.id, newStats);
+      await remoteScannerService.updateStats(currentSession.id, newStats);
 
       // Actualizar último escaneo
       setLastScan({
@@ -228,7 +231,7 @@ export function RemoteScannerHost() {
 
       // Enviar feedback al cliente móvil
       await remoteScannerService.sendFeedback(
-        session.id,
+        currentSession.id,
         clientId,
         result.category === 'SUCCESS',
         result.category === 'SUCCESS'
@@ -245,7 +248,7 @@ export function RemoteScannerHost() {
 
       // Enviar error al cliente
       await remoteScannerService.sendFeedback(
-        session.id,
+        currentSession.id,
         clientId,
         false,
         `❌ ${error.message || 'Error al procesar guía'}`,
@@ -259,7 +262,7 @@ export function RemoteScannerHost() {
         total_errors: sessionStats.total_errors + 1
       };
       setSessionStats(newStats);
-      await remoteScannerService.updateStats(session.id, newStats);
+      await remoteScannerService.updateStats(currentSession.id, newStats);
     }
   }
 
