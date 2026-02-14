@@ -231,7 +231,7 @@ export function RemoteScannerClient() {
   }
 
   /**
-   * Iniciar scanner (copiado de ScanGuide.jsx)
+   * Iniciar scanner (IDÉNTICO a ScanGuide.jsx)
    */
   const startScanner = async () => {
     try {
@@ -243,12 +243,24 @@ export function RemoteScannerClient() {
         qrbox: function(viewfinderWidth, viewfinderHeight) {
           const qrboxWidth = Math.floor(viewfinderWidth * 0.95);
           const qrboxHeight = Math.floor(viewfinderHeight * 0.95);
+          console.log('📐 QRBox calculado:', { viewfinderWidth, viewfinderHeight, qrboxWidth, qrboxHeight });
           return { width: qrboxWidth, height: qrboxHeight };
         },
         rememberLastUsedCamera: true,
         showTorchButtonIfSupported: true,
         disableFlip: false,
-        formatsToSupport: [0, 8, 15, 9, 13, 14, 17, 18, 19, 20],
+        formatsToSupport: [
+          0, // QR_CODE
+          8, // CODE_128 (PRIORIDAD)
+          15, // ITF
+          9, // CODE_39
+          13, // EAN_13
+          14, // EAN_8
+          17, // UPC_A
+          18, // UPC_E
+          19, // CODE_93
+          20, // CODABAR
+        ],
         aspectRatio: 1.777,
         experimentalFeatures: { useBarCodeDetectorIfSupported: true },
         videoConstraints: {
@@ -258,6 +270,8 @@ export function RemoteScannerClient() {
         }
       };
 
+      console.log('🚀 Iniciando Remote Scanner con config:', config);
+
       await html5QrcodeRef.current.start(
         { facingMode: 'environment' },
         config,
@@ -266,7 +280,7 @@ export function RemoteScannerClient() {
       );
 
       setIsScanning(true);
-      console.log('📷 Remote Client Scanner iniciado');
+      console.log('✅ Remote Client Scanner iniciado exitosamente');
 
     } catch (error) {
       console.error('❌ Error al iniciar scanner:', error);
@@ -334,7 +348,8 @@ export function RemoteScannerClient() {
   };
 
   const onScanError = (errorMessage) => {
-    // Silenciar errores de escaneo (normal mientras busca código)
+    // Logging solo para debug (comentar en producción)
+    // console.log('🔍 Buscando código...', errorMessage);
   };
 
   // Sonidos (copiados de ScanGuide.jsx)
