@@ -159,11 +159,20 @@ export function RemoteScannerClient() {
    * Handler de eventos Realtime
    */
   function handleEvent(event) {
-    console.log('📩 Evento recibido:', event);
+    console.log('📩 Evento Realtime recibido:', {
+      type: event.event_type,
+      payload: event.payload,
+      myClientId: clientId
+    });
 
-    if (event.event_type === 'feedback' && event.payload.client_id === clientId) {
-      // Feedback para este cliente
-      handleFeedback(event.payload);
+    if (event.event_type === 'feedback') {
+      // Verificar si es para este cliente
+      if (event.payload.client_id === clientId) {
+        console.log('✅ Feedback es para MÍ - procesando...');
+        handleFeedback(event.payload);
+      } else {
+        console.log('⏭️ Feedback es para otro cliente:', event.payload.client_id);
+      }
     }
 
     if (event.event_type === 'status_change') {
@@ -387,6 +396,17 @@ export function RemoteScannerClient() {
 
       // Vibración inmediata
       vibrate([50]);
+
+      // 🔥 TIMEOUT DE SEGURIDAD: Si no llega feedback en 5s, liberar cooldown
+      setTimeout(() => {
+        if (scanCooldown.current && lastScannedCode.current === decodedText) {
+          console.warn('⚠️ Timeout esperando feedback del PC - liberando cooldown');
+          scanCooldown.current = false;
+          lastScannedCode.current = null;
+          toast.dismiss('processing');
+          toast('⏱️ Timeout - listo para siguiente escaneo', { duration: 2000 });
+        }
+      }, 5000);
 
     } catch (error) {
       console.error('❌ Error al enviar escaneo:', error);
