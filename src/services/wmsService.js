@@ -1396,6 +1396,132 @@ export const comboProductsService = {
 };
 
 // =====================================================
+// BATCH SERVICE - Commit batch único
+// =====================================================
+// Inserta múltiples dispatches en 1 transacción
+// Optimizado para escaneo rápido (sin queries intermedias)
+// =====================================================
+
+export const batchService = {
+  /**
+   * Crear múltiples dispatches en 1 transacción
+   * @param {Array} dispatches - Array de dispatches a crear
+   *   [{guide_code, warehouse_id, operator_id, carrier_id, shipment_record_data, items}]
+   * @returns {Array} - Dispatches creados
+   */
+  async createBatch(dispatches) {
+    console.log(`📦 Creando batch de ${dispatches.length} dispatches...`);
+    console.time('⚡ Batch Creation Time');
+
+    try {
+      const createdDispatches = [];
+
+      // Crear cada dispatch (aún necesitamos iterar por shipment_records)
+      for (const dispatchData of dispatches) {
+        // 1. Crear shipment_record
+        const shipmentRecord = {
+          guide_code: dispatchData.guide_code,
+          carrier_id: dispatchData.carrier_id,
+          source: dispatchData.shipment_record_data.source,
+          raw_payload: dispatchData.shipment_record_data.raw_payload,
+          status: 'PROCESSED'
+        };
+
+        const { data: sr, error: srError } = await supabase
+          .from('shipment_records')
+          .insert(shipmentRecord)
+          .select()
+          .single();
+
+        if (srError) throw srError;
+
+        // 2. Crear dispatch (status='draft' hasta confirmar)
+        const dispatchNumber = `DISP-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+        const dispatch = {
+          dispatch_number: dispatchNumber,
+          warehouse_id: dispatchData.warehouse_id,
+          operator_id: dispatchData.operator_id,
+          guide_code: dispatchData.guide_code,
+          shipment_record_id: sr.id,
+          status: 'draft'
+        };
+
+        const { data: dp, error: dpError } = await supabase
+          .from('dispatches')
+          .insert(dispatch)
+          .select()
+          .single();
+
+        if (dpError) throw dpError;
+
+        // 3. Expandir combos + agrupar items
+        const expandedItems = await comboProductsService.expandItems(dispatchData.items);
+
+        const itemsMap = new Map();
+        for (const item of expandedItems) {
+          const existing = itemsMap.get(item.product_id);
+          if (existing) {
+            existing.qty += item.qty;
+          } else {
+            itemsMap.set(item.product_id, { ...item });
+          }
+        }
+
+        // 4. Insertar dispatch_items
+        const itemsToInsert = Array.from(itemsMap.values()).map(item => ({
+          dispatch_id: dp.id,
+          product_id: item.product_id,
+          qty: item.qty,
+          notes: item.notes
+        }));
+
+        const { data: items, error: itemsError } = await supabase
+          .from('dispatch_items')
+          .insert(itemsToInsert)
+          .select();
+
+        if (itemsError) throw itemsError;
+
+        createdDispatches.push({ ...dp, items });
+      }
+
+      console.timeEnd('⚡ Batch Creation Time');
+      console.log(`✅ Batch creado: ${createdDispatches.length} dispatches`);
+
+      return createdDispatches;
+
+    } catch (error) {
+      console.error('❌ Error al crear batch:', error);
+      throw error;
+    }
+  },
+
+  /**
+   * Confirmar batch completo (validar stock + crear movimientos OUT)
+   * @param {Array} dispatchIds - IDs de dispatches a confirmar
+   */
+  async confirmBatch(dispatchIds) {
+    console.log(`✅ Confirmando batch de ${dispatchIds.length} dispatches...`);
+    console.time('⚡ Batch Confirm Time');
+
+    try {
+      // Confirmar cada dispatch
+      for (const dispatchId of dispatchIds) {
+        await dispatchesService.confirm(dispatchId);
+      }
+
+      console.timeEnd('⚡ Batch Confirm Time');
+      console.log(`✅ Batch confirmado: ${dispatchIds.length} dispatches`);
+
+    } catch (error) {
+      console.error('❌ Error al confirmar batch:', error);
+      throw error;
+    }
+  }
+};
+
+// =====================================================
 
 export default {
   warehouses: warehousesService,
@@ -1404,5 +1530,6 @@ export default {
   receipts: receiptsService,
   dispatches: dispatchesService,
   skuMappings: skuMappingsService,
-  comboProducts: comboProductsService
+  comboProducts: comboProductsService,
+  batch: batchService
 };
