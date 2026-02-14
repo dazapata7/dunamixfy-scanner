@@ -784,8 +784,8 @@ export function ScanGuide() {
   // Mostrar scanner (UI FULL-SCREEN con overlays)
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Scanner (fondo completo) */}
-      <div id="wms-reader" className="absolute inset-0 scanner-container" />
+      {/* Scanner (fondo completo) - SIN clase scanner-container */}
+      <div id="wms-reader" className="absolute inset-0" />
 
       {/* Header overlay (semi-transparente) */}
       <div className="absolute top-0 left-0 right-0 z-10">

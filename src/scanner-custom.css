@@ -101,29 +101,30 @@
  * ESTILOS PARA WMS SCANNER (wms-reader)
  * ============================================ */
 
-/* WMS Scanner - Área grande sin restricciones */
+/* WMS Scanner - Área grande sin restricciones (SIN scanner-container class) */
 #wms-reader {
-  height: auto !important;
+  height: 100% !important; /* Cambiado de auto a 100% para full screen */
   width: 100% !important;
   max-height: none !important;
-  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  min-height: none !important; /* Removido mínimo - usar 100% completo */
 }
 
 /* WMS Scanner - Video sin restricciones */
 #wms-reader video {
-  height: auto !important;
+  height: 100% !important; /* Cambiado de auto a 100% para full screen */
   width: 100% !important;
   max-height: none !important;
-  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  min-height: none !important; /* Removido mínimo */
   object-fit: cover !important; /* Usar cover para llenar todo el espacio */
+  display: block !important; /* Prevenir gaps */
 }
 
 /* WMS Scanner - Canvas sin restricciones */
 #wms-reader canvas {
-  height: auto !important;
+  height: 100% !important; /* Cambiado de auto a 100% */
   width: 100% !important;
   max-height: none !important;
-  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  min-height: none !important; /* Removido mínimo */
   position: absolute !important; /* Posicionar sobre el video */
   top: 0 !important;
   left: 0 !important;
@@ -133,9 +134,10 @@
 
 /* WMS Scanner - Contenedor sin límites */
 #wms-reader > div {
-  height: auto !important;
+  height: 100% !important; /* Cambiado de auto a 100% */
+  width: 100% !important;
   max-height: none !important;
-  min-height: 70vh !important; /* Mínimo 70% de la altura de la ventana */
+  min-height: none !important; /* Removido mínimo */
 }
 
 /* WMS Scanner - Marco del qrbox */
@@ -154,19 +156,6 @@
 /* WMS Scanner - Ocultar textos innecesarios */
 #wms-reader__dashboard_section_csr > span:first-child {
   display: none;
-}
-
-/* Contenedor general del scanner */
-.scanner-container {
-  position: relative;
-  width: 100%;
-  min-height: 70vh; /* Mínimo 70% de la altura de la ventana */
-  background: rgba(0, 0, 0, 0.3);
-  border-radius: 16px;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 }
 
 /* ============================================
