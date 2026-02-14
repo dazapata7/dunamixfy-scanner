@@ -184,11 +184,18 @@ export function RemoteScannerHost() {
 
     console.log(`📦 Procesando escaneo remoto: ${code} (cliente: ${clientId})`);
 
+    // 🔥 VALIDAR que session existe
+    if (!session?.id) {
+      console.error('❌ Sesión no disponible');
+      return;
+    }
+
     try {
       // Procesar guía con WMS (igual que ScanGuide.jsx)
       const result = await scanGuideForDispatch(code, operatorId);
 
       console.log('📊 Categoría de guía:', result.category);
+      console.log('📊 Resultado completo:', result);
 
       // Agregar al batch
       setDispatchesBatch(prev => [...prev, {
