@@ -687,6 +687,11 @@ export function ScanGuide() {
 
       toast.success(successMsg + omittedMsg, { duration: 5000 });
 
+      // ⚡ OPTIMIZACIÓN: Refrescar cache después de confirmar batch
+      console.log('🔄 Refrescando cache de productos/stock...');
+      await refreshCache();
+      console.log('✅ Cache actualizado');
+
       // Limpiar batch y volver al WMS Home
       setDispatchesBatch([]);
       setShowBatchSummary(false);
