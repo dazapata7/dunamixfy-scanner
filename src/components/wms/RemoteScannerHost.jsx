@@ -261,10 +261,27 @@ export function RemoteScannerHost() {
    */
   function handleClientConnected(event) {
     const clientId = event.payload.client_id;
+    const clientCount = connectedClients.size + 1;
     console.log(`✅ Cliente conectado: ${clientId}`);
 
     setConnectedClients(prev => new Set([...prev, clientId]));
-    toast.success(`📱 Móvil conectado (${clientId.substring(0, 8)}...)`);
+
+    // Toast más llamativo
+    toast.success(
+      `🎉 ¡Móvil ${clientCount} conectado!\n✅ Listo para escanear guías`,
+      {
+        duration: 5000,
+        icon: '📱',
+        style: {
+          background: '#10b981',
+          color: '#fff',
+          fontWeight: 'bold'
+        }
+      }
+    );
+
+    // Reproducir sonido de éxito
+    playSuccessSound();
   }
 
   /**
@@ -339,6 +356,33 @@ export function RemoteScannerHost() {
     } catch (error) {
       console.error('Error al confirmar batch:', error);
       toast.error(error.message || 'Error al confirmar despachos', { id: 'confirm' });
+    }
+  }
+
+  /**
+   * Reproducir sonido de éxito (conexión de cliente)
+   */
+  function playSuccessSound() {
+    try {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioContext.createOscillator();
+      const gainNode = audioContext.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.destination);
+
+      // Doble beep ascendente (alegre)
+      oscillator.frequency.setValueAtTime(600, audioContext.currentTime);
+      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.1);
+      oscillator.type = 'sine';
+
+      gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+
+      oscillator.start(audioContext.currentTime);
+      oscillator.stop(audioContext.currentTime + 0.3);
+    } catch (error) {
+      console.warn('⚠️ No se pudo reproducir sonido');
     }
   }
 
@@ -473,30 +517,74 @@ export function RemoteScannerHost() {
               </div>
             </div>
 
-            {/* Clientes Conectados */}
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6">
-              <div className="flex items-center gap-2 mb-4">
-                <Users className="w-5 h-5 text-cyan-400" />
-                <h3 className="text-white font-bold">Móviles Conectados</h3>
+            {/* Clientes Conectados - MEJORADO */}
+            <div className={`backdrop-blur-xl rounded-2xl border p-6 transition-all duration-300 ${
+              connectedClients.size === 0
+                ? 'bg-orange-500/5 border-orange-500/20'
+                : 'bg-green-500/10 border-green-500/30 shadow-lg shadow-green-500/10'
+            }`}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <Users className={`w-5 h-5 transition-colors ${
+                    connectedClients.size === 0 ? 'text-orange-400' : 'text-green-400'
+                  }`} />
+                  <h3 className="text-white font-bold">Móviles Conectados</h3>
+                </div>
+                <div className={`px-3 py-1 rounded-lg font-bold text-lg ${
+                  connectedClients.size === 0
+                    ? 'bg-orange-500/20 text-orange-400'
+                    : 'bg-green-500/20 text-green-400'
+                }`}>
+                  {connectedClients.size}
+                </div>
               </div>
 
               {connectedClients.size === 0 ? (
-                <p className="text-white/40 text-sm text-center py-4">
-                  Sin conexiones activas
-                </p>
+                <div className="text-center py-6">
+                  <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-orange-500/10 border-2 border-orange-500/30 flex items-center justify-center">
+                    <Users className="w-8 h-8 text-orange-400" />
+                  </div>
+                  <p className="text-orange-400 font-medium mb-2">⚠️ Esperando conexión</p>
+                  <p className="text-white/40 text-sm">
+                    Escanea el código QR con tu móvil<br/>
+                    para empezar a usar Remote Scanner
+                  </p>
+                </div>
               ) : (
-                <div className="space-y-2">
-                  {Array.from(connectedClients).map(clientId => (
-                    <div
-                      key={clientId}
-                      className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg border border-white/10"
-                    >
-                      <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                      <span className="text-white/80 text-sm font-mono">
-                        {clientId.substring(0, 12)}...
-                      </span>
-                    </div>
-                  ))}
+                <div className="space-y-3">
+                  {/* Header exitoso */}
+                  <div className="flex items-center gap-2 px-3 py-2 bg-green-500/10 rounded-lg border border-green-500/20">
+                    <CheckCircle2 className="w-4 h-4 text-green-400" />
+                    <span className="text-green-400 text-sm font-medium">
+                      ✅ Móvil{connectedClients.size > 1 ? 'es' : ''} conectado{connectedClients.size > 1 ? 's' : ''} - Listo para escanear
+                    </span>
+                  </div>
+
+                  {/* Lista de clientes */}
+                  <div className="space-y-2">
+                    {Array.from(connectedClients).map((clientId, index) => (
+                      <div
+                        key={clientId}
+                        className="flex items-center gap-3 px-4 py-3 bg-white/5 rounded-lg border border-white/10 hover:bg-white/10 transition-all"
+                      >
+                        <div className="relative">
+                          <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse" />
+                          <div className="absolute inset-0 w-3 h-3 bg-green-400 rounded-full animate-ping opacity-75" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-white font-medium text-sm">
+                            📱 Móvil #{index + 1}
+                          </p>
+                          <p className="text-white/40 text-xs font-mono">
+                            ID: {clientId.substring(0, 12)}...
+                          </p>
+                        </div>
+                        <div className="text-green-400 text-xs font-bold px-2 py-1 bg-green-500/20 rounded">
+                          ACTIVO
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
