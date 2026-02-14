@@ -127,18 +127,13 @@ export function RemoteScannerClient() {
       toast.success(`Conectado a sesión ${sessionCode}`);
       setIsConnected(true);
 
-      // ⚡ NUEVO: Iniciar heartbeat (ping cada 30s)
-      heartbeatInterval.current = setInterval(() => {
-        if (foundSession.id) {
-          console.log('💓 Heartbeat enviado');
-          remoteScannerService.createEvent(
-            foundSession.id,
-            'client_connected', // Reusamos este tipo como "ping"
-            { client_id: clientId, timestamp: new Date().toISOString(), heartbeat: true },
-            clientId
-          ).catch(err => console.warn('Error al enviar heartbeat:', err));
-        }
-      }, 30000); // Cada 30 segundos
+      // ⚡ HEARTBEAT DESHABILITADO - Causa reconnects infinitos
+      // TODO: Implementar detección de desconexión en PC con timeout de última actividad
+      // heartbeatInterval.current = setInterval(() => {
+      //   if (foundSession.id) {
+      //     console.log('💓 Heartbeat enviado');
+      //   }
+      // }, 30000);
 
       // Iniciar scanner
       startScanner();
@@ -441,8 +436,8 @@ export function RemoteScannerClient() {
   // UI Full-Screen (solo cámara + overlays)
   return (
     <div className="fixed inset-0 bg-black">
-      {/* Scanner (fondo completo) */}
-      <div id="remote-client-reader" className="absolute inset-0 scanner-container" />
+      {/* Scanner (fondo completo) - SIN clase scanner-container */}
+      <div id="remote-client-reader" className="absolute inset-0" />
 
       {/* Overlay de feedback (cuando se recibe respuesta del PC) */}
       {scanAnimation && (
