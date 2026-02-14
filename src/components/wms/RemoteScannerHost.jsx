@@ -209,7 +209,8 @@ export function RemoteScannerHost() {
       }]);
 
       // Actualizar stats (functional update para evitar stale state)
-      let newStats;
+      // 🔥 FIX: Definir newStats FUERA del callback para usarla después
+      let newStats = null;
       setSessionStats(prev => {
         newStats = {
           total_scanned: prev.total_scanned + 1,
@@ -219,8 +220,10 @@ export function RemoteScannerHost() {
         return newStats;
       });
 
-      // Actualizar stats en BD
-      await remoteScannerService.updateStats(currentSession.id, newStats);
+      // Actualizar stats en BD (newStats ya está definido)
+      if (newStats) {
+        await remoteScannerService.updateStats(currentSession.id, newStats);
+      }
 
       // Actualizar último escaneo
       setLastScan({
@@ -259,7 +262,8 @@ export function RemoteScannerHost() {
       );
 
       // Actualizar stats con error (functional update)
-      let newStats;
+      // 🔥 FIX: Definir newStats FUERA del callback para usarla después
+      let newStats = null;
       setSessionStats(prev => {
         newStats = {
           total_scanned: prev.total_scanned + 1,
@@ -268,7 +272,11 @@ export function RemoteScannerHost() {
         };
         return newStats;
       });
-      await remoteScannerService.updateStats(currentSession.id, newStats);
+
+      // Actualizar stats en BD (newStats ya está definido)
+      if (newStats) {
+        await remoteScannerService.updateStats(currentSession.id, newStats);
+      }
     }
   }
 
