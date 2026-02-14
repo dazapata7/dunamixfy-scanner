@@ -6,7 +6,7 @@
 // =====================================================
 
 import { useState, useEffect } from 'react';
-import { productsService, stockService, skuMappingsService } from '../services/wmsService';
+import { productsService, inventoryService, skuMappingsService } from '../services/wmsService';
 import toast from 'react-hot-toast';
 
 export function useScannerCache(warehouseId) {
@@ -28,7 +28,7 @@ export function useScannerCache(warehouseId) {
       // Cargar en paralelo (más rápido)
       const [productsData, stockData, mappingsData] = await Promise.all([
         productsService.getAll(),
-        stockService.getByWarehouse(warehouseId),
+        inventoryService.getAllStock(warehouseId),
         skuMappingsService.getAll()
       ]);
 
