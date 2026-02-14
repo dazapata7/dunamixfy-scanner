@@ -359,13 +359,37 @@ export function RemoteScannerHost() {
         return;
       }
 
-      toast.loading(`Confirmando ${successItems.length} despachos...`, { id: 'confirm' });
+      // 🔥 DEBUG: Verificar estructura de items antes de confirmar
+      console.log('📦 Items a confirmar:', successItems);
+      successItems.forEach((item, idx) => {
+        console.log(`Item ${idx}:`, {
+          category: item.category,
+          dispatch_id: item.dispatch?.id,
+          shipment_id: item.shipmentRecord?.id,
+          dispatch_full: item.dispatch
+        });
+      });
 
-      for (const item of successItems) {
+      // 🔥 VALIDACIÓN: Filtrar solo items con dispatch válido
+      const validItems = successItems.filter(item => item.dispatch?.id);
+      const invalidItems = successItems.filter(item => !item.dispatch?.id);
+
+      if (invalidItems.length > 0) {
+        console.warn(`⚠️ ${invalidItems.length} items SUCCESS sin dispatch.id válido:`, invalidItems);
+      }
+
+      if (validItems.length === 0) {
+        toast.error('No hay dispatches válidos para confirmar');
+        return;
+      }
+
+      toast.loading(`Confirmando ${validItems.length} despachos...`, { id: 'confirm' });
+
+      for (const item of validItems) {
         await confirmDispatch(item.dispatch.id, item.shipmentRecord?.id);
       }
 
-      toast.success(`✅ ${successItems.length} despachos confirmados`, { id: 'confirm' });
+      toast.success(`✅ ${validItems.length} despachos confirmados`, { id: 'confirm' });
 
       // Refrescar cache
       await refreshCache();
