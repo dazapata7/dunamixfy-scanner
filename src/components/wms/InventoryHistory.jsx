@@ -16,7 +16,8 @@ import {
   Package,
   Loader2,
   Search,
-  Filter
+  Filter,
+  X
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -99,8 +100,10 @@ export function InventoryHistory() {
       movement.movement_type === (typeFilter === 'in' ? 'IN' : 'OUT');
 
     const movementDate = new Date(movement.created_at);
-    const fromDate = dateFrom ? new Date(dateFrom) : new Date('2000-01-01');
-    const toDate = dateTo ? new Date(dateTo) : new Date('2099-12-31');
+
+    // Fechas con hora para comparación correcta
+    const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : new Date('2000-01-01');
+    const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : new Date('2099-12-31');
 
     const matchesDate = movementDate >= fromDate && movementDate <= toDate;
 
@@ -149,7 +152,7 @@ export function InventoryHistory() {
               <Search className="absolute left-3 top-3 w-4 h-4 text-white/40" />
               <input
                 type="text"
-                placeholder="Buscar producto o guía..."
+                placeholder="Buscar producto, guía, orden o transportadora..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
@@ -184,9 +187,26 @@ export function InventoryHistory() {
             />
           </div>
 
-          {/* Results count */}
-          <div className="text-white/60 text-sm">
-            Mostrando {filteredMovements.length} de {movements.length} movimientos
+          {/* Results count + Clear filters */}
+          <div className="flex items-center justify-between">
+            <div className="text-white/60 text-sm">
+              Mostrando {filteredMovements.length} de {movements.length} movimientos
+            </div>
+
+            {(searchTerm || typeFilter !== 'all' || dateFrom || dateTo) && (
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setTypeFilter('all');
+                  setDateFrom('');
+                  setDateTo('');
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-sm"
+              >
+                <X className="w-4 h-4" />
+                Limpiar filtros
+              </button>
+            )}
           </div>
         </div>
 
