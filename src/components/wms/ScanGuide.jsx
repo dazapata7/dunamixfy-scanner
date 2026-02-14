@@ -8,6 +8,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWMS } from '../../hooks/useWMS';
+import { useScannerCache } from '../../hooks/useScannerCache';
 import { useStore } from '../../store/useStore';
 import { ArrowLeft, CheckCircle2, XCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -26,6 +27,16 @@ export function ScanGuide() {
   // WMS Hook
   const { scanGuideForDispatch, confirmDispatch, isProcessing, selectedWarehouse, loadTodayDispatchesCache } = useWMS();
   const { operator, operatorId } = useStore();
+
+  // ⚡ Scanner Cache Hook - Precarga productos/stock para validaciones rápidas
+  const {
+    isLoading: isCacheLoading,
+    findProductBySku,
+    hasStock,
+    getStock,
+    updateStockLocal,
+    refresh: refreshCache
+  } = useScannerCache(selectedWarehouse?.id);
 
   // DEBUG: Verificar operatorId
   useEffect(() => {
