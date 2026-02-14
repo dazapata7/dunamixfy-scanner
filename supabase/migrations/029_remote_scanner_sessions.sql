@@ -142,7 +142,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 9. Comentarios
+-- 9. Habilitar Supabase Realtime (CRÍTICO para sincronización)
+-- Esto permite que el PC reciba eventos en tiempo real cuando el móvil hace inserts
+ALTER PUBLICATION supabase_realtime ADD TABLE remote_scanner_events;
+
+-- 10. Comentarios
 COMMENT ON TABLE remote_scanner_sessions IS 'Sesiones de Remote Scanner. PC crea sesión, Mobile se conecta via QR.';
 COMMENT ON TABLE remote_scanner_events IS 'Eventos de escaneo en tiempo real. Usado para sincronización via Supabase Realtime.';
 COMMENT ON COLUMN remote_scanner_sessions.session_code IS 'Código corto de 6 caracteres para QR (ej: ABC123)';
