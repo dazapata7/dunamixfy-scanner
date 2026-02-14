@@ -168,3 +168,66 @@
   align-items: center;
   justify-content: center;
 }
+
+/* ============================================
+ * ESTILOS PARA REMOTE SCANNER CLIENT (mobile)
+ * ============================================ */
+
+/* Remote Client Scanner - Full screen sin restricciones */
+#remote-client-reader {
+  height: 100% !important;
+  width: 100% !important;
+  max-height: none !important;
+  min-height: 100vh !important; /* Full screen vertical */
+}
+
+/* Remote Client Scanner - Video COVER para llenar pantalla */
+#remote-client-reader video {
+  height: 100vh !important;
+  width: 100vw !important;
+  max-height: none !important;
+  min-height: 100vh !important;
+  object-fit: cover !important; /* CRÍTICO: Cover para llenar sin distorsión */
+  transform: none !important; /* Sin transformaciones que inviertan */
+}
+
+/* Remote Client Scanner - Canvas */
+#remote-client-reader canvas {
+  height: 100vh !important;
+  width: 100vw !important;
+  max-height: none !important;
+  min-height: 100vh !important;
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  z-index: 10 !important;
+  pointer-events: none !important;
+  transform: none !important; /* Sin transformaciones */
+}
+
+/* Remote Client Scanner - Contenedor */
+#remote-client-reader > div {
+  height: 100vh !important;
+  width: 100vw !important;
+  max-height: none !important;
+  min-height: 100vh !important;
+  transform: none !important; /* Sin transformaciones */
+}
+
+/* Remote Client Scanner - Marco del qrbox */
+#remote-client-reader__scan_region {
+  border: 3px solid rgba(0, 217, 192, 0.7) !important;
+  box-shadow: 0 0 10px rgba(0, 217, 192, 0.4) !important;
+  border-radius: 12px !important;
+}
+
+/* Remote Client Scanner - Dashboard */
+#remote-client-reader__dashboard_section_csr {
+  text-align: center;
+  padding: 8px;
+}
+
+/* Remote Client Scanner - Ocultar textos innecesarios */
+#remote-client-reader__dashboard_section_csr > span:first-child {
+  display: none;
+}
