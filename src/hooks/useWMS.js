@@ -16,7 +16,7 @@ import { dunamixfyApi } from '../services/dunamixfyApi';
 import { dunamixfyService } from '../services/dunamixfyService';
 import toast from 'react-hot-toast';
 
-export function useWMS() {
+export function useWMS(cacheOpts = {}) {
   // Leer selectedWarehouse del store de Zustand (persistente)
   const { selectedWarehouse } = useStore();
 
@@ -30,6 +30,11 @@ export function useWMS() {
 
   // CACHE: Dispatches del día para validación rápida de duplicados
   const todayDispatchesCache = useRef(new Map()); // Map<guide_code, dispatch>
+
+  // ⚡ CACHE DE PRODUCTOS/STOCK (opcional)
+  // Si ScanGuide.jsx pasa estas funciones, se usan para búsqueda O(1)
+  // Si no se pasan, fallback al flujo normal con queries a BD
+  const { findProductBySku, hasStock, getStock } = cacheOpts;
 
   // =====================================================
   // INICIALIZACIÓN
@@ -321,8 +326,19 @@ export function useWMS() {
 
     for (const item of items) {
       try {
-        // Buscar producto por SKU (primero intenta mapping externo si hay source)
-        const product = await productsService.getBySku(item.sku, source);
+        // ⚡ OPTIMIZACIÓN: Usar cache si está disponible (O(1) lookup)
+        let product = null;
+
+        if (findProductBySku) {
+          console.time(`⚡ Cache lookup ${item.sku}`);
+          product = findProductBySku(item.sku, source);
+          console.timeEnd(`⚡ Cache lookup ${item.sku}`);
+        } else {
+          // Fallback: Buscar en BD si no hay cache
+          console.time(`🐌 BD lookup ${item.sku}`);
+          product = await productsService.getBySku(item.sku, source);
+          console.timeEnd(`🐌 BD lookup ${item.sku}`);
+        }
 
         if (!product) {
           // Producto no encontrado

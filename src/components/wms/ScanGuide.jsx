@@ -24,9 +24,7 @@ export function ScanGuide() {
   const lastScannedCode = useRef(null);
   const scanCooldown = useRef(false);
 
-  // WMS Hook
-  const { scanGuideForDispatch, confirmDispatch, isProcessing, selectedWarehouse, loadTodayDispatchesCache } = useWMS();
-  const { operator, operatorId } = useStore();
+  const { operator, operatorId, selectedWarehouse } = useStore();
 
   // ⚡ Scanner Cache Hook - Precarga productos/stock para validaciones rápidas
   const {
@@ -37,6 +35,13 @@ export function ScanGuide() {
     updateStockLocal,
     refresh: refreshCache
   } = useScannerCache(selectedWarehouse?.id);
+
+  // WMS Hook - ⚡ PASAR FUNCIONES DE CACHE para búsqueda O(1)
+  const { scanGuideForDispatch, confirmDispatch, isProcessing, loadTodayDispatchesCache } = useWMS({
+    findProductBySku,
+    hasStock,
+    getStock
+  });
 
   // DEBUG: Verificar operatorId
   useEffect(() => {
@@ -704,6 +709,20 @@ export function ScanGuide() {
   // =====================================================
   // RENDER
   // =====================================================
+
+  // ⚡ Mostrar loading mientras cache se carga
+  if (isCacheLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center p-6">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary-500/30 border-t-primary-500 rounded-full animate-spin mx-auto mb-4" />
+          <h2 className="text-white font-bold text-xl mb-2">⚡ Optimizando Scanner...</h2>
+          <p className="text-white/60 text-sm">Cargando productos y stock en memoria</p>
+          <p className="text-white/40 text-xs mt-2">Esto solo toma unos segundos y hace que el escaneo sea ultra rápido</p>
+        </div>
+      </div>
+    );
+  }
 
   // Si está mostrando resumen del batch, usar componente BatchSummary
   if (showBatchSummary) {
