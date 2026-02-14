@@ -29,6 +29,10 @@ const ScanHistory = lazy(() => import("./components/wms/ScanHistory"));
 const WarehouseManagement = lazy(() => import("./components/wms/WarehouseManagement"));
 const ProductManagement = lazy(() => import("./components/wms/ProductManagement"));
 
+// Remote Scanner Components
+const RemoteScannerHost = lazy(() => import("./components/wms/RemoteScannerHost"));
+const RemoteScannerClient = lazy(() => import("./components/wms/RemoteScannerClient"));
+
 // Componente interno que usa el hook useAuth
 function AppContent() {
   const { user, loading } = useAuth();
@@ -70,6 +74,10 @@ function AppContent() {
               <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
               <Route path="/wms/scan-guide" element={<ScanGuide />} />
               <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
+
+              {/* Remote Scanner Routes */}
+              <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
+              <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
               <Route path="/wms/debug-guide" element={<DebugGuide />} />
               <Route path="/wms/inventory" element={<InventoryList />} />
               <Route path="/wms/import-csv" element={<CSVImporter />} />
@@ -109,6 +117,10 @@ function AppContent() {
             <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
             <Route path="/wms/scan-guide" element={<ScanGuide />} />
             <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
+
+            {/* Remote Scanner Routes */}
+            <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
+            <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
             <Route path="/wms/debug-guide" element={<DebugGuide />} />
             <Route path="/wms/inventory" element={<InventoryList />} />
             <Route path="/wms/import-csv" element={<CSVImporter />} />
