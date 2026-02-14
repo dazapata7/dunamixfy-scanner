@@ -888,8 +888,26 @@ export const dispatchesService = {
 
       if (dispatchError) throw dispatchError;
 
-      // 3. Crear items
-      const itemsToInsert = items.map(item => ({
+      // 3. Expandir combos a sus componentes
+      console.log(`📦 Expandiendo items (${items.length} items originales)...`);
+      const expandedItems = await comboProductsService.expandItems(items);
+      console.log(`✨ Items expandidos: ${expandedItems.length} items finales`);
+
+      // 4. Agrupar items por product_id (sumar cantidades si se repite)
+      const itemsMap = new Map();
+      for (const item of expandedItems) {
+        const existing = itemsMap.get(item.product_id);
+        if (existing) {
+          existing.qty += item.qty;
+          existing.notes = existing.notes
+            ? `${existing.notes}; ${item.notes || ''}`
+            : item.notes;
+        } else {
+          itemsMap.set(item.product_id, { ...item });
+        }
+      }
+
+      const itemsToInsert = Array.from(itemsMap.values()).map(item => ({
         dispatch_id: dispatch.id,
         product_id: item.product_id,
         qty: item.qty,
@@ -1268,6 +1286,116 @@ export const skuMappingsService = {
 };
 
 // =====================================================
+// COMBO PRODUCTS SERVICE
+// =====================================================
+// Gestión de productos combo (compuestos)
+// Un combo está formado por múltiples productos simples
+// =====================================================
+
+export const comboProductsService = {
+  /**
+   * Obtener componentes de un producto combo
+   * @param {string} comboProductId - UUID del producto combo
+   * @returns {Array} Lista de componentes con estructura:
+   *   [{id, quantity, component: {id, sku, name}}]
+   */
+  async getComponents(comboProductId) {
+    const { data, error } = await supabase
+      .from('product_combo_components')
+      .select(`
+        id,
+        quantity,
+        component:products!component_product_id(id, sku, name, type)
+      `)
+      .eq('combo_product_id', comboProductId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+    return data || [];
+  },
+
+  /**
+   * Guardar componentes de un combo (reemplaza existentes)
+   * @param {string} comboProductId - UUID del producto combo
+   * @param {Array} components - [{product_id, quantity}]
+   */
+  async setComponents(comboProductId, components) {
+    // 1. Eliminar componentes existentes
+    const { error: deleteError } = await supabase
+      .from('product_combo_components')
+      .delete()
+      .eq('combo_product_id', comboProductId);
+
+    if (deleteError) throw deleteError;
+
+    // 2. Insertar nuevos componentes
+    if (components.length > 0) {
+      const { error: insertError } = await supabase
+        .from('product_combo_components')
+        .insert(
+          components.map(c => ({
+            combo_product_id: comboProductId,
+            component_product_id: c.product_id,
+            quantity: c.quantity
+          }))
+        );
+
+      if (insertError) throw insertError;
+    }
+
+    console.log(`✅ Componentes guardados para combo ${comboProductId}: ${components.length} items`);
+  },
+
+  /**
+   * Expandir items: Convertir combos en sus componentes
+   * @param {Array} items - [{product_id, qty, product, notes}]
+   * @returns {Array} - Items expandidos (combos → componentes)
+   *
+   * Ejemplo:
+   *   Input:  [{product: COMBO (Rod+Lum), qty: 2}]
+   *   Output: [{product: Rodillax, qty: 2}, {product: Lumbrax, qty: 2}]
+   */
+  async expandItems(items) {
+    const expandedItems = [];
+
+    for (const item of items) {
+      // Verificar si el producto es un combo
+      if (item.product?.type === 'combo') {
+        console.log(`📦 Expandiendo combo: ${item.product.name} x${item.qty}`);
+
+        // Obtener componentes
+        const components = await this.getComponents(item.product.id);
+
+        if (components.length === 0) {
+          console.warn(`⚠️ Combo sin componentes: ${item.product.name} (${item.product.id})`);
+          continue; // Skip combo vacío
+        }
+
+        // Agregar cada componente multiplicando por qty del combo
+        for (const component of components) {
+          const expandedQty = item.qty * component.quantity;
+          console.log(`  - ${component.component.name} x${expandedQty}`);
+
+          expandedItems.push({
+            product_id: component.component.id,
+            product: component.component,
+            qty: expandedQty,
+            notes: item.notes
+              ? `${item.notes} (componente de: ${item.product.name})`
+              : `Componente de combo: ${item.product.name}`
+          });
+        }
+      } else {
+        // Producto simple, agregar tal cual
+        expandedItems.push(item);
+      }
+    }
+
+    return expandedItems;
+  }
+};
+
+// =====================================================
 
 export default {
   warehouses: warehousesService,
@@ -1275,5 +1403,6 @@ export default {
   inventory: inventoryService,
   receipts: receiptsService,
   dispatches: dispatchesService,
-  skuMappings: skuMappingsService
+  skuMappings: skuMappingsService,
+  comboProducts: comboProductsService
 };

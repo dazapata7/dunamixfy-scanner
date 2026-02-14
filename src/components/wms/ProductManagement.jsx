@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productsService, skuMappingsService } from '../../services/wmsService';
+import { productsService, skuMappingsService, comboProductsService } from '../../services/wmsService';
 import {
   ArrowLeft,
   Package,
@@ -36,7 +36,8 @@ export function ProductManagement() {
     barcode: '',
     photo_url: '',
     description: '',
-    is_active: true
+    is_active: true,
+    type: 'simple'  // ⭐ NUEVO: Tipo de producto (simple/combo)
   });
 
   // SKU Mappings state
@@ -47,6 +48,11 @@ export function ProductManagement() {
     external_sku: '',
     notes: ''
   });
+
+  // ⭐ NUEVO: Combo components state
+  const [comboComponents, setComboComponents] = useState([]);
+  const [isLoadingComponents, setIsLoadingComponents] = useState(false);
+  const [availableProducts, setAvailableProducts] = useState([]);
 
   useEffect(() => {
     loadProducts();
@@ -74,8 +80,10 @@ export function ProductManagement() {
       barcode: '',
       photo_url: '',
       description: '',
-      is_active: true
+      is_active: true,
+      type: 'simple'  // ⭐ NUEVO
     });
+    setComboComponents([]);  // ⭐ NUEVO: Limpiar componentes
   }
 
   async function handleEdit(product) {
@@ -87,11 +95,19 @@ export function ProductManagement() {
       barcode: product.barcode || '',
       photo_url: product.photo_url || '',
       description: product.description || '',
-      is_active: product.is_active
+      is_active: product.is_active,
+      type: product.type || 'simple'  // ⭐ NUEVO
     });
 
     // Cargar SKU mappings del producto
     await loadSkuMappings(product.id);
+
+    // ⭐ NUEVO: Cargar componentes si es combo
+    if (product.type === 'combo') {
+      await loadComboComponents(product.id);
+    } else {
+      setComboComponents([]);
+    }
   }
 
   function handleCancel() {
@@ -103,10 +119,12 @@ export function ProductManagement() {
       barcode: '',
       photo_url: '',
       description: '',
-      is_active: true
+      is_active: true,
+      type: 'simple'  // ⭐ NUEVO
     });
     setSkuMappings([]);
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+    setComboComponents([]);  // ⭐ NUEVO
   }
 
   async function loadSkuMappings(productId) {
@@ -120,6 +138,46 @@ export function ProductManagement() {
     } finally {
       setIsLoadingMappings(false);
     }
+  }
+
+  // ⭐ NUEVO: Cargar componentes del combo
+  async function loadComboComponents(comboProductId) {
+    setIsLoadingComponents(true);
+    try {
+      const components = await comboProductsService.getComponents(comboProductId);
+      setComboComponents(components.map(c => ({
+        id: c.id,
+        product_id: c.component.id,
+        product_name: c.component.name,
+        quantity: c.quantity
+      })));
+
+      // Cargar productos disponibles (solo simples)
+      const allProducts = await productsService.getAll();
+      setAvailableProducts(allProducts.filter(p => p.type === 'simple' && p.id !== comboProductId));
+    } catch (error) {
+      console.error('❌ Error al cargar componentes:', error);
+      toast.error('Error al cargar componentes del combo');
+    } finally {
+      setIsLoadingComponents(false);
+    }
+  }
+
+  // ⭐ NUEVO: Agregar componente al combo
+  function handleAddComponent() {
+    setComboComponents([...comboComponents, { product_id: '', quantity: 1 }]);
+  }
+
+  // ⭐ NUEVO: Remover componente del combo
+  function handleRemoveComponent(index) {
+    setComboComponents(comboComponents.filter((_, i) => i !== index));
+  }
+
+  // ⭐ NUEVO: Actualizar componente
+  function handleUpdateComponent(index, field, value) {
+    const updated = [...comboComponents];
+    updated[index][field] = value;
+    setComboComponents(updated);
   }
 
   async function handleAddMapping() {
@@ -197,15 +255,39 @@ export function ProductManagement() {
       return;
     }
 
+    // ⭐ NUEVO: Validar que combo tenga al menos 1 componente
+    if (formData.type === 'combo' && comboComponents.length === 0) {
+      toast.error('Un combo debe tener al menos 1 componente');
+      return;
+    }
+
+    // ⭐ NUEVO: Validar que todos los componentes tengan producto y cantidad
+    if (formData.type === 'combo') {
+      const invalidComponents = comboComponents.filter(c => !c.product_id || c.quantity < 1);
+      if (invalidComponents.length > 0) {
+        toast.error('Todos los componentes deben tener un producto y cantidad válida');
+        return;
+      }
+    }
+
     try {
+      let productId = editingProduct;
+
       if (isCreating) {
         // Crear nuevo
-        await productsService.create(formData);
+        const newProduct = await productsService.create(formData);
+        productId = newProduct.id;
         toast.success('Producto creado exitosamente');
       } else {
         // Actualizar existente
         await productsService.update(editingProduct, formData);
         toast.success('Producto actualizado exitosamente');
+      }
+
+      // ⭐ NUEVO: Guardar componentes si es combo
+      if (formData.type === 'combo') {
+        await comboProductsService.setComponents(productId, comboComponents);
+        console.log(`✅ Componentes guardados para combo ${productId}`);
       }
 
       handleCancel();
@@ -308,6 +390,22 @@ export function ProductManagement() {
                 />
               </div>
 
+              {/* ⭐ NUEVO: Tipo de Producto */}
+              <div>
+                <label className="block text-white/80 text-sm mb-2">
+                  Tipo de Producto *
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                  disabled={!isCreating} // No permitir cambiar tipo en edición
+                >
+                  <option value="simple">Simple (Producto Individual)</option>
+                  <option value="combo">Combo (Compuesto de otros productos)</option>
+                </select>
+              </div>
+
               {/* Barcode */}
               <div>
                 <label className="block text-white/80 text-sm mb-2">
@@ -370,6 +468,87 @@ export function ProductManagement() {
                 </label>
               </div>
             </div>
+
+            {/* ⭐ NUEVO: Componentes del Combo */}
+            {formData.type === 'combo' && (
+              <div className="mt-6 pt-6 border-t border-white/10">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h3 className="text-lg font-bold text-white">📦 Componentes del Combo</h3>
+                    <p className="text-white/60 text-sm">Define qué productos y cantidades forman este combo</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (availableProducts.length === 0) {
+                        const allProducts = await productsService.getAll();
+                        setAvailableProducts(allProducts.filter(p => p.type === 'simple'));
+                      }
+                      handleAddComponent();
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all text-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Agregar Componente
+                  </button>
+                </div>
+
+                {comboComponents.length === 0 ? (
+                  <div className="bg-white/5 rounded-xl border border-white/10 p-6 text-center">
+                    <Package className="w-12 h-12 text-white/20 mx-auto mb-2" />
+                    <p className="text-white/60 text-sm">Sin componentes. Haz clic en "Agregar Componente" para comenzar.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {comboComponents.map((component, index) => (
+                      <div key={index} className="bg-white/5 rounded-xl border border-white/10 p-3">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+                          {/* Producto */}
+                          <div className="md:col-span-2">
+                            <label className="block text-white/60 text-xs mb-1">Producto *</label>
+                            <select
+                              value={component.product_id}
+                              onChange={(e) => {
+                                const selectedProduct = availableProducts.find(p => p.id === e.target.value);
+                                handleUpdateComponent(index, 'product_id', e.target.value);
+                                if (selectedProduct) {
+                                  handleUpdateComponent(index, 'product_name', selectedProduct.name);
+                                }
+                              }}
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                            >
+                              <option value="">Selecciona un producto...</option>
+                              {availableProducts.map(p => (
+                                <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Cantidad */}
+                          <div>
+                            <label className="block text-white/60 text-xs mb-1">Cantidad *</label>
+                            <div className="flex gap-2">
+                              <input
+                                type="number"
+                                min="1"
+                                value={component.quantity}
+                                onChange={(e) => handleUpdateComponent(index, 'quantity', parseInt(e.target.value) || 1)}
+                                className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
+                              />
+                              <button
+                                onClick={() => handleRemoveComponent(index)}
+                                className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all"
+                              >
+                                <X className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Botones */}
             <div className="flex gap-3 pt-6 border-t border-white/10 mt-6">

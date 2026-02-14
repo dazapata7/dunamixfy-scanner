@@ -335,7 +335,8 @@ export function useWMS() {
           mappedItems.push({
             ...item,
             product_id: product.id,
-            product_name: product.name
+            product_name: product.name,
+            product: product  // ⭐ NUEVO: Incluir objeto completo (necesario para expandir combos)
           });
         }
 
