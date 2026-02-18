@@ -476,28 +476,14 @@ export function useWMS(cacheOpts = {}) {
     try {
       let dispatchId = dispatchOrId;
 
-      // 🔥 FIX: Si dispatch es un objeto sin ID, crearlo en BD primero
+      // 🔥 FIX: Si dispatch es un objeto sin ID (temporal), usar createAndConfirmDispatch
       if (typeof dispatchOrId === 'object' && !dispatchOrId.id) {
-        console.log('🔄 Dispatch temporal detectado - creando en BD primero...');
-        const tempDispatch = dispatchOrId;
-
-        //Crear dispatch en BD
-        const createdDispatch = await dispatchesService.create({
-          warehouse_id: tempDispatch.warehouse_id,
-          operator_id: tempDispatch.operator_id,
-          carrier_id: tempDispatch.carrier_id,
-          guide_code: tempDispatch.guide_code,
-          shipment_record_id: tempDispatch.shipment_record_id,
-          first_scanned_by: tempDispatch.first_scanned_by,
-          notes: tempDispatch.notes,
-          items: tempDispatch.items
-        });
-
-        dispatchId = createdDispatch.id;
-        console.log(`✅ Dispatch creado en BD con ID: ${dispatchId}`);
+        console.log('🔄 Dispatch temporal detectado - usando createAndConfirmDispatch...');
+        // createAndConfirmDispatch ya maneja: SKU mapping, shipment_record, Dunamixfy marking
+        return await createAndConfirmDispatch(dispatchOrId);
       }
 
-      console.log(`✅ Confirmando dispatch: ${dispatchId}`);
+      console.log(`✅ Confirmando dispatch existente: ${dispatchId}`);
 
       // 1. Confirmar dispatch (crea movimientos OUT)
       const confirmedDispatch = await dispatchesService.confirm(dispatchId);

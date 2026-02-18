@@ -172,6 +172,11 @@ export function RemoteScannerHost() {
         handleStatusChange(event);
         break;
 
+      case 'feedback':
+        // El Host recibe sus propios eventos de feedback (Realtime broadcast)
+        // No hay que procesarlos aquí - son para el Mobile Client
+        break;
+
       default:
         console.log('⚠️ Tipo de evento desconocido:', event.event_type);
     }
@@ -359,38 +364,14 @@ export function RemoteScannerHost() {
         return;
       }
 
-      // 🔥 DEBUG: Verificar estructura de items antes de confirmar
-      console.log('📦 Items a confirmar:', successItems);
-      successItems.forEach((item, idx) => {
-        console.log(`Item ${idx}:`, {
-          category: item.category,
-          dispatch_id: item.dispatch?.id,
-          shipment_id: item.shipmentRecord?.id,
-          dispatch_full: item.dispatch
-        });
-      });
+      toast.loading(`Confirmando ${successItems.length} despachos...`, { id: 'confirm' });
 
-      // 🔥 VALIDACIÓN: Filtrar solo items con dispatch válido
-      const validItems = successItems.filter(item => item.dispatch?.id);
-      const invalidItems = successItems.filter(item => !item.dispatch?.id);
-
-      if (invalidItems.length > 0) {
-        console.warn(`⚠️ ${invalidItems.length} items SUCCESS sin dispatch.id válido:`, invalidItems);
-      }
-
-      if (validItems.length === 0) {
-        toast.error('No hay dispatches válidos para confirmar');
-        return;
-      }
-
-      toast.loading(`Confirmando ${validItems.length} despachos...`, { id: 'confirm' });
-
-      for (const item of validItems) {
-        // 🔥 Pasar dispatch completo (puede ser temporal sin ID o con ID de BD)
+      for (const item of successItems) {
+        // Pasar dispatch completo - confirmDispatch maneja tanto ID existente como temporal
         await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
       }
 
-      toast.success(`✅ ${validItems.length} despachos confirmados`, { id: 'confirm' });
+      toast.success(`✅ ${successItems.length} despachos confirmados`, { id: 'confirm' });
 
       // Refrescar cache
       await refreshCache();
