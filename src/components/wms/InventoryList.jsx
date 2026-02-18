@@ -203,78 +203,63 @@ export function InventoryList() {
 
         {/* Lista de Productos */}
         {!isLoading && filteredStock.length > 0 && (
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
-            {/* Cabecera de tabla */}
-            <div className="grid grid-cols-12 gap-3 px-4 py-2 border-b border-white/10 text-xs text-white/40 font-medium uppercase tracking-wide">
-              <div className="col-span-5">Producto</div>
-              <div className="col-span-2 text-center">SKU</div>
-              <div className="col-span-2 text-center">Stock</div>
-              <div className="col-span-3 text-center">Estado</div>
-            </div>
+          <div className="space-y-2">
+            {filteredStock.map((item, index) => {
+              const status = getStockStatus(item.qty_on_hand);
 
-            {/* Filas */}
-            <div className="divide-y divide-white/5">
-              {filteredStock.map((item, index) => {
-                const status = getStockStatus(item.qty_on_hand);
-
-                return (
+              return (
+                <div
+                  key={index}
+                  className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 px-4 py-3 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                >
+                  {/* Foto */}
+                  {item.photo_url ? (
+                    <img
+                      src={item.photo_url}
+                      alt={item.product_name}
+                      className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
                   <div
-                    key={index}
-                    className="grid grid-cols-12 gap-3 px-4 py-3 items-center hover:bg-white/5 transition-all"
+                    className={`w-10 h-10 rounded-lg bg-white/5 border border-white/10 items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'}`}
+                    style={{ display: item.photo_url ? 'none' : 'flex' }}
                   >
-                    {/* Foto + Nombre */}
-                    <div className="col-span-5 flex items-center gap-3 min-w-0">
-                      {item.photo_url ? (
-                        <img
-                          src={item.photo_url}
-                          alt={item.product_name}
-                          className="w-10 h-10 object-cover rounded-lg border border-white/10 shrink-0"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div
-                        className={`w-10 h-10 rounded-lg bg-white/5 border border-white/10 items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'}`}
-                        style={{ display: item.photo_url ? 'none' : 'flex' }}
-                      >
-                        <Package className="w-5 h-5 text-white/30" />
-                      </div>
-                      <span className="text-white text-sm font-medium truncate" title={item.product_name}>
-                        {item.product_name}
-                      </span>
-                    </div>
-
-                    {/* SKU */}
-                    <div className="col-span-2 text-center">
-                      <span className="text-white/60 font-mono text-xs bg-white/5 px-2 py-1 rounded-lg border border-white/10">
-                        {item.sku}
-                      </span>
-                    </div>
-
-                    {/* Stock */}
-                    <div className="col-span-2 text-center">
-                      <span className={`text-lg font-bold ${
-                        item.qty_on_hand === 0 ? 'text-red-400' :
-                        item.qty_on_hand < 10 ? 'text-orange-400' :
-                        'text-white'
-                      }`}>
-                        {item.qty_on_hand}
-                      </span>
-                      <p className="text-white/40 text-[10px]">unidades</p>
-                    </div>
-
-                    {/* Estado */}
-                    <div className="col-span-3 flex justify-center">
-                      <span className={`text-xs px-3 py-1 rounded-lg border font-medium ${status.color}`}>
-                        {status.icon} {status.label}
-                      </span>
-                    </div>
+                    <Package className="w-5 h-5 text-white/30" />
                   </div>
-                );
-              })}
-            </div>
+
+                  {/* Nombre */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium text-sm truncate" title={item.product_name}>
+                      {item.product_name}
+                    </p>
+                    <p className="text-white/40 text-xs font-mono mt-0.5">{item.sku}</p>
+                  </div>
+
+                  {/* Stock */}
+                  <div className="text-right shrink-0">
+                    <span className={`text-2xl font-bold ${
+                      item.qty_on_hand === 0 ? 'text-red-400' :
+                      item.qty_on_hand < 10 ? 'text-orange-400' :
+                      'text-white'
+                    }`}>
+                      {item.qty_on_hand}
+                    </span>
+                    <p className="text-white/40 text-[10px]">unidades</p>
+                  </div>
+
+                  {/* Estado */}
+                  <div className="shrink-0 w-28 flex justify-center">
+                    <span className={`text-xs px-3 py-1 rounded-lg border font-medium ${status.color}`}>
+                      {status.icon} {status.label}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
 
