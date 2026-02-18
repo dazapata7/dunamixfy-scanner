@@ -16,16 +16,24 @@ export const dunamixfyApi = {
     try {
       console.log('🔍 Consultando orden en Dunamixfy CO:', code);
 
-      const response = await fetch(`${BASE_URL}/dfx_scanner_get_orderinfo`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${API_KEY}`
-        },
-        body: JSON.stringify({
-          code: code
-        })
-      });
+      // Timeout de 8 segundos para evitar esperas indefinidas
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+      let response;
+      try {
+        response = await fetch(`${BASE_URL}/dfx_scanner_get_orderinfo`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${API_KEY}`
+          },
+          body: JSON.stringify({ code }),
+          signal: controller.signal
+        });
+      } finally {
+        clearTimeout(timeoutId);
+      }
 
       if (!response.ok) {
         throw new Error(`API Error: ${response.status} ${response.statusText}`);
@@ -94,8 +102,19 @@ export const dunamixfyApi = {
 
     } catch (error) {
       console.error('❌ Error consultando Dunamixfy CO:', error);
+
+      // Detectar timeout específicamente
+      if (error.name === 'AbortError') {
+        return {
+          success: false,
+          errorType: 'TIMEOUT',
+          error: '⏱️ Tiempo de espera agotado (Dunamixfy no respondió en 8s)\nIntenta escanear de nuevo'
+        };
+      }
+
       return {
         success: false,
+        errorType: 'ERROR_OTHER',
         error: error.message || 'Error al consultar la orden'
       };
     }

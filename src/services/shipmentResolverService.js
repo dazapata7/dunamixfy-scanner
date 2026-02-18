@@ -22,18 +22,25 @@ export const shipmentResolverService = {
    * @param {boolean} skipRecord - Si es true, NO crea shipment_record (escaneo rápido)
    * @returns {Promise<Object>} - { items: [{sku, qty}], metadata, shipmentRecord }
    */
-  async resolveShipment(guideCode, carrierId, skipRecord = false) {
+  /**
+   * @param {Object} carrierObj - Objeto carrier completo (opcional, evita query a BD)
+   */
+  async resolveShipment(guideCode, carrierId, skipRecord = false, carrierObj = null) {
     console.log(`📦 Resolviendo envío: ${guideCode} (carrier: ${carrierId}) ${skipRecord ? '⚡ MODO RÁPIDO' : ''}`);
 
     try {
-      // 1. Obtener información de la transportadora
-      const { data: carrier, error: carrierError } = await supabase
-        .from('carriers')
-        .select('*')
-        .eq('id', carrierId)
-        .single();
-
-      if (carrierError) throw carrierError;
+      // 1. Obtener carrier: usar objeto pasado (en memoria) o hacer query a BD
+      let carrier = carrierObj;
+      if (!carrier) {
+        console.log('🐌 Carrier no en memoria, consultando BD...');
+        const { data, error: carrierError } = await supabase
+          .from('carriers')
+          .select('*')
+          .eq('id', carrierId)
+          .single();
+        if (carrierError) throw carrierError;
+        carrier = data;
+      }
 
       console.log(`🚚 Transportadora: ${carrier.display_name} (${carrier.code})`);
 

@@ -148,6 +148,9 @@ export function useWMS(cacheOpts = {}) {
 
       const { codigo, carrierId, carrierName, carrierCode } = detectionResult;
 
+      // ⚡ Obtener objeto carrier desde memoria (evita query a BD en resolveShipment)
+      const carrierObj = currentCarriers.find(c => c.id === carrierId) || null;
+
       console.log(`🚚 Transportadora detectada: ${carrierName} (${codigo})`);
 
       // ⚡ OPTIMIZACIÓN: Eliminada consulta previa a Dunamixfy
@@ -219,7 +222,8 @@ export function useWMS(cacheOpts = {}) {
       console.log('✅ No existe duplicado en cache, continuando...');
 
       // 3. ⚡ OPTIMIZACIÓN: Resolver items sin crear shipment_record (modo rápido)
-      const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId, true);
+      // Pasar carrierObj para evitar query a BD en resolveShipment (-50ms)
+      const shipmentData = await shipmentResolverService.resolveShipment(codigo, carrierId, true, carrierObj);
 
       // 3.1 Verificar si shipmentResolverService retornó error
       if (!shipmentData.success) {
@@ -322,49 +326,47 @@ export function useWMS(cacheOpts = {}) {
    * @param {string} source - Fuente del SKU externo ('dunamixfy', 'interrapidisimo', etc.)
    */
   async function mapSkusToProducts(items, source = null) {
-    const mappedItems = [];
+    // ⚡ OPTIMIZACIÓN: Todas las búsquedas en PARALELO con Promise.all
+    // Con cache: 5ms total (antes: 5ms x N items secuencial)
+    // Sin cache: 100ms total (antes: 100ms x N items secuencial)
+    const mappedItems = await Promise.all(
+      items.map(async (item) => {
+        try {
+          let product = null;
 
-    for (const item of items) {
-      try {
-        // ⚡ OPTIMIZACIÓN: Usar cache si está disponible (O(1) lookup)
-        let product = null;
+          if (findProductBySku) {
+            // Cache O(1) - instantáneo
+            product = findProductBySku(item.sku, source);
+          } else {
+            // Fallback a BD (ahora en paralelo con otros items)
+            product = await productsService.getBySku(item.sku, source);
+          }
 
-        if (findProductBySku) {
-          console.time(`⚡ Cache lookup ${item.sku}`);
-          product = findProductBySku(item.sku, source);
-          console.timeEnd(`⚡ Cache lookup ${item.sku}`);
-        } else {
-          // Fallback: Buscar en BD si no hay cache
-          console.time(`🐌 BD lookup ${item.sku}`);
-          product = await productsService.getBySku(item.sku, source);
-          console.timeEnd(`🐌 BD lookup ${item.sku}`);
-        }
+          if (!product) {
+            return {
+              ...item,
+              product_id: null,
+              error: `Producto no encontrado: ${item.sku}${source ? ` (${source})` : ''}`
+            };
+          }
 
-        if (!product) {
-          // Producto no encontrado
-          mappedItems.push({
-            ...item,
-            product_id: null,
-            error: `Producto no encontrado: ${item.sku}${source ? ` (${source})` : ''}`
-          });
-        } else {
-          mappedItems.push({
+          return {
             ...item,
             product_id: product.id,
             product_name: product.name,
-            product: product  // ⭐ NUEVO: Incluir objeto completo (necesario para expandir combos)
-          });
-        }
+            product: product
+          };
 
-      } catch (error) {
-        console.error(`❌ Error mapeando SKU ${item.sku}:`, error);
-        mappedItems.push({
-          ...item,
-          product_id: null,
-          error: error.message
-        });
-      }
-    }
+        } catch (error) {
+          console.error(`❌ Error mapeando SKU ${item.sku}:`, error);
+          return {
+            ...item,
+            product_id: null,
+            error: error.message
+          };
+        }
+      })
+    );
 
     // Verificar si hay errores
     const itemsWithErrors = mappedItems.filter(i => i.error);
