@@ -14,6 +14,7 @@ import { useStore } from '../../store/useStore';
 import { useWMS } from '../../hooks/useWMS';
 import { useScannerCache } from '../../hooks/useScannerCache';
 import { remoteScannerService } from '../../services/remoteScannerService';
+import { inventoryService } from '../../services/wmsService';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   ArrowLeft,
@@ -366,13 +367,38 @@ export function RemoteScannerHost() {
 
       toast.loading(`Confirmando ${successItems.length} despachos...`, { id: 'confirm' });
 
-      // Confirmar cada guía individualmente - un error no detiene las demás
+      // ⭐ PRE-VALIDACIÓN DE STOCK PARA TODO EL BATCH
+      const allBatchItems = successItems.flatMap(item =>
+        (item.dispatch?.items || []).map(i => ({
+          product_id: i.product_id,
+          sku: i.sku,
+          qty: i.qty
+        }))
+      );
+
+      if (allBatchItems.length > 0 && allBatchItems.some(i => i.product_id)) {
+        const batchValidation = await inventoryService.validateBatchStock(
+          selectedWarehouse.id,
+          allBatchItems
+        );
+
+        if (!batchValidation.valid) {
+          const insufficientItems = batchValidation.results
+            .filter(r => r.insufficient)
+            .map(r => `${r.sku || r.product_id} (necesita ${r.requested}, hay ${r.available})`)
+            .join(', ');
+          toast.error(`Stock insuficiente: ${insufficientItems}`, { id: 'confirm', duration: 8000 });
+          return;
+        }
+      }
+
+      // Confirmar cada guía individualmente (skip stock validation ya validado en lote)
       let confirmed = 0;
       const errors = [];
 
       for (const item of successItems) {
         try {
-          await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+          await confirmDispatch(item.dispatch, item.shipmentRecord?.id, { skipStockValidation: true });
           confirmed++;
           console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado`);
         } catch (itemError) {

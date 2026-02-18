@@ -266,6 +266,18 @@ export function useWMS(cacheOpts = {}) {
       // Todos los datos se guardan en memoria y se crean al confirmar el batch
       console.log('⚡ Escaneo rápido - datos guardados en memoria (NO en BD)');
 
+      // ⚡ Mapear SKUs a product_ids DURANTE el escaneo (con cache O(1))
+      // Esto permite: 1) detectar productos no encontrados temprano, 2) pre-validar stock en batch
+      const source = carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode;
+      let mappedItems;
+      try {
+        mappedItems = await mapSkusToProducts(shipmentData.items, source);
+      } catch (mappingError) {
+        console.warn('⚠️ Error mapeando SKUs durante escaneo:', mappingError.message);
+        // Guardar items sin mapear - se intentará de nuevo al confirmar
+        mappedItems = shipmentData.items;
+      }
+
       // Crear dispatch temporal en memoria
       const tempDispatch = {
         // Dispatch temporal en memoria (sin ID)
@@ -278,9 +290,9 @@ export function useWMS(cacheOpts = {}) {
         notes: `Creado desde escaneo WMS - ${carrierName}`,
         status: 'draft',
         created_at: new Date().toISOString(), // Para ordenamiento
-        // Items sin procesar (se mapean al confirmar)
-        items: shipmentData.items,
-        source: carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode,
+        // Items ya mapeados con product_id (para pre-validación de stock en batch)
+        items: mappedItems,
+        source,
         // ⚡ Guardar raw_payload para crear shipment_record al confirmar (si no existe)
         raw_payload: shipmentData.raw_payload || null
       };
@@ -305,7 +317,7 @@ export function useWMS(cacheOpts = {}) {
           customerName: shipmentData.metadata?.customer_name,
           orderId: shipmentData.metadata?.order_id,
           storeName: shipmentData.metadata?.store,
-          itemsCount: shipmentData.items.length
+          itemsCount: mappedItems.length
         }
       };
 
@@ -386,8 +398,10 @@ export function useWMS(cacheOpts = {}) {
    */
   /**
    * Crear y confirmar dispatch desde datos en memoria (escaneo rápido)
+   * @param {Object} dispatchData - Dispatch temporal en memoria
+   * @param {boolean} skipStockValidation - Si true, omite validación de stock (ya se validó en lote)
    */
-  const createAndConfirmDispatch = async (dispatchData) => {
+  const createAndConfirmDispatch = async (dispatchData, skipStockValidation = false) => {
     console.log(`⚡ Creando y confirmando dispatch: ${dispatchData.guide_code}`);
     setIsProcessing(true);
 
@@ -412,7 +426,7 @@ export function useWMS(cacheOpts = {}) {
         if (existing.status === 'draft') {
           console.log(`🔄 Dispatch en draft encontrado (${existing.dispatch_number}), confirmando...`);
           // Continuar con el id existente
-          const confirmedDispatch = await dispatchesService.confirm(existing.id);
+          const confirmedDispatch = await dispatchesService.confirm(existing.id, { skipStockValidation });
           return confirmedDispatch;
         }
 
@@ -432,8 +446,11 @@ export function useWMS(cacheOpts = {}) {
         console.log(`✅ Shipment record creado: ${shipmentRecordId}`);
       }
 
-      // 1. Mapear SKUs a product_ids
-      const itemsWithProducts = await mapSkusToProducts(dispatchData.items, dispatchData.source);
+      // 1. Mapear SKUs a product_ids (si ya fueron mapeados durante escaneo, reusar)
+      const needsMapping = dispatchData.items.some(i => !i.product_id);
+      const itemsWithProducts = needsMapping
+        ? await mapSkusToProducts(dispatchData.items, dispatchData.source)
+        : dispatchData.items;
 
       // 2. Crear dispatch en BD
       const dispatch = await dispatchesService.create({
@@ -449,7 +466,7 @@ export function useWMS(cacheOpts = {}) {
       console.log(`✅ Dispatch creado en BD: ${dispatch.dispatch_number}`);
 
       // 3. Confirmar dispatch (crea movimientos OUT)
-      const confirmedDispatch = await dispatchesService.confirm(dispatch.id);
+      const confirmedDispatch = await dispatchesService.confirm(dispatch.id, { skipStockValidation });
 
       // 4. Marcar shipment_record como PROCESSED
       if (shipmentRecordId) {
@@ -487,7 +504,7 @@ export function useWMS(cacheOpts = {}) {
     }
   };
 
-  const confirmDispatch = async (dispatchOrId, shipmentRecordId) => {
+  const confirmDispatch = async (dispatchOrId, shipmentRecordId, { skipStockValidation = false } = {}) => {
     setIsProcessing(true);
 
     try {
@@ -497,13 +514,13 @@ export function useWMS(cacheOpts = {}) {
       if (typeof dispatchOrId === 'object' && !dispatchOrId.id) {
         console.log('🔄 Dispatch temporal detectado - usando createAndConfirmDispatch...');
         // createAndConfirmDispatch ya maneja: SKU mapping, shipment_record, Dunamixfy marking
-        return await createAndConfirmDispatch(dispatchOrId);
+        return await createAndConfirmDispatch(dispatchOrId, skipStockValidation);
       }
 
       console.log(`✅ Confirmando dispatch existente: ${dispatchId}`);
 
       // 1. Confirmar dispatch (crea movimientos OUT)
-      const confirmedDispatch = await dispatchesService.confirm(dispatchId);
+      const confirmedDispatch = await dispatchesService.confirm(dispatchId, { skipStockValidation });
 
       // 2. Marcar shipment_record como PROCESSED
       if (shipmentRecordId) {

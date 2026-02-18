@@ -668,6 +668,35 @@ export const inventoryService = {
   },
 
   /**
+   * Validar stock para un lote completo de items (agregados)
+   * Suma todas las cantidades por producto antes de validar,
+   * evitando el problema de validaciones secuenciales que depletan el stock
+   * @param {string} warehouseId
+   * @param {Array} allItems - Array de {product_id, qty} de TODOS los dispatches del batch
+   */
+  async validateBatchStock(warehouseId, allItems) {
+    console.log(`🔍 Validando stock para batch: ${allItems.length} items totales...`);
+
+    // Agregar cantidades por product_id
+    const aggregated = new Map();
+    for (const item of allItems) {
+      if (!item.product_id) continue;
+      const existing = aggregated.get(item.product_id);
+      if (existing) {
+        existing.qty += item.qty;
+      } else {
+        aggregated.set(item.product_id, { product_id: item.product_id, sku: item.sku, qty: item.qty });
+      }
+    }
+
+    const aggregatedItems = Array.from(aggregated.values());
+    console.log(`📊 ${aggregatedItems.length} productos únicos en el batch`);
+
+    // Validar stock total para cada producto único
+    return await this.validateStock(warehouseId, aggregatedItems);
+  },
+
+  /**
    * Crear movimiento de inventario
    */
   async createMovement(movementData) {
@@ -934,7 +963,7 @@ export const dispatchesService = {
   /**
    * Confirmar despacho (validar stock + crear movimientos OUT)
    */
-  async confirm(dispatchId) {
+  async confirm(dispatchId, { skipStockValidation = false } = {}) {
     console.log(`✅ Confirmando despacho: ${dispatchId}`);
 
     try {
@@ -952,7 +981,8 @@ export const dispatchesService = {
       if (dispatchError) throw dispatchError;
 
       if (dispatch.status === 'confirmed') {
-        throw new Error('Este despacho ya fue confirmado');
+        console.log(`⏭️ Despacho ${dispatchId} ya confirmado, saltando...`);
+        return dispatch; // Retornar silenciosamente sin error
       }
 
       // Extraer order_id del shipment_record.raw_payload
@@ -963,19 +993,21 @@ export const dispatchesService = {
 
       console.log(`📋 Order ID externo: ${externalOrderId || 'N/A'}`);
 
-      // 2. Validar stock disponible
-      const stockValidation = await inventoryService.validateStock(
-        dispatch.warehouse_id,
-        dispatch.dispatch_items
-      );
+      // 2. Validar stock disponible (solo si no se skipea - para validación individual)
+      if (!skipStockValidation) {
+        const stockValidation = await inventoryService.validateStock(
+          dispatch.warehouse_id,
+          dispatch.dispatch_items
+        );
 
-      if (!stockValidation.valid) {
-        const insufficientItems = stockValidation.results
-          .filter(r => r.insufficient)
-          .map(r => `${r.sku} (necesita ${r.requested}, disponible ${r.available})`)
-          .join(', ');
+        if (!stockValidation.valid) {
+          const insufficientItems = stockValidation.results
+            .filter(r => r.insufficient)
+            .map(r => `${r.sku} (necesita ${r.requested}, disponible ${r.available})`)
+            .join(', ');
 
-        throw new Error(`Stock insuficiente: ${insufficientItems}`);
+          throw new Error(`Stock insuficiente: ${insufficientItems}`);
+        }
       }
 
       // 3. Crear movimientos OUT para cada item (con order_id y carrier_id para rastreabilidad)

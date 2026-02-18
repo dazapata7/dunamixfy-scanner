@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useWMS } from '../../hooks/useWMS';
 import { useScannerCache } from '../../hooks/useScannerCache';
+import { inventoryService } from '../../services/wmsService';
 import { useStore } from '../../store/useStore';
 import { ArrowLeft, CheckCircle2, XCircle, Package } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -591,15 +592,15 @@ export function ScanGuide() {
       });
     }
 
-    // Limpiar animación después de 2 segundos
-    setTimeout(() => setScanAnimation(null), 2000);
+    // Limpiar animación después de 1.5 segundos
+    setTimeout(() => setScanAnimation(null), 1500);
 
-    // Liberar cooldown rápido para escaneo continuo
+    // Cooldown de 800ms mínimo entre escaneos
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
       console.log('✅ Cooldown liberado, listo para siguiente escaneo');
-    }, 500); // Reducido de 2000ms a 500ms para escaneo ultra-rápido
+    }, 800);
   };
 
   const onScanError = (error) => {
@@ -703,13 +704,44 @@ export function ScanGuide() {
         return;
       }
 
-      // Confirmar cada guía individualmente - un error no detiene las demás
+      // ⭐ PRE-VALIDACIÓN DE STOCK PARA TODO EL BATCH
+      // Agregar todos los items de todos los dispatches del batch
+      // Esto evita que validaciones secuenciales fallen por stock que ya fue reservado
+      // por un dispatch anterior confirmado en el mismo loop
+      const allBatchItems = successItems.flatMap(item =>
+        (item.dispatch?.items || []).map(i => ({
+          product_id: i.product_id,
+          sku: i.sku,
+          qty: i.qty
+        }))
+      );
+
+      if (allBatchItems.length > 0 && allBatchItems.some(i => i.product_id)) {
+        console.log(`🔍 Pre-validando stock para ${allBatchItems.length} items del batch...`);
+        const batchValidation = await inventoryService.validateBatchStock(
+          selectedWarehouse.id,
+          allBatchItems
+        );
+
+        if (!batchValidation.valid) {
+          const insufficientItems = batchValidation.results
+            .filter(r => r.insufficient)
+            .map(r => `${r.sku || r.product_id} (necesita ${r.requested}, hay ${r.available})`)
+            .join(', ');
+          toast.error(`Stock insuficiente para el batch:\n${insufficientItems}`, { duration: 8000 });
+          return;
+        }
+        console.log('✅ Stock suficiente para todo el batch - confirmando...');
+      }
+
+      // Confirmar cada guía individualmente (skip stock validation ya que se validó en lote)
+      // Un error individual no detiene las demás
       let confirmed = 0;
       const errors = [];
 
       for (const item of successItems) {
         try {
-          await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+          await confirmDispatch(item.dispatch, item.shipmentRecord?.id, { skipStockValidation: true });
           confirmed++;
           console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado`);
         } catch (itemError) {

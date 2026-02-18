@@ -43,6 +43,7 @@ export function RemoteScannerClient() {
   // Feedback visual
   const [lastFeedback, setLastFeedback] = useState(null); // { success, message, timestamp }
   const [scanAnimation, setScanAnimation] = useState(null); // 'success' | 'error'
+  const [justDetected, setJustDetected] = useState(false); // Flash verde inmediato al detectar
 
   // Conectar a sesión (solo 1 vez)
   useEffect(() => {
@@ -228,12 +229,12 @@ export function RemoteScannerClient() {
       setScanAnimation(null);
     }, 1000);
 
-    // 🔥 FIX: Liberar cooldown INMEDIATAMENTE para poder escanear siguiente código
+    // Liberar cooldown después de 800ms mínimo (tiempo para ver feedback y retirar el móvil)
     setTimeout(() => {
       scanCooldown.current = false;
       lastScannedCode.current = null;
       console.log('✅ Cooldown liberado - Listo para siguiente escaneo');
-    }, 1000); // Reducido de 1500ms a 1000ms
+    }, 800);
   }
 
   /**
@@ -402,12 +403,17 @@ export function RemoteScannerClient() {
 
     console.log('🔍 Código detectado:', decodedText, decodedResult);
 
-    // 🎯 Dibujar marco verde inmediatamente
-    drawDetectionBox(decodedResult);
-
-    // Activar cooldown
+    // Activar cooldown ANTES de todo
     scanCooldown.current = true;
     lastScannedCode.current = decodedText;
+
+    // 🟢 Flash verde inmediato - usuario sabe que ya fue detectado
+    setJustDetected(true);
+    drawDetectionBox(decodedResult);
+    vibrate([80]); // Vibración inmediata de confirmación
+
+    // Quitar flash verde a los 800ms (tiempo mínimo entre escaneos)
+    setTimeout(() => setJustDetected(false), 800);
 
     try {
       // Enviar al PC via Realtime
@@ -418,19 +424,17 @@ export function RemoteScannerClient() {
       // Feedback visual inmediato (antes de recibir respuesta del PC)
       toast.loading('Procesando en PC...', { id: 'processing' });
 
-      // Vibración inmediata
-      vibrate([50]);
-
-      // 🔥 TIMEOUT DE SEGURIDAD: Si no llega feedback en 5s, liberar cooldown
+      // TIMEOUT DE SEGURIDAD: Si no llega feedback en 10s, liberar cooldown
+      // (el PC puede tardar hasta 8s en Dunamixfy + procesamiento)
       setTimeout(() => {
         if (scanCooldown.current && lastScannedCode.current === decodedText) {
           console.warn('⚠️ Timeout esperando feedback del PC - liberando cooldown');
           scanCooldown.current = false;
           lastScannedCode.current = null;
           toast.dismiss('processing');
-          toast('⏱️ Timeout - listo para siguiente escaneo', { duration: 2000 });
+          toast('⏱️ Sin respuesta del PC - listo para siguiente escaneo', { duration: 2000 });
         }
-      }, 5000);
+      }, 10000);
 
     } catch (error) {
       console.error('❌ Error al enviar escaneo:', error);
@@ -551,12 +555,17 @@ export function RemoteScannerClient() {
       {/* Scanner (fondo completo) - SIN clase scanner-container */}
       <div id="remote-client-reader" className="absolute inset-0" />
 
-      {/* Overlay de feedback (cuando se recibe respuesta del PC) */}
+      {/* Flash verde INMEDIATO al detectar código (antes de respuesta del PC) */}
+      {justDetected && !scanAnimation && (
+        <div className="absolute inset-0 pointer-events-none bg-green-500/30 border-4 border-green-400 transition-opacity duration-200" />
+      )}
+
+      {/* Overlay de feedback del PC (success/error) */}
       {scanAnimation && (
         <div className={`absolute inset-0 pointer-events-none transition-opacity duration-300 ${
           scanAnimation === 'success'
-            ? 'bg-green-500/20 border-4 border-green-500'
-            : 'bg-red-500/20 border-4 border-red-500'
+            ? 'bg-green-500/40 border-4 border-green-500'
+            : 'bg-red-500/30 border-4 border-red-500'
         }`} />
       )}
 
