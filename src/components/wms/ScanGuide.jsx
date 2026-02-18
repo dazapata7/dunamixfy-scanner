@@ -703,17 +703,32 @@ export function ScanGuide() {
         return;
       }
 
-      // Confirmar solo las guías SUCCESS
+      // Confirmar cada guía individualmente - un error no detiene las demás
+      let confirmed = 0;
+      const errors = [];
+
       for (const item of successItems) {
-        // 🔥 Pasar dispatch completo (puede ser temporal sin ID o con ID de BD)
-        await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
-        console.log(`✅ Dispatch confirmado`);
+        try {
+          await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+          confirmed++;
+          console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado`);
+        } catch (itemError) {
+          console.error(`❌ Error confirmando guía ${item.dispatch?.guide_code}:`, itemError);
+          errors.push(item.dispatch?.guide_code || 'desconocida');
+        }
       }
 
-      const successMsg = `✅ ${successItems.length} despacho${successItems.length > 1 ? 's' : ''} confirmado${successItems.length > 1 ? 's' : ''}`;
-      const omittedMsg = omittedItems > 0 ? ` | ⚠️ ${omittedItems} omitida${omittedItems > 1 ? 's' : ''}` : '';
-
-      toast.success(successMsg + omittedMsg, { duration: 5000 });
+      // Mostrar resultado real (no el esperado)
+      if (confirmed > 0 && errors.length === 0) {
+        const msg = `✅ ${confirmed} despacho${confirmed > 1 ? 's' : ''} confirmado${confirmed > 1 ? 's' : ''}`;
+        const omitMsg = omittedItems > 0 ? ` | ⚠️ ${omittedItems} omitida${omittedItems > 1 ? 's' : ''}` : '';
+        toast.success(msg + omitMsg, { duration: 5000 });
+      } else if (confirmed > 0 && errors.length > 0) {
+        toast(`⚠️ ${confirmed} confirmadas, ${errors.length} con error`, { duration: 6000 });
+      } else {
+        toast.error(`❌ No se pudo confirmar ningún despacho`);
+        return; // No navegar si todo falló
+      }
 
       // ⚡ OPTIMIZACIÓN: Refrescar cache después de confirmar batch
       console.log('🔄 Refrescando cache de productos/stock...');

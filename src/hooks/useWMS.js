@@ -401,6 +401,21 @@ export function useWMS(cacheOpts = {}) {
 
       if (existing) {
         console.warn(`⚠️ Dispatch ya existe para guía ${dispatchData.guide_code}:`, existing);
+
+        // Si ya está confirmado, es un duplicado real - saltar silenciosamente
+        if (existing.status === 'confirmed') {
+          console.log(`✅ Guía ${dispatchData.guide_code} ya confirmada anteriormente, saltando...`);
+          return existing; // Retornar el existente sin error
+        }
+
+        // Si está en draft, confirmar el existente en lugar de crear uno nuevo
+        if (existing.status === 'draft') {
+          console.log(`🔄 Dispatch en draft encontrado (${existing.dispatch_number}), confirmando...`);
+          // Continuar con el id existente
+          const confirmedDispatch = await dispatchesService.confirm(existing.id);
+          return confirmedDispatch;
+        }
+
         throw new Error(`Guía ${dispatchData.guide_code} ya fue procesada (${existing.dispatch_number})`);
       }
 
@@ -517,13 +532,13 @@ export function useWMS(cacheOpts = {}) {
       }
 
       console.log('✅ Dispatch confirmado exitosamente');
-      toast.success('Despacho confirmado exitosamente');
+      // Toast manejado por el componente que llama (no duplicar toasts en batch)
 
       return confirmedDispatch;
 
     } catch (error) {
       console.error('❌ Error al confirmar dispatch:', error);
-      toast.error(error.message || 'Error al confirmar el despacho');
+      // No mostrar toast aquí - el componente maneja el resultado del batch
 
       // Si hay error y tenemos shipmentRecordId, marcarlo como ERROR
       if (shipmentRecordId) {

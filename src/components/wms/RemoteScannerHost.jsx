@@ -366,21 +366,37 @@ export function RemoteScannerHost() {
 
       toast.loading(`Confirmando ${successItems.length} despachos...`, { id: 'confirm' });
 
+      // Confirmar cada guía individualmente - un error no detiene las demás
+      let confirmed = 0;
+      const errors = [];
+
       for (const item of successItems) {
-        // Pasar dispatch completo - confirmDispatch maneja tanto ID existente como temporal
-        await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+        try {
+          await confirmDispatch(item.dispatch, item.shipmentRecord?.id);
+          confirmed++;
+          console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado`);
+        } catch (itemError) {
+          console.error(`❌ Error confirmando guía ${item.dispatch?.guide_code}:`, itemError);
+          errors.push(item.dispatch?.guide_code || 'desconocida');
+        }
       }
 
-      toast.success(`✅ ${successItems.length} despachos confirmados`, { id: 'confirm' });
+      // Mostrar resultado real
+      if (confirmed > 0 && errors.length === 0) {
+        toast.success(`✅ ${confirmed} despachos confirmados`, { id: 'confirm' });
+      } else if (confirmed > 0 && errors.length > 0) {
+        toast(`⚠️ ${confirmed} confirmadas, ${errors.length} con error`, { id: 'confirm', duration: 6000 });
+      } else {
+        toast.error(`❌ No se pudo confirmar ningún despacho`, { id: 'confirm' });
+        return;
+      }
 
       // Refrescar cache
       await refreshCache();
 
-      // Limpiar batch
+      // Limpiar batch y completar sesión
       setDispatchesBatch([]);
-
-      // Completar sesión
-      await remoteScannerService.updateStatus(session.id, 'completed');
+      await remoteScannerService.updateStatus(sessionRef.current?.id || session.id, 'completed');
       navigate('/wms');
 
     } catch (error) {
