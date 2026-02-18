@@ -66,6 +66,10 @@ export function ScanGuide() {
   // Último escaneo (para feedback visual como Scanner.jsx)
   const [lastScan, setLastScan] = useState(null);
 
+  // Progreso de confirmación (para overlay de progreso)
+  const [confirmProgress, setConfirmProgress] = useState(null); // null | { current, total, currentCode }
+  const [isConfirming, setIsConfirming] = useState(false);
+
   // Calcular estadísticas del batch por categoría
   const batchStats = {
     success: dispatchesBatch.filter(item => item.category === 'SUCCESS').length,
@@ -692,22 +696,22 @@ export function ScanGuide() {
   };
 
   const handleConfirmBatch = async () => {
-    try {
-      // Solo confirmar guías SUCCESS (nuevas)
-      const successItems = dispatchesBatch.filter(item => item.category === 'SUCCESS');
-      const omittedItems = dispatchesBatch.length - successItems.length;
+    // Solo confirmar guías SUCCESS (nuevas)
+    const successItems = dispatchesBatch.filter(item => item.category === 'SUCCESS');
+    const omittedItems = dispatchesBatch.length - successItems.length;
 
+    if (successItems.length === 0) {
+      toast.error('No hay guías nuevas para confirmar');
+      return;
+    }
+
+    setIsConfirming(true);
+    setConfirmProgress({ current: 0, total: successItems.length, currentCode: null });
+
+    try {
       console.log(`📦 Confirmando ${successItems.length} guías nuevas (${omittedItems} omitidas)...`);
 
-      if (successItems.length === 0) {
-        toast.error('No hay guías nuevas para confirmar');
-        return;
-      }
-
       // ⭐ PRE-VALIDACIÓN DE STOCK PARA TODO EL BATCH
-      // Agregar todos los items de todos los dispatches del batch
-      // Esto evita que validaciones secuenciales fallen por stock que ya fue reservado
-      // por un dispatch anterior confirmado en el mismo loop
       const allBatchItems = successItems.flatMap(item =>
         (item.dispatch?.items || []).map(i => ({
           product_id: i.product_id,
@@ -734,16 +738,19 @@ export function ScanGuide() {
         console.log('✅ Stock suficiente para todo el batch - confirmando...');
       }
 
-      // Confirmar cada guía individualmente (skip stock validation ya que se validó en lote)
-      // Un error individual no detiene las demás
+      // Confirmar cada guía individualmente con progreso visible
       let confirmed = 0;
       const errors = [];
 
-      for (const item of successItems) {
+      for (let i = 0; i < successItems.length; i++) {
+        const item = successItems[i];
         const guideCode = item.dispatch?.guide_code || 'desconocida';
+
+        // Actualizar progreso
+        setConfirmProgress({ current: i + 1, total: successItems.length, currentCode: guideCode });
+
         try {
-          console.log(`🔄 Confirmando guía ${guideCode} (${errors.length + confirmed + 1}/${successItems.length})...`);
-          console.log(`   dispatch.id=${item.dispatch?.id}, items=${item.dispatch?.items?.length}, shipmentRecord=${item.shipmentRecord?.id}`);
+          console.log(`🔄 Confirmando guía ${guideCode} (${i + 1}/${successItems.length})...`);
           await confirmDispatch(item.dispatch, item.shipmentRecord?.id, { skipStockValidation: true });
           confirmed++;
           console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado: ${guideCode}`);
@@ -753,26 +760,24 @@ export function ScanGuide() {
         }
       }
 
-      // Mostrar resultado real (no el esperado)
+      // Mostrar resultado
       if (confirmed > 0 && errors.length === 0) {
         const msg = `✅ ${confirmed} despacho${confirmed > 1 ? 's' : ''} confirmado${confirmed > 1 ? 's' : ''}`;
         const omitMsg = omittedItems > 0 ? ` | ⚠️ ${omittedItems} omitida${omittedItems > 1 ? 's' : ''}` : '';
         toast.success(msg + omitMsg, { duration: 5000 });
       } else if (confirmed > 0 && errors.length > 0) {
-        // Mostrar qué guías fallaron para diagnóstico
         console.error('❌ Guías con error al confirmar:', errors);
         toast(`⚠️ ${confirmed} confirmadas | ❌ ${errors.length} fallaron:\n${errors.join(', ')}`, { duration: 8000 });
       } else {
         toast.error(`❌ No se pudo confirmar ningún despacho`);
-        return; // No navegar si todo falló
+        return;
       }
 
-      // ⚡ OPTIMIZACIÓN: Refrescar cache después de confirmar batch
+      // Refrescar cache
       console.log('🔄 Refrescando cache de productos/stock...');
       await refreshCache();
-      console.log('✅ Cache actualizado');
 
-      // Limpiar batch y volver al WMS Home
+      // Limpiar y navegar
       setDispatchesBatch([]);
       setShowBatchSummary(false);
       navigate('/wms');
@@ -780,6 +785,9 @@ export function ScanGuide() {
     } catch (error) {
       console.error('❌ Error al confirmar batch:', error);
       toast.error(error.message || 'Error al confirmar los despachos');
+    } finally {
+      setIsConfirming(false);
+      setConfirmProgress(null);
     }
   };
 
@@ -817,7 +825,8 @@ export function ScanGuide() {
         stats={batchStats}
         onConfirm={handleConfirmBatch}
         onCancel={handleCancelBatch}
-        isProcessing={isProcessing}
+        isProcessing={isConfirming}
+        confirmProgress={confirmProgress}
       />
     );
   }

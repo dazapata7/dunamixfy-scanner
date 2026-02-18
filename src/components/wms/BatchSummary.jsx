@@ -5,7 +5,7 @@
 // Con opción de confirmar solo nuevas u omitir repetidas
 // =====================================================
 
-export function BatchSummary({ batch, stats, onConfirm, onCancel, isProcessing }) {
+export function BatchSummary({ batch, stats, onConfirm, onCancel, isProcessing, confirmProgress }) {
   const {
     success,
     repeatedToday,
@@ -254,7 +254,9 @@ export function BatchSummary({ batch, stats, onConfirm, onCancel, isProcessing }
             {isProcessing ? (
               <span className="flex items-center justify-center gap-2">
                 <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Confirmando...
+                {confirmProgress
+                  ? `Confirmando ${confirmProgress.current} de ${confirmProgress.total}...`
+                  : 'Confirmando...'}
               </span>
             ) : confirmable === 0 ? (
               'Sin guías para confirmar'
@@ -263,6 +265,36 @@ export function BatchSummary({ batch, stats, onConfirm, onCancel, isProcessing }
             )}
           </button>
         </div>
+
+        {/* Overlay de progreso (bloquea toda la pantalla mientras confirma) */}
+        {isProcessing && (
+          <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-dark-900 border border-white/10 rounded-2xl p-8 text-center max-w-sm w-full mx-4 shadow-2xl">
+              <div className="w-16 h-16 border-4 border-green-500/30 border-t-green-500 rounded-full animate-spin mx-auto mb-4" />
+              <h3 className="text-white font-bold text-xl mb-2">Confirmando despachos</h3>
+              {confirmProgress ? (
+                <>
+                  <p className="text-green-400 font-bold text-3xl mb-1">
+                    {confirmProgress.current} / {confirmProgress.total}
+                  </p>
+                  <div className="w-full bg-white/10 rounded-full h-2 mt-3">
+                    <div
+                      className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${(confirmProgress.current / confirmProgress.total) * 100}%` }}
+                    />
+                  </div>
+                  {confirmProgress.currentCode && (
+                    <p className="text-white/40 text-xs font-mono mt-3 truncate">
+                      {confirmProgress.currentCode}
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="text-white/60 text-sm">Por favor espere...</p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
