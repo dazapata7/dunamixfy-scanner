@@ -272,10 +272,12 @@ export function useWMS(cacheOpts = {}) {
       let mappedItems;
       try {
         mappedItems = await mapSkusToProducts(shipmentData.items, source);
+        console.log(`✅ SKUs mapeados: ${mappedItems.map(i => `${i.sku}→${i.product_id}`).join(', ')}`);
       } catch (mappingError) {
-        console.warn('⚠️ Error mapeando SKUs durante escaneo:', mappingError.message);
-        // Guardar items sin mapear - se intentará de nuevo al confirmar
-        mappedItems = shipmentData.items;
+        // Si el mapeo falla (producto no encontrado), LANZAR el error inmediatamente
+        // para que el scanner lo muestre como ERROR en el scan (no esperar hasta confirmar)
+        console.error('❌ Error mapeando SKUs - productos no encontrados:', mappingError.message);
+        throw mappingError; // Propaga al try/catch de scanGuideForDispatch que lo retorna como ERROR_OTHER
       }
 
       // Crear dispatch temporal en memoria
@@ -402,23 +404,25 @@ export function useWMS(cacheOpts = {}) {
    * @param {boolean} skipStockValidation - Si true, omite validación de stock (ya se validó en lote)
    */
   const createAndConfirmDispatch = async (dispatchData, skipStockValidation = false) => {
-    console.log(`⚡ Creando y confirmando dispatch: ${dispatchData.guide_code}`);
+    const guideCode = dispatchData.guide_code;
+    console.log(`⚡ Creando y confirmando dispatch: ${guideCode}`);
     setIsProcessing(true);
 
     try {
       // 0.0 VALIDAR QUE NO EXISTA YA EN BD (prevenir duplicados)
+      console.log(`[1/5] Verificando duplicado en BD para ${guideCode}...`);
       const { data: existing } = await supabase
         .from('dispatches')
         .select('id, dispatch_number, status, guide_code')
-        .eq('guide_code', dispatchData.guide_code)
+        .eq('guide_code', guideCode)
         .maybeSingle();
 
       if (existing) {
-        console.warn(`⚠️ Dispatch ya existe para guía ${dispatchData.guide_code}:`, existing);
+        console.warn(`⚠️ Dispatch ya existe para guía ${guideCode}:`, existing);
 
         // Si ya está confirmado, es un duplicado real - saltar silenciosamente
         if (existing.status === 'confirmed') {
-          console.log(`✅ Guía ${dispatchData.guide_code} ya confirmada anteriormente, saltando...`);
+          console.log(`✅ Guía ${guideCode} ya confirmada anteriormente, saltando...`);
           return existing; // Retornar el existente sin error
         }
 
@@ -430,11 +434,12 @@ export function useWMS(cacheOpts = {}) {
           return confirmedDispatch;
         }
 
-        throw new Error(`Guía ${dispatchData.guide_code} ya fue procesada (${existing.dispatch_number})`);
+        throw new Error(`Guía ${guideCode} ya fue procesada (${existing.dispatch_number})`);
       }
 
       // 0.1 CREAR SHIPMENT_RECORD SI NO EXISTE (se omitió durante escaneo rápido)
       let shipmentRecordId = dispatchData.shipment_record_id;
+      console.log(`[2/5] shipment_record_id=${shipmentRecordId}, raw_payload=${!!dispatchData.raw_payload}`);
 
       if (!shipmentRecordId && dispatchData.raw_payload) {
         console.log('📝 Creando shipment_record omitido durante escaneo rápido...');
@@ -448,11 +453,14 @@ export function useWMS(cacheOpts = {}) {
 
       // 1. Mapear SKUs a product_ids (si ya fueron mapeados durante escaneo, reusar)
       const needsMapping = dispatchData.items.some(i => !i.product_id);
+      console.log(`[3/5] Mapeando SKUs: needsMapping=${needsMapping}, items=${dispatchData.items.length}`);
+      console.log(`   Items: ${JSON.stringify(dispatchData.items.map(i => ({sku: i.sku, product_id: i.product_id, qty: i.qty})))}`);
       const itemsWithProducts = needsMapping
         ? await mapSkusToProducts(dispatchData.items, dispatchData.source)
         : dispatchData.items;
 
       // 2. Crear dispatch en BD
+      console.log(`[4/5] Creando dispatch en BD con ${itemsWithProducts.length} items...`);
       const dispatch = await dispatchesService.create({
         warehouse_id: dispatchData.warehouse_id,
         operator_id: dispatchData.operator_id,
@@ -463,9 +471,10 @@ export function useWMS(cacheOpts = {}) {
         notes: dispatchData.notes
       }, itemsWithProducts);
 
-      console.log(`✅ Dispatch creado en BD: ${dispatch.dispatch_number}`);
+      console.log(`✅ Dispatch creado en BD: ${dispatch.dispatch_number} (id=${dispatch.id})`);
 
       // 3. Confirmar dispatch (crea movimientos OUT)
+      console.log(`[5/5] Confirmando dispatch ${dispatch.id}...`);
       const confirmedDispatch = await dispatchesService.confirm(dispatch.id, { skipStockValidation });
 
       // 4. Marcar shipment_record como PROCESSED

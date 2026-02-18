@@ -740,13 +740,16 @@ export function ScanGuide() {
       const errors = [];
 
       for (const item of successItems) {
+        const guideCode = item.dispatch?.guide_code || 'desconocida';
         try {
+          console.log(`🔄 Confirmando guía ${guideCode} (${errors.length + confirmed + 1}/${successItems.length})...`);
+          console.log(`   dispatch.id=${item.dispatch?.id}, items=${item.dispatch?.items?.length}, shipmentRecord=${item.shipmentRecord?.id}`);
           await confirmDispatch(item.dispatch, item.shipmentRecord?.id, { skipStockValidation: true });
           confirmed++;
-          console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado`);
+          console.log(`✅ Dispatch ${confirmed}/${successItems.length} confirmado: ${guideCode}`);
         } catch (itemError) {
-          console.error(`❌ Error confirmando guía ${item.dispatch?.guide_code}:`, itemError);
-          errors.push(item.dispatch?.guide_code || 'desconocida');
+          console.error(`❌ Error confirmando guía ${guideCode}:`, itemError.message, itemError);
+          errors.push(guideCode);
         }
       }
 
@@ -756,7 +759,9 @@ export function ScanGuide() {
         const omitMsg = omittedItems > 0 ? ` | ⚠️ ${omittedItems} omitida${omittedItems > 1 ? 's' : ''}` : '';
         toast.success(msg + omitMsg, { duration: 5000 });
       } else if (confirmed > 0 && errors.length > 0) {
-        toast(`⚠️ ${confirmed} confirmadas, ${errors.length} con error`, { duration: 6000 });
+        // Mostrar qué guías fallaron para diagnóstico
+        console.error('❌ Guías con error al confirmar:', errors);
+        toast(`⚠️ ${confirmed} confirmadas | ❌ ${errors.length} fallaron:\n${errors.join(', ')}`, { duration: 8000 });
       } else {
         toast.error(`❌ No se pudo confirmar ningún despacho`);
         return; // No navegar si todo falló
