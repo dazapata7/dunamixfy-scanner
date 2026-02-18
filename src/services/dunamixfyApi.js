@@ -16,9 +16,9 @@ export const dunamixfyApi = {
     try {
       console.log('🔍 Consultando orden en Dunamixfy CO:', code);
 
-      // Timeout de 8 segundos para evitar esperas indefinidas
+      // Timeout de 5 segundos para evitar esperas indefinidas
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
 
       let response;
       try {
@@ -108,7 +108,7 @@ export const dunamixfyApi = {
         return {
           success: false,
           errorType: 'TIMEOUT',
-          error: '⏱️ Tiempo de espera agotado (Dunamixfy no respondió en 8s)\nIntenta escanear de nuevo'
+          error: '⏱️ Tiempo de espera agotado (Dunamixfy no respondió en 5s)\nIntenta escanear de nuevo'
         };
       }
 

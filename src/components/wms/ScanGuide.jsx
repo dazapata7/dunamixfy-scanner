@@ -368,9 +368,10 @@ export function ScanGuide() {
   // =====================================================
 
   const onScanSuccess = async (decodedText, decodedResult) => {
-    // Prevenir escaneos duplicados (copiado de Scanner.jsx)
-    if (isProcessing || scanCooldown.current) {
-      console.log('⏭️ Escaneo ignorado (procesando o en cooldown)');
+    // Prevenir escaneos duplicados - solo cooldown, NO isProcessing
+    // isProcessing bloquearía el scanner 800ms-2s durante llamada a Dunamixfy API
+    if (scanCooldown.current) {
+      console.log('⏭️ Escaneo ignorado (en cooldown)');
       return;
     }
 
@@ -1004,16 +1005,10 @@ export function ScanGuide() {
         </div>
       )}
 
-      {/* Processing Overlay */}
+      {/* Processing indicator - solo barra pequeña en top, no bloquea cámara */}
       {isProcessing && (
-        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-30">
-          <div className="text-center text-white">
-            <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-lg font-medium">Procesando guía...</p>
-            <p className="text-sm text-white/60 mt-2">
-              Validando stock y creando despacho
-            </p>
-          </div>
+        <div className="absolute top-0 left-0 right-0 z-30 h-1">
+          <div className="h-1 bg-primary-500 animate-pulse w-full" />
         </div>
       )}
     </div>
