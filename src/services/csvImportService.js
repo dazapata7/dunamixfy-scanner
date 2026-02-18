@@ -342,7 +342,7 @@ export const csvImportService = {
       .select('id, status')
       .eq('guide_code', guideCode)
       .eq('carrier_id', carrierId)
-      .single();
+      .maybeSingle(); // maybeSingle: retorna null si no existe (no lanza 406)
 
     let shipmentRecordId;
 
