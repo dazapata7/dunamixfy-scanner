@@ -270,25 +270,10 @@ export function useWMS(cacheOpts = {}) {
       // Esto permite: 1) detectar productos no encontrados temprano, 2) pre-validar stock en batch
       const source = carrierCode === 'coordinadora' ? 'dunamixfy' : carrierCode;
 
-      // ⚡ Si los items ya traen product_id (ej. Interrápidisimo los guarda en BD),
-      // intentar mapeo suave: usar product_id existente como fallback si no hay mapping
-      let mappedItems;
-      try {
-        mappedItems = await mapSkusToProducts(shipmentData.items, source);
-        console.log(`✅ SKUs mapeados: ${mappedItems.map(i => `${i.sku}→${i.product_id}`).join(', ')}`);
-      } catch (mappingError) {
-        // Si el mapeo falla, verificar si los items ya traen product_id de la BD
-        // (Interrápidisimo los guarda en shipment_items.product_id)
-        const itemsWithPreloadedProductId = shipmentData.items.filter(i => i.product_id);
-        if (itemsWithPreloadedProductId.length === shipmentData.items.length) {
-          console.log(`✅ Usando product_ids precargados desde BD (${itemsWithPreloadedProductId.length} items)`);
-          mappedItems = shipmentData.items; // ya tienen product_id
-        } else {
-          // Algunos items no tienen product_id NI mapping → error real
-          console.error('❌ Error mapeando SKUs - productos no encontrados:', mappingError.message);
-          throw mappingError; // Propaga al try/catch de scanGuideForDispatch que lo retorna como ERROR_OTHER
-        }
-      }
+      // ⚡ Mapear SKUs a product_ids (con cache O(1))
+      // NO lanza error si no se encuentra - retorna items con product_id:null y se maneja al confirmar
+      const mappedItems = await mapSkusToProducts(shipmentData.items, source);
+      console.log(`✅ SKUs mapeados: ${mappedItems.map(i => `${i.sku}→${i.product_id || 'NO_ENCONTRADO'}`).join(', ')}`);
 
       // Crear dispatch temporal en memoria
       const tempDispatch = {
@@ -397,10 +382,11 @@ export function useWMS(cacheOpts = {}) {
       })
     );
 
-    // Verificar si hay errores
-    const itemsWithErrors = mappedItems.filter(i => i.error);
+    // Loguear advertencia si hay items sin product_id (no lanzar error - se maneja al confirmar)
+    const itemsWithErrors = mappedItems.filter(i => !i.product_id);
     if (itemsWithErrors.length > 0) {
-      throw new Error(`Productos no encontrados: ${itemsWithErrors.map(i => i.sku).join(', ')}`);
+      console.warn(`⚠️ ${itemsWithErrors.length} items sin product_id: ${itemsWithErrors.map(i => i.sku).join(', ')}`);
+      console.warn('   → Estos items necesitan mapping en product_sku_mappings para poder despacharse');
     }
 
     return mappedItems;
