@@ -368,16 +368,15 @@ export function ScanGuide() {
   // =====================================================
 
   const onScanSuccess = async (decodedText, decodedResult) => {
-    // Prevenir escaneos duplicados - solo cooldown, NO isProcessing
-    // isProcessing bloquearía el scanner 800ms-2s durante llamada a Dunamixfy API
-    if (scanCooldown.current) {
-      console.log('⏭️ Escaneo ignorado (en cooldown)');
-      return;
+    // Ignorar si es el mismo código que el último escaneado (cámara sigue apuntando)
+    // lastScannedCode se mantiene hasta que se escanee un código DIFERENTE
+    if (lastScannedCode.current === decodedText) {
+      return; // Silencioso - es normal que la cámara detecte el mismo código múltiples veces
     }
 
-    // Si es el mismo código reciente, ignorar
-    if (lastScannedCode.current === decodedText) {
-      console.log('⏭️ Código duplicado ignorado (mismo código reciente)');
+    // Prevenir escaneos concurrentes (mientras se procesa el código anterior)
+    if (scanCooldown.current) {
+      console.log('⏭️ Escaneo ignorado (en cooldown)');
       return;
     }
 
@@ -422,13 +421,11 @@ export function ScanGuide() {
             isError: true
           });
 
-          // ⚠️ IMPORTANTE: Liberar cooldown ANTES de return
+          // ⚠️ IMPORTANTE: Liberar cooldown después de rechazo
           setTimeout(() => {
             scanCooldown.current = false;
-            lastScannedCode.current = null;
             setScanAnimation(null);
-            console.log('✅ Cooldown liberado después de rechazo por transportadora');
-          }, 500);
+          }, 1500);
 
           // NO agregar al batch
           return;
@@ -600,12 +597,12 @@ export function ScanGuide() {
     // Limpiar animación después de 1.5 segundos
     setTimeout(() => setScanAnimation(null), 1500);
 
-    // Cooldown de 800ms mínimo entre escaneos
+    // Cooldown de 1500ms para evitar re-escaneos rápidos del mismo código
+    // lastScannedCode NO se limpia - se mantiene hasta detectar código diferente
     setTimeout(() => {
       scanCooldown.current = false;
-      lastScannedCode.current = null;
       console.log('✅ Cooldown liberado, listo para siguiente escaneo');
-    }, 800);
+    }, 1500);
   };
 
   const onScanError = (error) => {
