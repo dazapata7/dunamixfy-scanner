@@ -115,20 +115,30 @@ export function ScanGuide() {
     loadTodayDispatchesCache(selectedWarehouse.id);
   }, [selectedWarehouse]);
 
-  // Inicializar scanner solo si hay operador Y almacén
+  // Inicializar scanner solo si hay operador, almacén Y cache terminó de cargar
+  // isCacheLoading: mientras es true, el DOM muestra loading screen (sin #wms-reader)
+  // Solo cuando isCacheLoading=false el div #wms-reader existe en el DOM
   useEffect(() => {
-    if (!operatorId || !selectedWarehouse) {
+    if (!operatorId || !selectedWarehouse || isCacheLoading) {
       return;
     }
 
-    // Solo iniciar scanner si HAY almacén seleccionado
-    console.log('✅ Almacén seleccionado, iniciando scanner...');
-    startScanner();
+    // Pequeño delay para asegurar que React haya pintado el div en el DOM
+    const timer = setTimeout(() => {
+      const readerDiv = document.getElementById('wms-reader');
+      if (!readerDiv) {
+        console.error('❌ #wms-reader no existe en el DOM todavía');
+        return;
+      }
+      console.log('✅ Almacén seleccionado, iniciando scanner...');
+      startScanner();
+    }, 50);
 
     return () => {
+      clearTimeout(timer);
       stopScanner();
     };
-  }, [operatorId, selectedWarehouse]);
+  }, [operatorId, selectedWarehouse, isCacheLoading]);
 
   // =====================================================
   // SCANNER METHODS (Copiados de Scanner.jsx)
