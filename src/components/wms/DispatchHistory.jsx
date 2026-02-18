@@ -6,7 +6,7 @@
 // Incluye botón para eliminar (solo pruebas)
 // =====================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { dispatchesService } from '../../services/wmsService';
 import { dunamixfyService } from '../../services/dunamixfyService';
@@ -19,27 +19,54 @@ import {
   Loader2,
   Search,
   Download,
-  CheckCircle
+  CheckCircle,
+  Filter,
+  X,
+  ChevronDown
 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { format } from 'date-fns';
+import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// Preset de fechas rápidas
+const DATE_PRESETS = [
+  { key: 'all', label: 'Todos' },
+  { key: 'today', label: 'Hoy' },
+  { key: 'yesterday', label: 'Ayer' },
+  { key: 'day_before', label: 'Antes de ayer' },
+  { key: 'custom', label: 'Rango...' },
+];
 
 export function DispatchHistory({ warehouseId = null }) {
   const navigate = useNavigate();
 
   const [dispatches, setDispatches] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Filtros
   const [searchTerm, setSearchTerm] = useState('');
+  const [datePreset, setDatePreset] = useState('all');
+  const [customDateFrom, setCustomDateFrom] = useState('');
+  const [customDateTo, setCustomDateTo] = useState('');
+  const [selectedCarrier, setSelectedCarrier] = useState('all');
+  const [showCustomDates, setShowCustomDates] = useState(false);
 
   useEffect(() => {
     loadHistory();
   }, [warehouseId]);
 
+  // Cuando cambia preset a 'custom', mostrar inputs de fechas
+  useEffect(() => {
+    if (datePreset === 'custom') {
+      setShowCustomDates(true);
+    } else {
+      setShowCustomDates(false);
+    }
+  }, [datePreset]);
+
   async function loadHistory() {
     setIsLoading(true);
     try {
-      // Obtener TODOS los dispatches (no solo del día)
       const query = supabase
         .from('dispatches')
         .select(`
@@ -50,19 +77,17 @@ export function DispatchHistory({ warehouseId = null }) {
           operator:operators!dispatches_operator_id_fkey(name)
         `)
         .order('created_at', { ascending: false })
-        .limit(200);
+        .limit(500);
 
       if (warehouseId) {
         query.eq('warehouse_id', warehouseId);
       }
 
       const { data, error } = await query;
-
       if (error) throw error;
 
       setDispatches(data);
       console.log(`✅ ${data.length} dispatches cargados en historial`);
-
     } catch (error) {
       console.error('❌ Error al cargar historial:', error);
       toast.error('Error al cargar historial de despachos');
@@ -78,12 +103,9 @@ export function DispatchHistory({ warehouseId = null }) {
 
     try {
       toast.loading('Confirmando dispatch...', { id: 'confirm' });
-
       await dispatchesService.confirm(dispatchId);
-
       toast.success('Dispatch confirmado exitosamente', { id: 'confirm' });
       await loadHistory();
-
     } catch (error) {
       console.error('❌ Error al confirmar dispatch:', error);
       toast.error(error.message || 'Error al confirmar dispatch', { id: 'confirm' });
@@ -98,7 +120,6 @@ export function DispatchHistory({ warehouseId = null }) {
     try {
       toast.loading('Eliminando dispatch...', { id: 'delete' });
 
-      // Intentar por dispatch_number primero (más directo)
       const { data, error } = await supabase.rpc('delete_dispatch_for_testing', {
         p_dispatch_number: dispatchNumber
       });
@@ -107,11 +128,8 @@ export function DispatchHistory({ warehouseId = null }) {
 
       if (data && data.length > 0 && data[0].success) {
         console.log(`✅ Dispatch ${dispatchNumber} eliminado. RPC response:`, data[0]);
-
-        // Eliminar del estado local inmediatamente
         setDispatches(prev => prev.filter(d => d.id !== dispatchId));
 
-        // 🔗 Marcar como unscanned en Dunamixfy
         const dunamixfyResponse = await dunamixfyService.markOrderAsUnscanned(trackingCode);
         if (dunamixfyResponse.success) {
           console.log(`✅ Guía ${trackingCode} marcada como unscanned en Dunamixfy`);
@@ -120,8 +138,6 @@ export function DispatchHistory({ warehouseId = null }) {
         }
 
         toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
-
-        // Recargar desde BD para confirmar que realmente se eliminó
         await new Promise(resolve => setTimeout(resolve, 500));
         await loadHistory();
       } else {
@@ -134,17 +150,77 @@ export function DispatchHistory({ warehouseId = null }) {
     }
   }
 
-  // Filtrar dispatches por búsqueda
-  const filteredDispatches = dispatches.filter(dispatch => {
-    const searchLower = searchTerm.toLowerCase();
-    return (
-      dispatch.guide_code?.toLowerCase().includes(searchLower) ||
-      dispatch.dispatch_number?.toLowerCase().includes(searchLower) ||
-      dispatch.shipment_record?.raw_payload?.customer_name?.toLowerCase().includes(searchLower) ||
-      dispatch.shipment_record?.raw_payload?.store?.toLowerCase().includes(searchLower) ||
-      dispatch.shipment_record?.carriers?.display_name?.toLowerCase().includes(searchLower)
-    );
-  });
+  // Lista de transportadoras únicas en los datos cargados
+  const availableCarriers = useMemo(() => {
+    const seen = new Set();
+    const carriers = [];
+    for (const d of dispatches) {
+      const name = d.shipment_record?.carriers?.display_name;
+      if (name && !seen.has(name)) {
+        seen.add(name);
+        carriers.push(name);
+      }
+    }
+    return carriers.sort();
+  }, [dispatches]);
+
+  // Filtrado combinado
+  const filteredDispatches = useMemo(() => {
+    return dispatches.filter(dispatch => {
+      const createdAt = new Date(dispatch.created_at);
+
+      // Filtro de fecha
+      if (datePreset === 'today') {
+        if (!isToday(createdAt)) return false;
+      } else if (datePreset === 'yesterday') {
+        if (!isYesterday(createdAt)) return false;
+      } else if (datePreset === 'day_before') {
+        const dayBefore = subDays(new Date(), 2);
+        const start = startOfDay(dayBefore);
+        const end = endOfDay(dayBefore);
+        if (createdAt < start || createdAt > end) return false;
+      } else if (datePreset === 'custom') {
+        if (customDateFrom) {
+          const from = startOfDay(parseISO(customDateFrom));
+          if (createdAt < from) return false;
+        }
+        if (customDateTo) {
+          const to = endOfDay(parseISO(customDateTo));
+          if (createdAt > to) return false;
+        }
+      }
+
+      // Filtro de transportadora
+      if (selectedCarrier !== 'all') {
+        const carrierName = dispatch.shipment_record?.carriers?.display_name || '';
+        if (carrierName !== selectedCarrier) return false;
+      }
+
+      // Filtro de texto (guía, cliente, tienda, transportadora)
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const matches =
+          dispatch.guide_code?.toLowerCase().includes(q) ||
+          dispatch.dispatch_number?.toLowerCase().includes(q) ||
+          dispatch.shipment_record?.raw_payload?.customer_name?.toLowerCase().includes(q) ||
+          dispatch.shipment_record?.raw_payload?.store?.toLowerCase().includes(q) ||
+          dispatch.shipment_record?.carriers?.display_name?.toLowerCase().includes(q);
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  }, [dispatches, datePreset, customDateFrom, customDateTo, selectedCarrier, searchTerm]);
+
+  const hasActiveFilters = datePreset !== 'all' || selectedCarrier !== 'all' || searchTerm.trim() !== '';
+
+  function clearFilters() {
+    setDatePreset('all');
+    setCustomDateFrom('');
+    setCustomDateTo('');
+    setSelectedCarrier('all');
+    setSearchTerm('');
+  }
 
   if (isLoading) {
     return (
@@ -160,7 +236,7 @@ export function DispatchHistory({ warehouseId = null }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-4 md:p-6">
       <div className="max-w-6xl mx-auto">
 
         {/* Header */}
@@ -177,34 +253,120 @@ export function DispatchHistory({ warehouseId = null }) {
             📋 Historial de Pedidos
           </h1>
 
-          <div className="w-[100px]"></div> {/* Spacer para centrar título */}
+          <div className="w-[100px]"></div>
         </div>
 
-        {/* Search Bar */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-glass-lg mb-6">
+        {/* Filtros */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-glass-lg mb-6 space-y-3">
+
+          {/* Búsqueda por guía / cliente */}
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-white/40" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
             <input
               type="text"
-              placeholder="Buscar por guía, cliente, tienda, transportadora..."
+              placeholder="Buscar por guía, cliente, tienda..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-primary-500/50 transition-all"
             />
+            {searchTerm && (
+              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80">
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
-          <p className="text-white/40 text-sm mt-2">
+
+          {/* Filtros de fecha + transportadora */}
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Presets de fecha */}
+            <div className="flex gap-1 flex-wrap">
+              {DATE_PRESETS.map(preset => (
+                <button
+                  key={preset.key}
+                  onClick={() => setDatePreset(preset.key)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    datePreset === preset.key
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Separador */}
+            <div className="w-px h-5 bg-white/10 hidden md:block" />
+
+            {/* Filtro de transportadora */}
+            {availableCarriers.length > 0 && (
+              <div className="relative">
+                <select
+                  value={selectedCarrier}
+                  onChange={e => setSelectedCarrier(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/80 focus:outline-none focus:border-primary-500/50 transition-all cursor-pointer"
+                >
+                  <option value="all">Todas las transportadoras</option>
+                  {availableCarriers.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
+              </div>
+            )}
+
+            {/* Limpiar filtros */}
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
+              >
+                <X className="w-3 h-3" />
+                Limpiar
+              </button>
+            )}
+          </div>
+
+          {/* Inputs de rango personalizado */}
+          {showCustomDates && (
+            <div className="flex gap-2 items-center flex-wrap">
+              <span className="text-white/40 text-xs">Desde:</span>
+              <input
+                type="date"
+                value={customDateFrom}
+                onChange={e => setCustomDateFrom(e.target.value)}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              />
+              <span className="text-white/40 text-xs">Hasta:</span>
+              <input
+                type="date"
+                value={customDateTo}
+                onChange={e => setCustomDateTo(e.target.value)}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              />
+            </div>
+          )}
+
+          {/* Resumen de resultados */}
+          <p className="text-white/40 text-xs">
             {filteredDispatches.length} de {dispatches.length} pedidos
+            {hasActiveFilters && <span className="ml-1 text-primary-400">• filtros activos</span>}
           </p>
         </div>
 
-        {/* Dispatches List */}
-        <div className="space-y-4">
+        {/* Lista de dispatches */}
+        <div className="space-y-3">
           {filteredDispatches.length === 0 ? (
             <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-12 text-center">
               <Package className="w-16 h-16 text-white/20 mx-auto mb-4" />
               <p className="text-white/60">
-                {searchTerm ? 'No se encontraron resultados' : 'No hay pedidos en el historial'}
+                {hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}
               </p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="mt-3 text-primary-400 text-sm hover:underline">
+                  Limpiar filtros
+                </button>
+              )}
             </div>
           ) : (
             filteredDispatches.map((dispatch) => {
@@ -213,7 +375,6 @@ export function DispatchHistory({ warehouseId = null }) {
                                 dispatch.shipment_record?.raw_payload?.dropshipper ||
                                 'Sin tienda';
               const carrierName = dispatch.shipment_record?.carriers?.display_name || 'Sin transportadora';
-              const orderDate = dispatch.shipment_record?.raw_payload?.order_date || dispatch.created_at;
               const isDraft = dispatch.status !== 'confirmed';
 
               return (
@@ -224,18 +385,17 @@ export function DispatchHistory({ warehouseId = null }) {
                   {/* Compact Header: Guía + Status + Actions */}
                   <div className="flex items-center justify-between gap-3 mb-3">
                     <div className="flex items-center gap-2 flex-1 min-w-0">
-                      {/* Guía */}
                       <span className="text-white font-bold text-sm font-mono truncate">
                         📦 {dispatch.guide_code}
                       </span>
 
-                      {/* Status Badge */}
+                      {/* Status Badge - CORRECTO: isDraft = borrador, !isDraft = confirmado */}
                       <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${
                         isDraft
                           ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
                           : 'bg-green-500/20 text-green-400 border border-green-500/30'
                       }`}>
-                        {isDraft ? 'CONFIRMADO' : 'BORRADOR'}
+                        {isDraft ? 'BORRADOR' : 'CONFIRMADO'}
                       </span>
                     </div>
 
@@ -262,25 +422,18 @@ export function DispatchHistory({ warehouseId = null }) {
 
                   {/* Compact Info Grid */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                    {/* Transportadora */}
                     <div>
                       <p className="text-white/40 mb-0.5">🚚 Transportadora</p>
                       <p className="text-white font-medium truncate" title={carrierName}>{carrierName}</p>
                     </div>
-
-                    {/* Tienda */}
                     <div>
                       <p className="text-white/40 mb-0.5">🏪 Tienda</p>
                       <p className="text-white font-medium truncate" title={storeName}>{storeName}</p>
                     </div>
-
-                    {/* Cliente */}
                     <div>
                       <p className="text-white/40 mb-0.5">👤 Cliente</p>
                       <p className="text-white font-medium truncate" title={customerName}>{customerName}</p>
                     </div>
-
-                    {/* Fecha Despacho */}
                     <div>
                       <p className="text-white/40 mb-0.5">📅 Fecha</p>
                       <p className="text-white font-medium">
@@ -289,7 +442,7 @@ export function DispatchHistory({ warehouseId = null }) {
                     </div>
                   </div>
 
-                  {/* Productos - Compact */}
+                  {/* Productos */}
                   <div className="mt-2 pt-2 border-t border-white/10">
                     <p className="text-white/40 text-[10px] mb-1">📦 Productos ({dispatch.dispatch_items?.length || 0})</p>
                     <div className="text-xs text-white/80">
