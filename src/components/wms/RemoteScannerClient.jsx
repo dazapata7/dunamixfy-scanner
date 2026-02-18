@@ -26,6 +26,7 @@ export function RemoteScannerClient() {
 
   // Estado de conexión
   const [session, setSession] = useState(null);
+  const sessionRef = useRef(null); // Ref para acceder a session en callbacks sin stale closure
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [clientId] = useState(() => crypto.randomUUID()); // ID único de este cliente
@@ -36,11 +37,14 @@ export function RemoteScannerClient() {
   // Heartbeat (ping cada 30s para detectar desconexiones)
   const heartbeatInterval = useRef(null);
 
+  // Guard para evitar doble conexión (React StrictMode monta/desmonta 2 veces en dev)
+  const hasConnected = useRef(false);
+
   // Feedback visual
   const [lastFeedback, setLastFeedback] = useState(null); // { success, message, timestamp }
   const [scanAnimation, setScanAnimation] = useState(null); // 'success' | 'error'
 
-  // Conectar a sesión
+  // Conectar a sesión (solo 1 vez)
   useEffect(() => {
     if (!sessionCode) {
       toast.error('Código de sesión no válido');
@@ -48,14 +52,20 @@ export function RemoteScannerClient() {
       return;
     }
 
+    // Evitar doble conexión (useEffect se ejecuta 2 veces en React StrictMode
+    // y también cuando cambia session?.id después de setSession)
+    if (hasConnected.current) return;
+    hasConnected.current = true;
+
     connectToSession();
 
     // ⚡ NUEVO: Detectar cierre de pestaña/navegador
     const handleBeforeUnload = () => {
-      if (session?.id) {
+      const currentSession = sessionRef.current;
+      if (currentSession?.id) {
         // Usar sendBeacon para garantizar que se envíe incluso al cerrar
         const payload = {
-          session_id: session.id,
+          session_id: currentSession.id,
           event_type: 'client_disconnected',
           payload: { client_id: clientId, timestamp: new Date().toISOString() },
           client_id: clientId
@@ -91,13 +101,13 @@ export function RemoteScannerClient() {
       }
 
       // Notificar desconexión (por si acaso)
-      if (session?.id) {
-        remoteScannerService.notifyClientDisconnected(session.id, clientId);
+      if (sessionRef.current?.id) {
+        remoteScannerService.notifyClientDisconnected(sessionRef.current.id, clientId);
       }
 
       stopScanner();
     };
-  }, [sessionCode, session?.id, clientId]);
+  }, [sessionCode]); // Solo sessionCode - hasConnected.current evita doble ejecución
 
   /**
    * Conectar a sesión remota
@@ -114,6 +124,7 @@ export function RemoteScannerClient() {
 
       console.log('✅ Conectado a sesión:', foundSession);
       setSession(foundSession);
+      sessionRef.current = foundSession; // Sincronizar ref para callbacks
 
       // Subscribirse a eventos (feedback del PC)
       subscribeToEvents(foundSession.id);
@@ -400,7 +411,7 @@ export function RemoteScannerClient() {
 
     try {
       // Enviar al PC via Realtime
-      await remoteScannerService.sendScan(session.id, decodedText, clientId);
+      await remoteScannerService.sendScan(sessionRef.current.id, decodedText, clientId);
 
       console.log('📤 Código enviado al PC:', decodedText);
 
@@ -497,8 +508,8 @@ export function RemoteScannerClient() {
   };
 
   const handleClose = () => {
-    if (session?.id) {
-      remoteScannerService.notifyClientDisconnected(session.id, clientId);
+    if (sessionRef.current?.id) {
+      remoteScannerService.notifyClientDisconnected(sessionRef.current.id, clientId);
     }
     navigate('/wms');
   };
