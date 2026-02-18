@@ -86,7 +86,7 @@ export const remoteScannerService = {
    * @param {string} sessionId - UUID de la sesión
    * @param {string} status - 'active' | 'paused' | 'completed'
    */
-  async updateStatus(sessionId, status) {
+  async updateStatus(sessionId, status, channel = null) {
     const update = {
       status,
       updated_at: new Date().toISOString()
@@ -103,44 +103,74 @@ export const remoteScannerService = {
 
     if (error) throw error;
 
-    // Crear evento de cambio de estado
-    await this.createEvent(sessionId, 'status_change', { status });
+    // ⚡ Si hay canal, usar broadcast (instantáneo). Si no, usar BD (fallback).
+    if (channel) {
+      this.broadcastEvent(channel, 'status_change', { status });
+    } else {
+      // Fallback: persistir en BD (sin await para no bloquear)
+      this.createEvent(sessionId, 'status_change', { status }).catch(console.warn);
+    }
   },
 
   /**
-   * Crear evento (scan, feedback, etc.)
+   * Crear evento (scan, client_connected, etc.) - persiste en BD para historial
    * @param {string} sessionId - UUID de la sesión
    * @param {string} eventType - 'scan' | 'feedback' | 'status_change' | 'client_connected' | 'client_disconnected'
    * @param {object} payload - Datos del evento
    * @param {string} clientId - UUID del cliente (opcional)
    */
   async createEvent(sessionId, eventType, payload, clientId = null) {
-    const { data, error } = await supabase
+    // ⚡ Sin .select() - no necesitamos el resultado, solo insertar
+    const { error } = await supabase
       .from('remote_scanner_events')
       .insert({
         session_id: sessionId,
         event_type: eventType,
         payload,
         client_id: clientId
-      })
-      .select()
-      .single();
+      });
 
     if (error) throw error;
-    return data;
+  },
+
+  /**
+   * ⚡ BROADCAST: Enviar mensaje instantáneo via Supabase Realtime Broadcast
+   * ~50ms latencia vs ~500ms de postgres_changes
+   * @param {object} channel - Canal ya suscrito
+   * @param {string} eventType - Tipo de evento
+   * @param {object} payload - Datos del evento
+   */
+  broadcastEvent(channel, eventType, payload) {
+    if (!channel) return;
+    channel.send({
+      type: 'broadcast',
+      event: eventType,
+      payload
+    });
   },
 
   /**
    * Subscribirse a eventos de una sesión (Realtime)
+   * Usa BROADCAST para feedback (ultra-rápido ~50ms) +
+   * postgres_changes para scan/connect (persistencia en BD)
    * @param {string} sessionId - UUID de la sesión
    * @param {function} onEvent - Callback (event) => void
-   * @returns {object} - Subscription object (para cleanup)
+   * @returns {object} - Channel object (para cleanup y broadcast)
    */
   subscribeToSession(sessionId, onEvent) {
     console.log(`🔔 Suscribiéndose a sesión: ${sessionId}`);
 
     const channel = supabase
       .channel(`remote-scanner-${sessionId}`)
+      // ⚡ BROADCAST: Recibir feedback instantáneo (Host→Mobile)
+      .on('broadcast', { event: 'feedback' }, ({ payload }) => {
+        onEvent({ event_type: 'feedback', payload, client_id: payload.client_id });
+      })
+      // ⚡ BROADCAST: Recibir cambios de estado instantáneos
+      .on('broadcast', { event: 'status_change' }, ({ payload }) => {
+        onEvent({ event_type: 'status_change', payload });
+      })
+      // postgres_changes: Recibir scans y conexiones (necesita persistencia en BD)
       .on(
         'postgres_changes',
         {
@@ -149,9 +179,12 @@ export const remoteScannerService = {
           table: 'remote_scanner_events',
           filter: `session_id=eq.${sessionId}`
         },
-        (payload) => {
-          console.log('📩 Evento recibido:', payload.new);
-          onEvent(payload.new);
+        (pgPayload) => {
+          const event = pgPayload.new;
+          // Ignorar eventos de feedback/status_change (ya llegan por broadcast)
+          if (event.event_type === 'feedback' || event.event_type === 'status_change') return;
+          console.log('📩 Evento DB recibido:', event.event_type);
+          onEvent(event);
         }
       )
       .subscribe((status) => {
@@ -186,21 +219,23 @@ export const remoteScannerService = {
   },
 
   /**
-   * Enviar feedback desde PC (HOST)
-   * @param {string} sessionId - UUID de la sesión
+   * ⚡ Enviar feedback desde PC (HOST) via BROADCAST (instantáneo ~50ms)
+   * @param {object} channel - Canal de Realtime (del subscribeToSession)
    * @param {string} clientId - UUID del cliente que envió el scan
    * @param {boolean} success - Si el procesamiento fue exitoso
    * @param {string} message - Mensaje de feedback
    * @param {object} data - Datos adicionales (dispatch, etc.)
    */
-  async sendFeedback(sessionId, clientId, success, message, data = {}) {
-    return await this.createEvent(sessionId, 'feedback', {
+  sendFeedback(channel, clientId, success, message, data = {}) {
+    const payload = {
       client_id: clientId,
       success,
       message,
       timestamp: new Date().toISOString(),
       ...data
-    });
+    };
+    // ⚡ Broadcast inmediato - no espera BD
+    this.broadcastEvent(channel, 'feedback', payload);
   },
 
   /**

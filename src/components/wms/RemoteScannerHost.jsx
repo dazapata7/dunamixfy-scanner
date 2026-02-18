@@ -204,85 +204,71 @@ export function RemoteScannerHost() {
       const result = await scanGuideForDispatch(code, operatorId);
 
       console.log('📊 Categoría de guía:', result.category);
-      console.log('📊 Resultado completo:', result);
 
-      // Agregar al batch
+      // ⚡ FEEDBACK INMEDIATO al móvil via Broadcast (no espera BD)
+      const isSuccess = result.category === 'SUCCESS';
+      remoteScannerService.sendFeedback(
+        realtimeChannel.current,
+        clientId,
+        isSuccess,
+        isSuccess
+          ? `✅ ${result.feedbackInfo?.customerName || 'Guía procesada'}`
+          : `❌ ${result.message || 'Error al procesar'}`,
+        { category: result.category }
+      );
+
+      // Agregar al batch (sin await - operación local)
       setDispatchesBatch(prev => [...prev, {
         ...result,
         category: result.category || 'SUCCESS',
         scannedAt: new Date(),
-        clientId // Tracking de qué cliente escaneó
+        clientId
       }]);
 
-      // Actualizar stats (functional update para evitar stale state)
-      // 🔥 FIX: Definir newStats FUERA del callback para usarla después
-      let newStats = null;
-      setSessionStats(prev => {
-        newStats = {
-          total_scanned: prev.total_scanned + 1,
-          total_success: result.category === 'SUCCESS' ? prev.total_success + 1 : prev.total_success,
-          total_errors: result.category !== 'SUCCESS' ? prev.total_errors + 1 : prev.total_errors
-        };
-        return newStats;
-      });
-
-      // Actualizar stats en BD (newStats ya está definido)
-      if (newStats) {
-        await remoteScannerService.updateStats(currentSession.id, newStats);
-      }
-
-      // Actualizar último escaneo
+      // Actualizar último escaneo (sin await)
       setLastScan({
         code: result.feedbackInfo?.code || code,
         carrier: result.carrierInfo?.name,
         category: result.category,
         customerName: result.feedbackInfo?.customerName,
-        success: result.category === 'SUCCESS',
+        success: isSuccess,
         timestamp: new Date()
       });
 
-      // Enviar feedback al cliente móvil
-      await remoteScannerService.sendFeedback(
-        currentSession.id,
-        clientId,
-        result.category === 'SUCCESS',
-        result.category === 'SUCCESS'
-          ? `✅ ${result.dispatch?.dispatch_number || 'Guía procesada'}`
-          : `❌ ${result.message || 'Error al procesar'}`,
-        {
-          category: result.category,
-          dispatch_number: result.dispatch?.dispatch_number
-        }
-      );
+      // ⚡ Actualizar stats en BD en BACKGROUND (sin await - no bloquea)
+      setSessionStats(prev => {
+        const newStats = {
+          total_scanned: prev.total_scanned + 1,
+          total_success: isSuccess ? prev.total_success + 1 : prev.total_success,
+          total_errors: !isSuccess ? prev.total_errors + 1 : prev.total_errors
+        };
+        // Fire-and-forget: actualizar BD sin bloquear UI
+        remoteScannerService.updateStats(currentSession.id, newStats).catch(console.warn);
+        return newStats;
+      });
 
     } catch (error) {
       console.error('❌ Error al procesar escaneo:', error);
 
-      // Enviar error al cliente
-      await remoteScannerService.sendFeedback(
-        currentSession.id,
+      // ⚡ Enviar error al cliente inmediatamente via Broadcast
+      remoteScannerService.sendFeedback(
+        realtimeChannel.current,
         clientId,
         false,
         `❌ ${error.message || 'Error al procesar guía'}`,
         { error: error.message }
       );
 
-      // Actualizar stats con error (functional update)
-      // 🔥 FIX: Definir newStats FUERA del callback para usarla después
-      let newStats = null;
+      // ⚡ Stats en background
       setSessionStats(prev => {
-        newStats = {
+        const newStats = {
           total_scanned: prev.total_scanned + 1,
           total_success: prev.total_success,
           total_errors: prev.total_errors + 1
         };
+        remoteScannerService.updateStats(currentSession.id, newStats).catch(console.warn);
         return newStats;
       });
-
-      // Actualizar stats en BD (newStats ya está definido)
-      if (newStats) {
-        await remoteScannerService.updateStats(currentSession.id, newStats);
-      }
     }
   }
 
@@ -344,7 +330,8 @@ export function RemoteScannerHost() {
   async function togglePause() {
     const newStatus = sessionStatus === 'active' ? 'paused' : 'active';
     try {
-      await remoteScannerService.updateStatus(session.id, newStatus);
+      // ⚡ Pasar canal para broadcast instantáneo al móvil
+      await remoteScannerService.updateStatus(session.id, newStatus, realtimeChannel.current);
       setSessionStatus(newStatus);
       toast(newStatus === 'paused' ? '⏸️ Sesión pausada' : '▶️ Sesión reanudada');
     } catch (error) {
