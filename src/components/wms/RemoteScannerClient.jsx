@@ -248,6 +248,19 @@ export function RemoteScannerClient() {
    */
   const startScanner = async () => {
     try {
+      // Si ya hay instancia corriendo, detenerla primero
+      if (html5QrcodeRef.current) {
+        try {
+          await html5QrcodeRef.current.stop();
+          html5QrcodeRef.current.clear();
+        } catch (e) {
+          // Ignorar error al detener (puede que ya estuviera detenido)
+        }
+        html5QrcodeRef.current = null;
+        const readerDiv = document.getElementById('remote-client-reader');
+        if (readerDiv) readerDiv.innerHTML = '';
+      }
+
       const { Html5Qrcode } = await import('html5-qrcode');
       html5QrcodeRef.current = new Html5Qrcode('remote-client-reader');
 

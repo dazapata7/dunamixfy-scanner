@@ -136,6 +136,21 @@ export function ScanGuide() {
 
   const startScanner = async () => {
     try {
+      // Si ya hay instancia corriendo, detenerla primero
+      if (html5QrcodeRef.current) {
+        console.log('⚠️ Scanner ya existe, limpiando antes de reiniciar...');
+        try {
+          await html5QrcodeRef.current.stop();
+          html5QrcodeRef.current.clear();
+        } catch (e) {
+          // Ignorar error al detener (puede que ya estuviera detenido)
+        }
+        html5QrcodeRef.current = null;
+        // Limpiar el div manualmente para evitar contenido residual
+        const readerDiv = document.getElementById('wms-reader');
+        if (readerDiv) readerDiv.innerHTML = '';
+      }
+
       // Dynamic import de html5-qrcode
       const { Html5Qrcode } = await import('html5-qrcode');
       html5QrcodeRef.current = new Html5Qrcode('wms-reader');
@@ -200,11 +215,13 @@ export function ScanGuide() {
       console.error('❌ Error al iniciar WMS scanner:', error);
 
       if (error.name === 'NotAllowedError') {
-        toast.error('Permisos de cámara denegados');
+        toast.error('❌ Permisos de cámara denegados\nActiva el acceso a la cámara en tu navegador');
       } else if (error.name === 'NotFoundError') {
-        toast.error('No se encontró cámara');
+        toast.error('❌ No se encontró cámara\nVerifica que el dispositivo tiene cámara');
+      } else if (error.message?.includes('Camera not found')) {
+        toast.error('❌ Cámara no disponible\nOtra app puede estar usándola');
       } else {
-        toast.error('Error al iniciar cámara');
+        toast.error(`❌ Error al abrir cámara: ${error.message || 'Error desconocido'}`);
       }
     }
   };
