@@ -404,9 +404,20 @@ export function useWMS(cacheOpts = {}) {
    * @param {Object} dispatchData - Dispatch temporal en memoria
    * @param {boolean} skipStockValidation - Si true, omite validación de stock (ya se validó en lote)
    */
+  // Lock en memoria para evitar concurrencia por guide_code
+  const confirmingInProgress = useRef(new Set());
+
   const createAndConfirmDispatch = async (dispatchData, skipStockValidation = false) => {
     const guideCode = dispatchData.guide_code;
     console.log(`⚡ Creando y confirmando dispatch: ${guideCode}`);
+
+    // Evitar concurrencia: si ya está siendo confirmada esta guía, esperar/saltar
+    if (confirmingInProgress.current.has(guideCode)) {
+      console.warn(`⚠️ Guía ${guideCode} ya está siendo confirmada (lock activo), saltando...`);
+      return null;
+    }
+    confirmingInProgress.current.add(guideCode);
+
     setIsProcessing(true);
 
     try {
@@ -506,10 +517,27 @@ export function useWMS(cacheOpts = {}) {
       return confirmedDispatch;
 
     } catch (error) {
+      // Si el error es duplicate key (23505), puede ser condición de carrera
+      // → Buscar el dispatch recién creado por la otra llamada y retornarlo
+      if (error.code === '23505') {
+        console.warn(`⚠️ Duplicate key al crear dispatch para ${guideCode} - buscando en BD...`);
+        const { data: raceDispatch } = await supabase
+          .from('dispatches')
+          .select('id, dispatch_number, status, guide_code')
+          .eq('guide_code', guideCode)
+          .maybeSingle();
+
+        if (raceDispatch) {
+          console.log(`✅ Dispatch encontrado tras race condition: ${raceDispatch.dispatch_number}`);
+          return raceDispatch;
+        }
+      }
+
       console.error('❌ Error al crear/confirmar dispatch:', error);
       throw error;
 
     } finally {
+      confirmingInProgress.current.delete(guideCode);
       setIsProcessing(false);
     }
   };
