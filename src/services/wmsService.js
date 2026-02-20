@@ -1231,6 +1231,39 @@ export const dispatchesService = {
 
     console.log(`✅ ${data.length} despachos encontrados hoy`);
     return data;
+  },
+
+  /**
+   * Obtener despachos de una fecha específica
+   * @param {string} dateISO - Fecha en formato YYYY-MM-DD
+   * @param {string|null} warehouseId - Filtrar por almacén (opcional)
+   */
+  async getDispatchesByDate(dateISO, warehouseId = null) {
+    const localStart = new Date(dateISO);
+    localStart.setHours(0, 0, 0, 0);
+    const localEnd = new Date(dateISO);
+    localEnd.setHours(23, 59, 59, 999);
+
+    let query = supabase
+      .from('dispatches')
+      .select(`
+        *,
+        dispatch_items(*, products(*)),
+        shipment_record:shipment_records(*, carriers(*)),
+        operator:operators!dispatches_operator_id_fkey(name)
+      `)
+      .gte('created_at', localStart.toISOString())
+      .lte('created_at', localEnd.toISOString())
+      .order('created_at', { ascending: false });
+
+    if (warehouseId) {
+      query = query.eq('warehouse_id', warehouseId);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+    console.log(`✅ ${data.length} despachos para fecha ${dateISO}`);
+    return data;
   }
 };
 
