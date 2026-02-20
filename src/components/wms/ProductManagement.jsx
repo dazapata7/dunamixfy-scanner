@@ -5,7 +5,7 @@
 // Solo para administradores
 // =====================================================
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productsService, skuMappingsService, comboProductsService } from '../../services/wmsService';
 import {
@@ -25,6 +25,7 @@ import toast from 'react-hot-toast';
 
 export function ProductManagement() {
   const navigate = useNavigate();
+  const formRef = useRef(null);
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -94,6 +95,9 @@ export function ProductManagement() {
     } catch (error) {
       console.error('Error al cargar productos:', error);
     }
+
+    // Scroll al formulario
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
   async function handleEdit(product) {
@@ -118,6 +122,9 @@ export function ProductManagement() {
     } else {
       setComboComponents([]);
     }
+
+    // Scroll al formulario
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
   }
 
   function handleCancel() {
@@ -326,11 +333,9 @@ export function ProductManagement() {
         // Crear nuevo
         const newProduct = await productsService.create(formData);
         productId = newProduct.id;
-        toast.success('Producto creado exitosamente');
       } else {
         // Actualizar existente
         await productsService.update(editingProduct, formData);
-        toast.success('Producto actualizado exitosamente');
       }
 
       // ⭐ NUEVO: Guardar componentes si es combo
@@ -357,6 +362,7 @@ export function ProductManagement() {
         }
       }
 
+      toast.success(isCreating ? '✅ Producto creado exitosamente' : '✅ Producto actualizado exitosamente');
       handleCancel();
       loadProducts();
     } catch (error) {
@@ -422,7 +428,7 @@ export function ProductManagement() {
 
         {/* Form (Crear o Editar) */}
         {(isCreating || editingProduct) && (
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
+          <div ref={formRef} className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
             <h2 className="text-xl font-bold text-white mb-4">
               {isCreating ? 'Crear Producto' : 'Editar Producto'}
             </h2>
