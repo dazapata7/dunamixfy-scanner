@@ -183,15 +183,10 @@ export function AdjustmentForm() {
       const modeLabels = { increase: 'Entrada registrada', decrease: 'Salida registrada', set: 'Inventario ajustado' };
       toast.success(`${modeLabels[mode]}. Nuevo stock: ${newStock}`);
 
-      // Limpiar formulario
-      setSelectedProduct('');
-      setCurrentStock(null);
+      // Actualizar stock mostrado y limpiar campos para el siguiente ajuste
+      setCurrentStock(newStock);
       setQuantity('');
       setReason('');
-
-      setTimeout(() => {
-        navigate('/wms/inventory');
-      }, 1500);
 
     } catch (error) {
       console.error('❌ Error al crear ajuste:', error);
