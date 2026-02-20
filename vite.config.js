@@ -23,13 +23,13 @@ export default defineConfig({
         icons: [
           {
             src: '/icono_xfy.png',
-            sizes: '192x192',
+            sizes: '112x80',
             type: 'image/png',
             purpose: 'any'
           },
           {
             src: '/dunfy_fondo_coscuro.png',
-            sizes: '512x512',
+            sizes: '1920x552',
             type: 'image/png',
             purpose: 'any maskable'
           }
