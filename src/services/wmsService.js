@@ -582,7 +582,6 @@ export const inventoryService = {
       .select('*')
       .eq('warehouse_id', warehouseId);
 
-    // Filtro de búsqueda opcional
     if (searchTerm) {
       query = query.or(`sku.ilike.%${searchTerm}%,product_name.ilike.%${searchTerm}%`);
     }
@@ -592,6 +591,52 @@ export const inventoryService = {
     if (error) {
       console.error('❌ Error al consultar inventario:', error);
       throw error;
+    }
+
+    // Calcular capacidad estimada para combos
+    // Para cada combo: floor(stock_componente / qty_requerida) → mínimo entre todos los componentes
+    const combos = data.filter(item => item.type === 'combo');
+
+    if (combos.length > 0) {
+      // Obtener componentes de todos los combos en una sola query
+      const comboIds = combos.map(c => c.product_id);
+      const { data: components } = await supabase
+        .from('product_combo_components')
+        .select('combo_product_id, component_product_id, quantity')
+        .in('combo_product_id', comboIds);
+
+      if (components && components.length > 0) {
+        // Construir mapa: product_id → qty_on_hand (para búsqueda O(1))
+        const stockMap = new Map(data.map(item => [item.product_id, item.qty_on_hand]));
+
+        // Para cada combo, calcular capacidad estimada
+        data.forEach(item => {
+          if (!comboIds.includes(item.product_id)) return;
+
+          const comboComponents = components.filter(c => c.combo_product_id === item.product_id);
+          if (comboComponents.length === 0) {
+            item.estimated_capacity = 0;
+            item.is_combo = true;
+            return;
+          }
+
+          // Capacidad = mínimo de floor(stock / qty_requerida) entre todos los componentes
+          const capacity = Math.min(
+            ...comboComponents.map(c => {
+              const componentStock = stockMap.get(c.component_product_id) ?? 0;
+              return Math.floor(componentStock / c.quantity);
+            })
+          );
+
+          item.estimated_capacity = capacity;
+          item.is_combo = true;
+          item.combo_components = comboComponents.map(c => ({
+            product_id: c.component_product_id,
+            qty_required: c.quantity,
+            stock_available: stockMap.get(c.component_product_id) ?? 0
+          }));
+        });
+      }
     }
 
     console.log(`✅ ${data.length} productos en inventario`);

@@ -50,9 +50,11 @@ export function InventoryList() {
 
   // Calcular estadísticas
   const totalProducts = stock.length;
-  const outOfStock = stock.filter(s => s.qty_on_hand === 0).length;
-  const lowStock = stock.filter(s => s.qty_on_hand > 0 && s.qty_on_hand < 10).length;
-  const totalUnits = stock.reduce((sum, s) => sum + s.qty_on_hand, 0);
+  // Para combos usar capacidad estimada; para simples usar qty_on_hand
+  const effectiveQty = (s) => s.type === 'combo' ? (s.estimated_capacity ?? 0) : s.qty_on_hand;
+  const outOfStock = stock.filter(s => effectiveQty(s) === 0).length;
+  const lowStock = stock.filter(s => effectiveQty(s) > 0 && effectiveQty(s) < 10).length;
+  const totalUnits = stock.filter(s => s.type !== 'combo').reduce((sum, s) => sum + s.qty_on_hand, 0);
 
   // Filtrar productos
   const filteredStock = hideOutOfStock
@@ -60,13 +62,34 @@ export function InventoryList() {
     : stock;
 
   // Función para determinar el estado del stock
-  const getStockStatus = (qty) => {
-    if (qty === 0) return {
+  const getStockStatus = (qty, isCombo = false, estimatedCapacity = 0) => {
+    // Para combos, usar capacidad estimada en lugar de qty_on_hand (que siempre es 0)
+    const effectiveQty = isCombo ? estimatedCapacity : qty;
+
+    if (isCombo) {
+      if (effectiveQty === 0) return {
+        label: 'Sin capacidad',
+        color: 'bg-red-500/20 text-red-400 border-red-500/30',
+        icon: '🔴'
+      };
+      if (effectiveQty < 5) return {
+        label: 'Capacidad baja',
+        color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        icon: '🟠'
+      };
+      return {
+        label: 'Armable',
+        color: 'bg-green-500/20 text-green-400 border-green-500/30',
+        icon: '🟢'
+      };
+    }
+
+    if (effectiveQty === 0) return {
       label: 'Sin stock',
       color: 'bg-red-500/20 text-red-400 border-red-500/30',
       icon: '🔴'
     };
-    if (qty < 10) return {
+    if (effectiveQty < 10) return {
       label: 'Stock bajo',
       color: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
       icon: '🟠'
@@ -205,12 +228,20 @@ export function InventoryList() {
         {!isLoading && filteredStock.length > 0 && (
           <div className="space-y-2">
             {filteredStock.map((item, index) => {
-              const status = getStockStatus(item.qty_on_hand);
+              const isCombo = item.type === 'combo' || item.is_combo;
+              const estimatedCapacity = item.estimated_capacity ?? 0;
+              const status = getStockStatus(item.qty_on_hand, isCombo, estimatedCapacity);
+              const displayQty = isCombo ? estimatedCapacity : item.qty_on_hand;
+              const qtyColor = displayQty === 0 ? 'text-red-400' : displayQty < (isCombo ? 5 : 10) ? 'text-orange-400' : 'text-white';
 
               return (
                 <div
                   key={index}
-                  className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 px-4 py-3 flex items-center gap-4 hover:bg-white/10 hover:border-white/20 transition-all"
+                  className={`backdrop-blur-xl rounded-xl border px-4 py-3 flex items-center gap-4 hover:bg-white/10 transition-all ${
+                    isCombo
+                      ? 'bg-purple-500/5 border-purple-500/20 hover:border-purple-500/30'
+                      : 'bg-white/5 border-white/10 hover:border-white/20'
+                  }`}
                 >
                   {/* Foto */}
                   {item.photo_url ? (
@@ -225,34 +256,39 @@ export function InventoryList() {
                     />
                   ) : null}
                   <div
-                    className={`w-10 h-10 rounded-lg bg-white/5 border border-white/10 items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'}`}
+                    className={`w-10 h-10 rounded-lg border items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'} ${isCombo ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/5 border-white/10'}`}
                     style={{ display: item.photo_url ? 'none' : 'flex' }}
                   >
-                    <Package className="w-5 h-5 text-white/30" />
+                    <Package className={`w-5 h-5 ${isCombo ? 'text-purple-400/50' : 'text-white/30'}`} />
                   </div>
 
-                  {/* Nombre */}
+                  {/* Nombre + badge combo */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium text-sm truncate" title={item.product_name}>
-                      {item.product_name}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-white font-medium text-sm truncate" title={item.product_name}>
+                        {item.product_name}
+                      </p>
+                      {isCombo && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/30 shrink-0">
+                          COMBO
+                        </span>
+                      )}
+                    </div>
                     <p className="text-white/40 text-xs font-mono mt-0.5">{item.sku}</p>
                   </div>
 
-                  {/* Stock */}
+                  {/* Stock / Capacidad estimada */}
                   <div className="text-right shrink-0">
-                    <span className={`text-2xl font-bold ${
-                      item.qty_on_hand === 0 ? 'text-red-400' :
-                      item.qty_on_hand < 10 ? 'text-orange-400' :
-                      'text-white'
-                    }`}>
-                      {item.qty_on_hand}
+                    <span className={`text-2xl font-bold ${qtyColor}`}>
+                      {displayQty}
                     </span>
-                    <p className="text-white/40 text-[10px]">unidades</p>
+                    <p className="text-white/40 text-[10px]">
+                      {isCombo ? 'estimados' : 'unidades'}
+                    </p>
                   </div>
 
                   {/* Estado */}
-                  <div className="shrink-0 w-28 flex justify-center">
+                  <div className="shrink-0 w-32 flex justify-center">
                     <span className={`text-xs px-3 py-1 rounded-lg border font-medium ${status.color}`}>
                       {status.icon} {status.label}
                     </span>
