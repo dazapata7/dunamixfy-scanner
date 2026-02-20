@@ -2,15 +2,52 @@
 // ADJUSTMENT FORM - Dunamix WMS
 // =====================================================
 // Formulario de ajuste de inventario
-// Para correcciones de stock (+ o -)
+// Modos: Entrada (+), Ajuste (→ meta exacta), Salida (-)
 // =====================================================
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { productsService, inventoryService } from '../../services/wmsService';
-import { ArrowLeft, FileEdit, Plus, Minus, Check, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, FileEdit, Plus, Minus, Check, TrendingUp, TrendingDown, Target } from 'lucide-react';
 import toast from 'react-hot-toast';
+
+// Modos de ajuste
+const MODES = [
+  {
+    key: 'increase',
+    label: 'Entrada',
+    icon: TrendingUp,
+    color: 'green',
+    description: 'Agregar stock',
+    activeClass: 'bg-green-500/20 border-green-500 text-green-300',
+    hoverClass: 'hover:border-green-500/50',
+    buttonClass: 'bg-gradient-to-r from-green-500 to-emerald-500',
+    preview: 'El stock se incrementará en la cantidad indicada',
+  },
+  {
+    key: 'set',
+    label: 'Ajuste',
+    icon: Target,
+    color: 'orange',
+    description: 'Fijar cantidad exacta',
+    activeClass: 'bg-orange-500/20 border-orange-500 text-orange-300',
+    hoverClass: 'hover:border-orange-500/50',
+    buttonClass: 'bg-gradient-to-r from-orange-500 to-amber-500',
+    preview: 'El stock se llevará exactamente al valor indicado',
+  },
+  {
+    key: 'decrease',
+    label: 'Salida',
+    icon: TrendingDown,
+    color: 'red',
+    description: 'Descontar stock',
+    activeClass: 'bg-red-500/20 border-red-500 text-red-300',
+    hoverClass: 'hover:border-red-500/50',
+    buttonClass: 'bg-gradient-to-r from-red-500 to-rose-500',
+    preview: 'El stock se reducirá en la cantidad indicada',
+  },
+];
 
 export function AdjustmentForm() {
   const navigate = useNavigate();
@@ -21,8 +58,8 @@ export function AdjustmentForm() {
 
   const [selectedProduct, setSelectedProduct] = useState('');
   const [currentStock, setCurrentStock] = useState(null);
-  const [adjustmentType, setAdjustmentType] = useState('increase'); // 'increase' | 'decrease'
-  const [quantity, setQuantity] = useState(1);
+  const [mode, setMode] = useState('set'); // 'increase' | 'set' | 'decrease'
+  const [quantity, setQuantity] = useState('');
   const [reason, setReason] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
@@ -69,17 +106,31 @@ export function AdjustmentForm() {
     }
   }
 
+  // Calcular delta según el modo
+  const parsedQty = parseInt(quantity) || 0;
+
+  const delta = (() => {
+    if (currentStock === null || parsedQty < 0) return null;
+    if (mode === 'increase') return parsedQty;
+    if (mode === 'decrease') return -parsedQty;
+    if (mode === 'set') return parsedQty - currentStock; // ajuste exacto
+    return null;
+  })();
+
+  const newStock = currentStock !== null && delta !== null ? currentStock + delta : null;
+
+  const currentMode = MODES.find(m => m.key === mode);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones
     if (!selectedProduct) {
       toast.error('Debe seleccionar un producto');
       return;
     }
 
-    if (!quantity || quantity <= 0) {
-      toast.error('La cantidad debe ser mayor a 0');
+    if (!parsedQty || parsedQty < 0) {
+      toast.error('La cantidad debe ser un número válido mayor o igual a 0');
       return;
     }
 
@@ -88,19 +139,34 @@ export function AdjustmentForm() {
       return;
     }
 
-    // Validar que no deje stock negativo en caso de decrease
-    if (adjustmentType === 'decrease' && quantity > currentStock) {
+    // Validar según modo
+    if (mode === 'decrease' && parsedQty > currentStock) {
       toast.error(`No puede descontar más de ${currentStock} unidades`);
+      return;
+    }
+
+    if (mode === 'set' && parsedQty < 0) {
+      toast.error('La cantidad objetivo no puede ser negativa');
+      return;
+    }
+
+    // Si el ajuste no cambia nada, informar
+    if (delta === 0) {
+      toast('El inventario ya está en ese valor, no hay cambio que aplicar', { icon: 'ℹ️' });
       return;
     }
 
     setIsProcessing(true);
 
     try {
-      // Crear movimiento de ajuste
-      // IN = entrada (qty positivo), OUT = salida (qty negativo)
-      const movementType = adjustmentType === 'increase' ? 'IN' : 'OUT';
-      const qtySigned = adjustmentType === 'increase' ? quantity : -quantity;
+      const movementType = delta > 0 ? 'IN' : 'OUT';
+      const qtySigned = delta; // ya tiene signo correcto
+
+      const descriptionMap = {
+        increase: `Entrada manual: +${parsedQty} unidades`,
+        decrease: `Salida manual: -${parsedQty} unidades`,
+        set: `Ajuste a ${parsedQty} unidades (${delta > 0 ? '+' : ''}${delta})`,
+      };
 
       await inventoryService.createMovement({
         movement_type: movementType,
@@ -110,25 +176,19 @@ export function AdjustmentForm() {
         user_id: operatorId,
         ref_type: 'adjustment',
         ref_id: null,
-        description: `Ajuste manual: ${adjustmentType === 'increase' ? 'Incremento' : 'Decremento'}`,
+        description: descriptionMap[mode],
         notes: reason
       });
 
-      const newStock = currentStock + qtySigned;
-
-      toast.success(
-        adjustmentType === 'increase'
-          ? `+${quantity} unidades agregadas. Nuevo stock: ${newStock}`
-          : `-${quantity} unidades descontadas. Nuevo stock: ${newStock}`
-      );
+      const modeLabels = { increase: 'Entrada registrada', decrease: 'Salida registrada', set: 'Inventario ajustado' };
+      toast.success(`${modeLabels[mode]}. Nuevo stock: ${newStock}`);
 
       // Limpiar formulario
       setSelectedProduct('');
       setCurrentStock(null);
-      setQuantity(1);
+      setQuantity('');
       setReason('');
 
-      // Redirigir a inventario
       setTimeout(() => {
         navigate('/wms/inventory');
       }, 1500);
@@ -140,10 +200,6 @@ export function AdjustmentForm() {
       setIsProcessing(false);
     }
   };
-
-  const newStock = currentStock !== null
-    ? currentStock + (adjustmentType === 'increase' ? quantity : -quantity)
-    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
@@ -175,8 +231,29 @@ export function AdjustmentForm() {
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-6">
+
+          {/* Mode Selector — 3 tabs */}
+          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-3 shadow-glass-lg">
+            <div className="grid grid-cols-3 gap-2">
+              {MODES.map(({ key, label, icon: Icon, activeClass, hoverClass, description }) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => { setMode(key); setQuantity(''); }}
+                  className={`
+                    p-4 rounded-2xl border-2 transition-all text-center
+                    ${mode === key ? activeClass : 'bg-white/5 border-white/10 text-white/60'}
+                    ${hoverClass}
+                  `}
+                >
+                  <Icon className="w-6 h-6 mx-auto mb-1.5" />
+                  <p className="font-semibold text-sm">{label}</p>
+                  <p className="text-[11px] mt-0.5 opacity-70">{description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
 
           {/* Product Selection */}
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
@@ -205,74 +282,50 @@ export function AdjustmentForm() {
             )}
           </div>
 
-          {/* Adjustment Type */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">Tipo de Ajuste</label>
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                type="button"
-                onClick={() => setAdjustmentType('increase')}
-                className={`
-                  p-4 rounded-2xl border-2 transition-all
-                  ${adjustmentType === 'increase'
-                    ? 'bg-green-500/20 border-green-500 text-green-300'
-                    : 'bg-white/5 border-white/10 text-white/60'
-                  }
-                  hover:border-green-500/50
-                `}
-              >
-                <TrendingUp className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-medium">Incrementar</p>
-                <p className="text-xs mt-1 opacity-80">Agregar stock</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAdjustmentType('decrease')}
-                className={`
-                  p-4 rounded-2xl border-2 transition-all
-                  ${adjustmentType === 'decrease'
-                    ? 'bg-red-500/20 border-red-500 text-red-300'
-                    : 'bg-white/5 border-white/10 text-white/60'
-                  }
-                  hover:border-red-500/50
-                `}
-              >
-                <TrendingDown className="w-8 h-8 mx-auto mb-2" />
-                <p className="font-medium">Disminuir</p>
-                <p className="text-xs mt-1 opacity-80">Descontar stock</p>
-              </button>
-            </div>
-          </div>
-
           {/* Quantity */}
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">Cantidad</label>
+            <label className="block text-white/80 font-medium mb-3">
+              {mode === 'set' ? 'Cantidad objetivo (stock final deseado)' : 'Cantidad'}
+            </label>
             <input
               type="number"
-              min="1"
+              min={mode === 'set' ? '0' : '1'}
               value={quantity}
-              onChange={(e) => setQuantity(parseInt(e.target.value) || 1)}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+              onChange={(e) => setQuantity(e.target.value)}
+              placeholder={mode === 'set' ? 'Ej: 385' : 'Ej: 50'}
+              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder-white/20"
               required
             />
 
             {/* New Stock Preview */}
-            {newStock !== null && currentStock !== null && (
-              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
-                <div>
-                  <p className="text-white/60 text-xs mb-1">Nuevo Stock</p>
-                  <p className={`
-                    text-2xl font-bold
-                    ${adjustmentType === 'increase' ? 'text-green-400' : 'text-orange-400'}
-                  `}>
-                    {currentStock} {adjustmentType === 'increase' ? '+' : '-'} {quantity} = {newStock}
-                  </p>
+            {newStock !== null && currentStock !== null && parsedQty > 0 && (
+              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
+                <p className="text-white/50 text-xs mb-2">Vista previa del cambio</p>
+                <div className="flex items-center justify-between">
+                  <div className="text-center">
+                    <p className="text-white/50 text-xs">Actual</p>
+                    <p className="text-white text-xl font-bold">{currentStock}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className={`text-sm font-bold ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/40'}`}>
+                      {delta > 0 ? `+${delta}` : delta}
+                    </p>
+                    <div className="w-12 h-px bg-white/20 my-1 mx-auto" />
+                    <p className="text-white/30 text-[10px]">
+                      {mode === 'set' ? 'ajuste' : mode === 'increase' ? 'entrada' : 'salida'}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-white/50 text-xs">Nuevo</p>
+                    <p className={`text-xl font-bold ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/40'}`}>
+                      {newStock}
+                    </p>
+                  </div>
                 </div>
-                {adjustmentType === 'increase' ? (
-                  <TrendingUp className="w-8 h-8 text-green-400" />
-                ) : (
-                  <TrendingDown className="w-8 h-8 text-red-400" />
+                {delta === 0 && (
+                  <p className="text-center text-white/40 text-xs mt-2">
+                    El stock ya está en ese valor — no hay cambio
+                  </p>
                 )}
               </div>
             )}
@@ -281,7 +334,7 @@ export function AdjustmentForm() {
           {/* Reason */}
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
             <label className="block text-white/80 font-medium mb-3">
-              Razón del Ajuste <span className="text-red-400">*</span>
+              Razón <span className="text-red-400">*</span>
             </label>
             <textarea
               value={reason}
@@ -292,7 +345,7 @@ export function AdjustmentForm() {
               required
             />
             <p className="text-white/40 text-xs mt-2">
-              La razón quedará registrada para auditoría
+              Quedará registrado para auditoría
             </p>
           </div>
 
@@ -301,16 +354,10 @@ export function AdjustmentForm() {
             type="submit"
             disabled={isProcessing || !selectedProduct || isLoadingProducts}
             className={`
-              w-full px-6 py-4 rounded-2xl
-              font-medium
-              flex items-center justify-center gap-2
-              transition-all
-              ${adjustmentType === 'increase'
-                ? 'bg-gradient-to-r from-green-500 to-emerald-500 border-green-400/30 hover:shadow-green-500/20'
-                : 'bg-gradient-to-r from-orange-500 to-amber-500 border-orange-400/30 hover:shadow-orange-500/20'
-              }
-              text-white
-              hover:shadow-lg
+              w-full px-6 py-4 rounded-2xl font-medium
+              flex items-center justify-center gap-2 transition-all
+              ${currentMode?.buttonClass ?? 'bg-orange-500'}
+              text-white hover:shadow-lg
               disabled:opacity-50 disabled:cursor-not-allowed
             `}
           >
@@ -322,17 +369,15 @@ export function AdjustmentForm() {
             ) : (
               <>
                 <Check className="w-5 h-5" />
-                Confirmar Ajuste
+                {mode === 'increase' ? 'Registrar Entrada' : mode === 'decrease' ? 'Registrar Salida' : 'Aplicar Ajuste'}
               </>
             )}
           </button>
 
           <p className="text-center text-white/40 text-sm">
-            {adjustmentType === 'increase'
-              ? 'El stock se incrementará inmediatamente'
-              : 'El stock se reducirá inmediatamente'
-            }
+            {currentMode?.preview}
           </p>
+
         </form>
       </div>
     </div>
