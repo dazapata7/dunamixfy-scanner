@@ -1012,13 +1012,12 @@ export const dispatchesService = {
     console.log(`✅ Confirmando despacho: ${dispatchId}`);
 
     try {
-      // 1. Obtener despacho con sus items y shipment_record (para order_id)
+      // 1. Obtener despacho con sus items
       const { data: dispatch, error: dispatchError } = await supabase
         .from('dispatches')
         .select(`
           *,
-          dispatch_items(*),
-          shipment_records(id, guide_code, raw_payload)
+          dispatch_items(*)
         `)
         .eq('id', dispatchId)
         .single();
@@ -1030,10 +1029,17 @@ export const dispatchesService = {
         return dispatch; // Retornar silenciosamente sin error
       }
 
-      // Extraer order_id del shipment_record.raw_payload
+      // Extraer order_id del shipment_record.raw_payload (query separada para evitar FK ambigua)
       let externalOrderId = null;
-      if (dispatch.shipment_records && dispatch.shipment_records.raw_payload) {
-        externalOrderId = dispatch.shipment_records.raw_payload.order_id || null;
+      if (dispatch.shipment_record_id) {
+        const { data: sr } = await supabase
+          .from('shipment_records')
+          .select('raw_payload')
+          .eq('id', dispatch.shipment_record_id)
+          .single();
+        if (sr?.raw_payload) {
+          externalOrderId = sr.raw_payload.order_id || null;
+        }
       }
 
       console.log(`📋 Order ID externo: ${externalOrderId || 'N/A'}`);
