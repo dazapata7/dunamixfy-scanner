@@ -24,6 +24,7 @@ export function CSVImporter() {
   const [isValidating, setIsValidating] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importResult, setImportResult] = useState(null);
+  const [importProgress, setImportProgress] = useState({ current: 0, total: 100, message: '' });
 
   // Carrier ID de Interrápidisimo (hardcoded por ahora, podría ser dinámico)
   const [carrierId, setCarrierId] = useState(null);
@@ -111,12 +112,14 @@ export function CSVImporter() {
     }
 
     setIsImporting(true);
+    setImportProgress({ current: 0, total: 100, message: 'Iniciando...' });
 
     try {
       const result = await csvImportService.importInterrapidisimoCSV(
         file,
         carrierId,
-        operatorId
+        operatorId,
+        (current, total, message) => setImportProgress({ current, total, message })
       );
 
       setImportResult(result);
@@ -269,6 +272,32 @@ export function CSVImporter() {
           </div>
         )}
 
+        {/* Import Progress */}
+        {isImporting && (
+          <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-white font-medium flex items-center gap-2">
+                <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                Importando...
+              </span>
+              <span className="text-white font-bold text-lg">{importProgress.current}%</span>
+            </div>
+
+            {/* Progress bar */}
+            <div className="w-full h-3 bg-white/10 rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-gradient-to-r from-blue-500 to-indigo-400 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${importProgress.current}%` }}
+              />
+            </div>
+
+            {/* Message */}
+            {importProgress.message && (
+              <p className="text-white/60 text-sm">{importProgress.message}</p>
+            )}
+          </div>
+        )}
+
         {/* Preview */}
         {preview && preview.length > 0 && (
           <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
@@ -399,10 +428,12 @@ export function CSVImporter() {
               `}
             >
               {isImporting ? (
-                <>
-                  <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                  Importando...
-                </>
+                <span className="flex items-center gap-2">
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {importProgress.current > 0
+                    ? `${importProgress.current}%`
+                    : 'Importando...'}
+                </span>
               ) : (
                 <>
                   <Upload className="w-5 h-5" />

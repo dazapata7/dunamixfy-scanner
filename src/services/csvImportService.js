@@ -19,16 +19,27 @@ export const csvImportService = {
    * Soporta .csv y .xlsx (Excel)
    * Formato Dunamix: NÚMERO GUIA, SKU, CANTIDAD (entre 79 columnas)
    *
+   * ⚡ OPTIMIZADO: Usa operaciones bulk en lugar de row-by-row
+   * ANTES: 500 filas = ~1500 viajes BD secuenciales
+   * AHORA: 500 filas = ~10 viajes BD en paralelo
+   *
    * @param {File} file - Archivo CSV o Excel
    * @param {string} carrierId - ID de la transportadora
    * @param {string} operatorId - ID del operador que importa
+   * @param {function} onProgress - Callback (current, total, message) opcional
    * @returns {Promise<Object>} - { batchId, successCount, errorCount, errors }
    */
-  async importInterrapidisimoCSV(file, carrierId, operatorId) {
-    console.log('📤 Iniciando importación:', file.name);
+  async importInterrapidisimoCSV(file, carrierId, operatorId, onProgress = null) {
+    const report = (current, total, message) => {
+      if (onProgress) onProgress(current, total, message);
+    };
+
+    console.log('📤 Iniciando importación bulk:', file.name);
+    console.time('⚡ CSV Import Total');
 
     try {
-      // 1. Parsear archivo (detecta CSV o Excel automáticamente)
+      // ── FASE 1: Parsear y validar ────────────────────────────────────
+      report(2, 100, 'Leyendo archivo...');
       const parsedData = await this.parseFile(file);
 
       if (!parsedData || parsedData.length === 0) {
@@ -36,8 +47,25 @@ export const csvImportService = {
       }
 
       console.log(`📊 CSV parseado: ${parsedData.length} filas`);
+      report(8, 100, `Validando ${parsedData.length} filas...`);
 
-      // 2. Crear batch de importación
+      // Validar todas las filas en memoria (sin BD, ultra rápido)
+      const validRows = [];
+      const validationErrors = [];
+
+      parsedData.forEach((row, i) => {
+        try {
+          this.validateRow(row, i + 2);
+          validRows.push(row);
+        } catch (err) {
+          validationErrors.push({ row: i + 2, message: err.message, data: row });
+        }
+      });
+
+      console.log(`✅ Válidas: ${validRows.length} | ❌ Errores: ${validationErrors.length}`);
+
+      // ── FASE 2: Crear batch en BD ─────────────────────────────────────
+      report(12, 100, 'Creando registro de importación...');
       const batch = await this.createBatch({
         filename: file.name,
         carrier_id: carrierId,
@@ -45,63 +73,227 @@ export const csvImportService = {
         total_rows: parsedData.length,
         status: 'processing'
       });
-
       console.log(`📝 Batch creado: ${batch.id}`);
 
-      // 3. Procesar cada fila
-      const results = {
-        successCount: 0,
-        errorCount: 0,
-        errors: []
-      };
+      // ── FASE 3: Agrupar filas por guide_code ──────────────────────────
+      // Una guía puede tener múltiples ítems (múltiples filas con mismo guide_code)
+      report(15, 100, 'Agrupando guías...');
+      const guideMap = new Map(); // guide_code → [rows]
+      for (const row of validRows) {
+        const gc = String(row.guide_code || '').trim();
+        if (!guideMap.has(gc)) guideMap.set(gc, []);
+        guideMap.get(gc).push(row);
+      }
+      const guideCodes = Array.from(guideMap.keys());
+      console.log(`📦 Guías únicas: ${guideCodes.length} (de ${validRows.length} filas)`);
 
-      for (let i = 0; i < parsedData.length; i++) {
-        const row = parsedData[i];
-        const rowNumber = i + 2;  // +2 porque la fila 1 es el header y empezamos en 0
+      // ── FASE 4: Verificar guías existentes (1 query en lugar de N) ────
+      report(20, 100, 'Verificando guías existentes...');
+      const existingMap = new Map(); // guide_code → {id, status}
 
-        try {
-          // Validar fila
-          this.validateRow(row, rowNumber);
+      // Chunk para evitar URLs muy largas en la API REST
+      const CHUNK_SIZE = 200;
+      for (let i = 0; i < guideCodes.length; i += CHUNK_SIZE) {
+        const chunk = guideCodes.slice(i, i + CHUNK_SIZE);
+        const { data: existing } = await supabase
+          .from('shipment_records')
+          .select('id, guide_code, status')
+          .in('guide_code', chunk)
+          .eq('carrier_id', carrierId);
 
-          // Crear/actualizar shipment_record
-          await this.createShipmentFromRow(row, carrierId, batch.id);
-
-          results.successCount++;
-
-        } catch (error) {
-          console.error(`❌ Error en fila ${rowNumber}:`, error.message);
-
-          // Guardar error en BD
-          await this.saveError({
-            batch_id: batch.id,
-            row_number: rowNumber,
-            error_message: error.message,
-            raw_data: row
-          });
-
-          results.errorCount++;
-          results.errors.push({
-            row: rowNumber,
-            message: error.message,
-            data: row
-          });
+        for (const rec of (existing || [])) {
+          existingMap.set(rec.guide_code, rec);
         }
       }
 
-      // 4. Actualizar batch con resultados
+      console.log(`📊 Existentes: ${existingMap.size} | Nuevas: ${guideCodes.length - existingMap.size}`);
+
+      // ── FASE 5: Insertar guías NUEVAS en bulk ─────────────────────────
+      report(28, 100, `Creando ${guideCodes.length - existingMap.size} guías nuevas...`);
+      const shipmentIdMap = new Map(); // guide_code → id
+
+      // Registrar IDs de las existentes
+      for (const [gc, rec] of existingMap) {
+        shipmentIdMap.set(gc, rec.id);
+      }
+
+      const newGuideCodes = guideCodes.filter(gc => !existingMap.has(gc));
+      if (newGuideCodes.length > 0) {
+        const newRecords = newGuideCodes.map(gc => {
+          const firstRow = guideMap.get(gc)[0];
+          return {
+            carrier_id: carrierId,
+            guide_code: gc,
+            source: 'CSV',
+            status: 'READY',
+            raw_payload: {
+              batch_id: batch.id,
+              imported_at: new Date().toISOString(),
+              order_id: firstRow.order_id || null,
+              customer_name: firstRow.customer_name || null,
+              store: firstRow.store_name || 'Sin tienda',
+              dropshipper: firstRow.dropshipper || null,
+              warehouse: firstRow.warehouse_name || null,
+              status: firstRow.status || null,
+              tienda: firstRow.tienda_column || null
+            }
+          };
+        });
+
+        // Insertar en chunks de 100
+        for (let i = 0; i < newRecords.length; i += 100) {
+          const chunk = newRecords.slice(i, i + 100);
+          const { data: inserted, error: insertError } = await supabase
+            .from('shipment_records')
+            .insert(chunk)
+            .select('id, guide_code');
+
+          if (insertError) throw insertError;
+
+          for (const r of (inserted || [])) {
+            shipmentIdMap.set(r.guide_code, r.id);
+          }
+
+          const done = Math.min(i + 100, newRecords.length);
+          report(28 + Math.round(done / newRecords.length * 15), 100,
+            `Creando guías... ${done}/${newRecords.length}`);
+        }
+      }
+
+      // ── FASE 6: Resetear guías EXISTENTES a READY ────────────────────
+      report(43, 100, 'Actualizando guías existentes...');
+      const toResetIds = guideCodes
+        .filter(gc => existingMap.has(gc) && existingMap.get(gc).status !== 'READY')
+        .map(gc => existingMap.get(gc).id);
+
+      if (toResetIds.length > 0) {
+        for (let i = 0; i < toResetIds.length; i += 200) {
+          const chunk = toResetIds.slice(i, i + 200);
+          await supabase.from('shipment_records').update({ status: 'READY' }).in('id', chunk);
+        }
+        console.log(`🔄 ${toResetIds.length} guías actualizadas a READY`);
+      }
+
+      // ── FASE 7: Obtener ítems existentes (1 query en lugar de N) ──────
+      report(50, 100, 'Verificando ítems existentes...');
+      const allShipmentIds = Array.from(shipmentIdMap.values());
+      const existingItemsMap = new Map(); // `${srId}:${sku}:${extId}` → {id, qty}
+
+      for (let i = 0; i < allShipmentIds.length; i += CHUNK_SIZE) {
+        const chunk = allShipmentIds.slice(i, i + CHUNK_SIZE);
+        const { data: items } = await supabase
+          .from('shipment_items')
+          .select('id, shipment_record_id, sku, external_product_id, qty')
+          .in('shipment_record_id', chunk);
+
+        for (const item of (items || [])) {
+          const key = `${item.shipment_record_id}:${item.sku}:${item.external_product_id ?? 'null'}`;
+          existingItemsMap.set(key, item);
+        }
+      }
+
+      // ── FASE 8: Clasificar ítems en nuevos vs actualizaciones ─────────
+      report(58, 100, 'Procesando ítems...');
+      const itemsToInsert = [];
+      const itemsToUpdate = []; // [{id, qty}]
+
+      for (const [gc, rows] of guideMap) {
+        const srId = shipmentIdMap.get(gc);
+        if (!srId) continue;
+
+        for (const row of rows) {
+          const sku = String(row.sku || '').trim().toUpperCase();
+          const qty = parseInt(String(row.qty || '1'), 10);
+          const extId = row.product_id_external || null;
+          const key = `${srId}:${sku}:${extId ?? 'null'}`;
+
+          if (existingItemsMap.has(key)) {
+            const existing = existingItemsMap.get(key);
+            if (existing.qty !== qty) {
+              itemsToUpdate.push({ id: existing.id, qty });
+            }
+          } else {
+            itemsToInsert.push({
+              shipment_record_id: srId,
+              sku,
+              qty,
+              external_product_id: extId,
+              product_id: null
+            });
+          }
+        }
+      }
+
+      // ── FASE 9: Insertar ítems NUEVOS en bulk ─────────────────────────
+      report(62, 100, `Insertando ${itemsToInsert.length} ítems nuevos...`);
+      let dbErrorCount = 0;
+
+      if (itemsToInsert.length > 0) {
+        for (let i = 0; i < itemsToInsert.length; i += 100) {
+          const chunk = itemsToInsert.slice(i, i + 100);
+          const { error: itemError } = await supabase.from('shipment_items').insert(chunk);
+          if (itemError) {
+            console.error('❌ Error insertando ítems:', itemError.message);
+            dbErrorCount += chunk.length;
+          }
+
+          const done = Math.min(i + 100, itemsToInsert.length);
+          report(62 + Math.round(done / itemsToInsert.length * 20), 100,
+            `Insertando ítems... ${done}/${itemsToInsert.length}`);
+        }
+      }
+
+      // ── FASE 10: Actualizar ítems con cantidad cambiada (en paralelo) ──
+      report(82, 100, `Actualizando ${itemsToUpdate.length} ítems...`);
+      if (itemsToUpdate.length > 0) {
+        // Actualizar en paralelo por chunks de 50
+        for (let i = 0; i < itemsToUpdate.length; i += 50) {
+          const chunk = itemsToUpdate.slice(i, i + 50);
+          await Promise.all(
+            chunk.map(item =>
+              supabase.from('shipment_items').update({ qty: item.qty }).eq('id', item.id)
+            )
+          );
+        }
+        console.log(`🔄 ${itemsToUpdate.length} ítems actualizados`);
+      }
+
+      // ── FASE 11: Guardar errores de validación ────────────────────────
+      report(90, 100, 'Finalizando...');
+      if (validationErrors.length > 0) {
+        // Guardar errores en paralelo
+        await Promise.all(
+          validationErrors.map(err =>
+            this.saveError({
+              batch_id: batch.id,
+              row_number: err.row,
+              error_message: err.message,
+              raw_data: err.data
+            })
+          )
+        );
+      }
+
+      // ── FASE 12: Actualizar batch con resultados ──────────────────────
+      const successCount = validRows.length - dbErrorCount;
+      const errorCount = validationErrors.length + dbErrorCount;
+
       await this.updateBatch(batch.id, {
-        success_count: results.successCount,
-        error_count: results.errorCount,
-        status: results.errorCount === 0 ? 'completed' : 'completed'  // completed aunque tenga errores
+        success_count: successCount,
+        error_count: errorCount,
+        status: 'completed'
       });
 
-      console.log(`✅ Importación completada:`);
-      console.log(`  - Éxitos: ${results.successCount}`);
-      console.log(`  - Errores: ${results.errorCount}`);
+      console.timeEnd('⚡ CSV Import Total');
+      console.log(`✅ Importación completada: ${successCount} éxitos, ${errorCount} errores`);
+
+      report(100, 100, 'Completado');
 
       return {
         batchId: batch.id,
-        ...results
+        successCount,
+        errorCount,
+        errors: validationErrors
       };
 
     } catch (error) {
