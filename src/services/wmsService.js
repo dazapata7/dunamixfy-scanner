@@ -1062,6 +1062,14 @@ export const dispatchesService = {
       }
 
       // 3. Crear movimientos OUT para cada item (con order_id y carrier_id para rastreabilidad)
+      console.log(`📦 dispatch_items para movimientos: ${dispatch.dispatch_items.length} items`);
+      dispatch.dispatch_items.forEach(i => console.log(`  - product_id=${i.product_id}, qty=${i.qty}`));
+
+      if (dispatch.dispatch_items.length === 0) {
+        console.error(`❌ CRITICAL: dispatch ${dispatch.dispatch_number} no tiene items - no se crearán movimientos`);
+        throw new Error(`Dispatch ${dispatch.dispatch_number} no tiene items asociados`);
+      }
+
       const movements = dispatch.dispatch_items.map(item => ({
         movement_type: 'OUT',
         qty_signed: -item.qty,  // Negativo para salida
@@ -1075,11 +1083,13 @@ export const dispatchesService = {
         notes: `Despacho ${dispatch.dispatch_number}${dispatch.guide_code ? ` - Guía ${dispatch.guide_code}` : ''}`
       }));
 
-      const { error: movementsError } = await supabase
+      const { data: insertedMovements, error: movementsError } = await supabase
         .from('inventory_movements')
-        .insert(movements);
+        .insert(movements)
+        .select();
 
       if (movementsError) throw movementsError;
+      console.log(`✅ ${insertedMovements?.length || 0} movimientos OUT creados para despacho ${dispatch.dispatch_number}`);
 
       // 4. Actualizar status del despacho
       const { data: updatedDispatch, error: updateError } = await supabase
@@ -1245,10 +1255,11 @@ export const dispatchesService = {
    * @param {string|null} warehouseId - Filtrar por almacén (opcional)
    */
   async getDispatchesByDate(dateISO, warehouseId = null) {
-    const localStart = new Date(dateISO);
-    localStart.setHours(0, 0, 0, 0);
-    const localEnd = new Date(dateISO);
-    localEnd.setHours(23, 59, 59, 999);
+    // Parsear como fecha LOCAL (no UTC) agregando T00:00:00 sin Z
+    // new Date('2026-02-21') interpreta como UTC midnight → incorrecto en Bogotá (UTC-5)
+    // new Date('2026-02-21T00:00:00') interpreta como local midnight → correcto
+    const localStart = new Date(dateISO + 'T00:00:00');
+    const localEnd = new Date(dateISO + 'T23:59:59.999');
 
     let query = supabase
       .from('dispatches')
