@@ -61,6 +61,9 @@ export function RemoteScannerHost() {
   const [isConnected, setIsConnected] = useState(false);
   const realtimeChannel = useRef(null);
 
+  // Heartbeat HOST→CLIENT (mantiene canal vivo y permite que CLIENT detecte desconexión)
+  const heartbeatInterval = useRef(null);
+
   // Clientes conectados
   const [connectedClients, setConnectedClients] = useState(new Set());
 
@@ -95,7 +98,10 @@ export function RemoteScannerHost() {
     createSession();
 
     return () => {
-      // Cleanup al desmontar
+      // Detener heartbeat
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+
+      // Cleanup canal Realtime
       if (realtimeChannel.current) {
         remoteScannerService.unsubscribe(realtimeChannel.current);
       }
@@ -141,13 +147,41 @@ export function RemoteScannerHost() {
 
   /**
    * Subscribirse a eventos de la sesión via Supabase Realtime
+   * Con detección real del estado del canal
    */
   function subscribeToEvents(sessionId) {
-    const channel = remoteScannerService.subscribeToSession(sessionId, handleEvent);
+    const channel = remoteScannerService.subscribeToSession(
+      sessionId,
+      handleEvent,
+      handleChannelStatus  // ← detecta SUBSCRIBED / CLOSED / CHANNEL_ERROR
+    );
     realtimeChannel.current = channel;
+  }
 
-    // Actualizar estado de conexión
-    setIsConnected(true);
+  /**
+   * Detectar estado real del canal Supabase Realtime
+   */
+  function handleChannelStatus(status) {
+    console.log(`📡 HOST - Estado canal: ${status}`);
+    if (status === 'SUBSCRIBED') {
+      setIsConnected(true);
+      // Iniciar heartbeat: enviar ping a clientes cada 30s
+      if (heartbeatInterval.current) clearInterval(heartbeatInterval.current);
+      heartbeatInterval.current = setInterval(() => {
+        if (realtimeChannel.current) {
+          remoteScannerService.sendHeartbeat(realtimeChannel.current);
+        }
+      }, 30000);
+    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      setIsConnected(false);
+      if (heartbeatInterval.current) {
+        clearInterval(heartbeatInterval.current);
+        heartbeatInterval.current = null;
+      }
+      console.warn(`⚠️ HOST canal caído: ${status}`);
+      toast.error('Conexión Realtime perdida - reconectando...', { duration: 4000 });
+      // Supabase Realtime hace reconexión automática interna - solo actualizar UI
+    }
   }
 
   /**

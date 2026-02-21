@@ -157,7 +157,7 @@ export const remoteScannerService = {
    * @param {function} onEvent - Callback (event) => void
    * @returns {object} - Channel object (para cleanup y broadcast)
    */
-  subscribeToSession(sessionId, onEvent) {
+  subscribeToSession(sessionId, onEvent, onStatusChange = null) {
     console.log(`🔔 Suscribiéndose a sesión: ${sessionId}`);
 
     const channel = supabase
@@ -169,6 +169,10 @@ export const remoteScannerService = {
       // ⚡ BROADCAST: Recibir cambios de estado instantáneos
       .on('broadcast', { event: 'status_change' }, ({ payload }) => {
         onEvent({ event_type: 'status_change', payload });
+      })
+      // ⚡ BROADCAST: Heartbeat HOST→CLIENT (keepalive)
+      .on('broadcast', { event: 'heartbeat' }, ({ payload }) => {
+        onEvent({ event_type: 'heartbeat', payload });
       })
       // postgres_changes: Recibir scans y conexiones (necesita persistencia en BD)
       .on(
@@ -189,9 +193,26 @@ export const remoteScannerService = {
       )
       .subscribe((status) => {
         console.log(`📡 Supabase Realtime status: ${status}`);
+        // Notificar cambios de estado del canal al componente
+        if (onStatusChange) {
+          onStatusChange(status); // 'SUBSCRIBED' | 'CLOSED' | 'CHANNEL_ERROR' | 'TIMED_OUT'
+        }
       });
 
     return channel;
+  },
+
+  /**
+   * ⚡ Enviar heartbeat desde HOST a todos los clientes conectados
+   * El cliente lo usa para saber que el canal sigue vivo
+   */
+  sendHeartbeat(channel) {
+    if (!channel) return;
+    channel.send({
+      type: 'broadcast',
+      event: 'heartbeat',
+      payload: { ts: Date.now() }
+    });
   },
 
   /**

@@ -29,13 +29,20 @@ export function RemoteScannerClient() {
   const sessionRef = useRef(null); // Ref para acceder a session en callbacks sin stale closure
   const [isConnecting, setIsConnecting] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
+  const [connectionQuality, setConnectionQuality] = useState('good'); // 'good' | 'degraded' | 'lost'
   const [clientId] = useState(() => crypto.randomUUID()); // ID único de este cliente
 
   // Realtime
   const realtimeChannel = useRef(null);
 
-  // Heartbeat (ping cada 30s para detectar desconexiones)
-  const heartbeatInterval = useRef(null);
+  // Heartbeat: detecta si HOST sigue vivo (última vez que recibimos heartbeat)
+  const lastHeartbeatRef = useRef(Date.now());
+  const heartbeatWatchdog = useRef(null); // Watchdog que revisa si dejamos de recibir heartbeats
+
+  // Reconexión automática
+  const reconnectAttempts = useRef(0);
+  const reconnectTimeout = useRef(null);
+  const isReconnecting = useRef(false);
 
   // Guard para evitar doble conexión (React StrictMode monta/desmonta 2 veces en dev)
   const hasConnected = useRef(false);
@@ -91,12 +98,11 @@ export function RemoteScannerClient() {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
-      // Limpiar heartbeat
-      if (heartbeatInterval.current) {
-        clearInterval(heartbeatInterval.current);
-      }
+      // Limpiar watchdog y reconexión
+      if (heartbeatWatchdog.current) clearInterval(heartbeatWatchdog.current);
+      if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
 
-      // Cleanup normal
+      // Cleanup canal Realtime
       if (realtimeChannel.current) {
         remoteScannerService.unsubscribe(realtimeChannel.current);
       }
@@ -161,21 +167,148 @@ export function RemoteScannerClient() {
 
   /**
    * Subscribirse a eventos (feedback del PC)
+   * Incluye callback de estado del canal para detectar desconexiones reales
    */
   function subscribeToEvents(sessionId) {
-    const channel = remoteScannerService.subscribeToSession(sessionId, handleEvent);
+    const channel = remoteScannerService.subscribeToSession(
+      sessionId,
+      handleEvent,
+      handleChannelStatus  // ← NUEVO: detecta CLOSED / CHANNEL_ERROR
+    );
     realtimeChannel.current = channel;
+
+    // Iniciar watchdog: si no recibimos heartbeat en 75s → canal degradado/muerto
+    // (HOST envía heartbeat cada 30s, así que 75s = 2.5 ciclos perdidos)
+    startHeartbeatWatchdog();
+  }
+
+  /**
+   * Detectar cambios reales de estado del canal Supabase
+   * Supabase Realtime llama esto con: 'SUBSCRIBED' | 'CLOSED' | 'CHANNEL_ERROR' | 'TIMED_OUT'
+   */
+  function handleChannelStatus(status) {
+    console.log(`📡 Estado canal Realtime: ${status}`);
+
+    if (status === 'SUBSCRIBED') {
+      console.log('✅ Canal suscrito correctamente');
+      setIsConnected(true);
+      setConnectionQuality('good');
+      reconnectAttempts.current = 0;
+      isReconnecting.current = false;
+    } else if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      console.warn(`⚠️ Canal caído: ${status} - intentando reconectar...`);
+      setIsConnected(false);
+      setConnectionQuality('lost');
+      scheduleReconnect();
+    }
+  }
+
+  /**
+   * Iniciar watchdog del heartbeat HOST→CLIENT
+   * Si no recibimos heartbeat en 75s → canal probablemente muerto
+   */
+  function startHeartbeatWatchdog() {
+    if (heartbeatWatchdog.current) clearInterval(heartbeatWatchdog.current);
+
+    heartbeatWatchdog.current = setInterval(() => {
+      const timeSinceLastHeartbeat = Date.now() - lastHeartbeatRef.current;
+
+      if (timeSinceLastHeartbeat > 75000) {
+        // 75s sin heartbeat → canal degradado
+        console.warn(`💔 Sin heartbeat del HOST por ${Math.round(timeSinceLastHeartbeat / 1000)}s`);
+        setConnectionQuality(q => {
+          if (q === 'good') {
+            toast('⚠️ Conexión con PC débil...', { duration: 3000 });
+            return 'degraded';
+          }
+          if (q === 'degraded') {
+            // 2do ciclo sin heartbeat → intentar reconectar
+            toast.error('Conexión perdida con PC - reconectando...', { duration: 4000 });
+            setIsConnected(false);
+            scheduleReconnect();
+            return 'lost';
+          }
+          return q;
+        });
+      } else if (timeSinceLastHeartbeat < 40000) {
+        // Heartbeat reciente → todo bien
+        setConnectionQuality('good');
+      }
+    }, 30000); // revisar cada 30s
+  }
+
+  /**
+   * Reconexión automática con backoff exponencial
+   * Intentos: 1→3s, 2→6s, 3→12s, 4→24s (máx 24s)
+   */
+  function scheduleReconnect() {
+    if (isReconnecting.current) return;
+    if (!sessionRef.current?.id) return;
+
+    isReconnecting.current = true;
+    const attempt = reconnectAttempts.current + 1;
+    reconnectAttempts.current = attempt;
+
+    const delay = Math.min(3000 * Math.pow(2, attempt - 1), 24000);
+    console.log(`🔄 Reconexión #${attempt} en ${delay / 1000}s...`);
+
+    if (reconnectTimeout.current) clearTimeout(reconnectTimeout.current);
+
+    reconnectTimeout.current = setTimeout(async () => {
+      if (!sessionRef.current?.id) return;
+
+      console.log(`🔄 Intentando reconectar canal (intento ${attempt})...`);
+      try {
+        // Desuscribir canal viejo
+        if (realtimeChannel.current) {
+          await remoteScannerService.unsubscribe(realtimeChannel.current);
+          realtimeChannel.current = null;
+        }
+
+        // Verificar que la sesión siga activa en BD
+        const foundSession = await remoteScannerService.getSessionByCode(sessionCode);
+        if (!foundSession) {
+          toast.error('Sesión expirada - regresando al WMS');
+          setTimeout(() => navigate('/wms'), 2000);
+          return;
+        }
+
+        // Re-suscribir al canal
+        subscribeToEvents(foundSession.id);
+        isReconnecting.current = false;
+        lastHeartbeatRef.current = Date.now(); // reset watchdog
+        console.log(`✅ Reconexión #${attempt} exitosa`);
+      } catch (err) {
+        console.error(`❌ Reconexión #${attempt} fallida:`, err);
+        isReconnecting.current = false;
+        if (attempt < 5) {
+          scheduleReconnect(); // Intentar de nuevo
+        } else {
+          toast.error('No se pudo reconectar. Volviendo al WMS...');
+          setTimeout(() => navigate('/wms'), 3000);
+        }
+      }
+    }, delay);
   }
 
   /**
    * Handler de eventos Realtime
    */
   function handleEvent(event) {
-    console.log('📩 Evento Realtime recibido:', {
-      type: event.event_type,
-      payload: event.payload,
-      myClientId: clientId
-    });
+    if (event.event_type !== 'heartbeat') {
+      console.log('📩 Evento Realtime recibido:', {
+        type: event.event_type,
+        payload: event.payload,
+        myClientId: clientId
+      });
+    }
+
+    if (event.event_type === 'heartbeat') {
+      // HOST sigue vivo - actualizar timestamp y calidad de conexión
+      lastHeartbeatRef.current = Date.now();
+      setConnectionQuality('good');
+      return;
+    }
 
     if (event.event_type === 'feedback') {
       // Verificar si es para este cliente
@@ -424,17 +557,17 @@ export function RemoteScannerClient() {
       // Feedback visual inmediato (antes de recibir respuesta del PC)
       toast.loading('Procesando en PC...', { id: 'processing' });
 
-      // TIMEOUT DE SEGURIDAD: Si no llega feedback en 10s, liberar cooldown
-      // (el PC puede tardar hasta 8s en Dunamixfy + procesamiento)
+      // TIMEOUT DE SEGURIDAD: Si no llega feedback en 20s, liberar cooldown
+      // (Dunamixfy puede tardar hasta 15s + procesamiento + latencia red)
       setTimeout(() => {
         if (scanCooldown.current && lastScannedCode.current === decodedText) {
-          console.warn('⚠️ Timeout esperando feedback del PC - liberando cooldown');
+          console.warn('⚠️ Timeout esperando feedback del PC (20s) - liberando cooldown');
           scanCooldown.current = false;
           lastScannedCode.current = null;
           toast.dismiss('processing');
-          toast('⏱️ Sin respuesta del PC - listo para siguiente escaneo', { duration: 2000 });
+          toast('⏱️ Sin respuesta del PC - listo para siguiente escaneo', { duration: 3000 });
         }
-      }, 10000);
+      }, 20000);
 
     } catch (error) {
       console.error('❌ Error al enviar escaneo:', error);
@@ -583,9 +716,18 @@ export function RemoteScannerClient() {
           <div className="flex-1 min-w-0 text-center">
             <h1 className="text-lg font-bold text-white">Remote Scanner</h1>
             <div className="flex items-center justify-center gap-2 mt-1">
-              <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
+              <div className={`w-2 h-2 rounded-full ${
+                connectionQuality === 'good' ? 'bg-green-400 animate-pulse' :
+                connectionQuality === 'degraded' ? 'bg-yellow-400 animate-pulse' :
+                'bg-red-400'
+              }`} />
               <span className="text-white/60 text-sm">
-                {isConnected ? `Conectado a ${sessionCode}` : 'Desconectado'}
+                {!isConnected
+                  ? (reconnectAttempts.current > 0 ? `Reconectando... (${reconnectAttempts.current})` : 'Desconectado')
+                  : connectionQuality === 'degraded'
+                  ? `Señal débil · ${sessionCode}`
+                  : `Conectado a ${sessionCode}`
+                }
               </span>
             </div>
           </div>
