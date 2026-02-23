@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useStore } from "./store/useStore";
+import { useDeviceType } from "./hooks/useDeviceType";
 import { Toaster } from "react-hot-toast";
 import { SidebarLayout } from "./components/layout/SidebarLayout";
 import "./App.css";
@@ -41,6 +42,7 @@ const ManageBodegas = lazy(() => import("./components/admin/ManageBodegas"));
 const ManageOperators = lazy(() => import("./components/admin/ManageOperators"));
 const SuperAdminDashboard = lazy(() => import("./components/superadmin/SuperAdminDashboard"));
 const UserProfile = lazy(() => import("./components/UserProfile"));
+const MobileWMS = lazy(() => import("./components/mobile/MobileWMS"));
 
 // Componente interno que usa el hook useAuth
 function AppContent() {
@@ -48,6 +50,7 @@ function AppContent() {
   const operator = useStore((state) => state.operator);
   const role = useStore((state) => state.role);
   const companyId = useStore((state) => state.companyId);
+  const { isMobile } = useDeviceType();
   const [useRealAuth, setUseRealAuth] = useState(true); // Toggle para activar auth real
 
   // V4: Componente de loading reutilizable para Suspense y auth
@@ -75,24 +78,28 @@ function AppContent() {
               <Route path="/" element={<LoginAuth />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
+          ) : isMobile ? (
+            /* ── MÓVIL: solo WMS simplificado + escaneo ── */
+            <Routes>
+              <Route path="/" element={<MobileWMS />} />
+              <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
+              <Route path="/wms/scan-guide" element={<ScanGuide />} />
+              <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
+              {/* Remote scanner client (el móvil puede actuar como scanner remoto) */}
+              <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
           ) : (
+            /* ── DESKTOP / TABLET: app completa con sidebar ── */
             <>
-              {/* Sidebar desktop (oculto en móvil, visible lg+) */}
               <SidebarLayout />
-
-              {/* Contenido principal: margen izquierdo en desktop para el sidebar */}
               <div className="lg:ml-60">
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/dashboard" element={<Dashboard />} />
-
-                  {/* Perfil de usuario */}
                   <Route path="/profile" element={<UserProfile />} />
-
-                  {/* Registro de empresa (usuario sin company) */}
                   <Route path="/register-company" element={<RegisterCompany />} />
 
-                  {/* Admin Routes (role === 'admin' o 'superadmin') */}
                   {(role === 'admin' || role === 'superadmin') && (
                     <>
                       <Route path="/admin" element={<AdminDashboard />} />
@@ -100,19 +107,13 @@ function AppContent() {
                       <Route path="/admin/operadores" element={<ManageOperators />} />
                     </>
                   )}
-
-                  {/* SuperAdmin Routes */}
                   {role === 'superadmin' && (
                     <Route path="/superadmin" element={<SuperAdminDashboard />} />
                   )}
 
-                  {/* WMS Routes (todos los roles autenticados) */}
                   <Route path="/wms" element={<WMSHome />} />
                   <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
-                  <Route path="/wms/scan-guide" element={<ScanGuide />} />
                   <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
-
-                  {/* Remote Scanner Routes */}
                   <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
                   <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
                   <Route path="/wms/debug-guide" element={<DebugGuide />} />

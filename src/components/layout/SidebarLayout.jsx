@@ -9,8 +9,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { useAuth } from '../../hooks/useAuth';
 import {
-  LayoutDashboard, QrCode, Package, Upload, ClipboardList,
-  History, TrendingDown, Settings, Users, Warehouse, Shield,
+  Package, Upload, ClipboardList,
+  History, TrendingDown, Users, Warehouse, Shield,
   LogOut, User, BarChart3, Monitor, ChevronRight
 } from 'lucide-react';
 
@@ -18,7 +18,6 @@ import {
 function navItems(role) {
   const wms = [
     { icon: BarChart3,     label: 'Dashboard',        path: '/wms/dashboard' },
-    { icon: QrCode,        label: 'Escanear Guía',    path: '/wms/scan-guide' },
     { icon: Monitor,       label: 'Remote Scanner',   path: '/wms/remote-scanner/host' },
     { icon: History,       label: 'Historial',        path: '/wms/history' },
     { icon: Package,       label: 'Inventario',       path: '/wms/inventory' },
