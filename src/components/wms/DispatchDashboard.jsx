@@ -262,7 +262,7 @@ export function DispatchDashboard() {
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all text-sm"
+            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
             Volver

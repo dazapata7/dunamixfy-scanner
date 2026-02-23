@@ -124,7 +124,7 @@ export function DebugGuide() {
         <div className="flex items-center justify-between mb-6">
           <button
             onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+            className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
             Volver

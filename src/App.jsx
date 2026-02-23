@@ -5,6 +5,7 @@ import { useStore } from "./store/useStore";
 import { useDeviceType } from "./hooks/useDeviceType";
 import { Toaster } from "react-hot-toast";
 import { SidebarLayout } from "./components/layout/SidebarLayout";
+import { TopBar } from "./components/layout/TopBar";
 import "./App.css";
 
 // V4: Code-Splitting - Lazy load de componentes pesados
@@ -93,7 +94,8 @@ function AppContent() {
             /* ── DESKTOP / TABLET: app completa con sidebar ── */
             <>
               <SidebarLayout />
-              <div className="lg:ml-60">
+              <TopBar />
+              <div className="lg:ml-60 lg:pt-14">
                 <Routes>
                   <Route path="/" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/wms/dashboard" replace />} />
