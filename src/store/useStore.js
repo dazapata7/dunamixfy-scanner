@@ -13,6 +13,11 @@ export const useStore = create(
       operatorId: null,
       selectedStore: null,
       selectedWarehouse: null,  // WMS: Almacén seleccionado
+
+      // Rol y empresa (multi-tenant)
+      role: null,          // 'superadmin' | 'admin' | 'operator' | null
+      companyId: null,     // UUID de la empresa
+      companyName: null,   // Nombre de la empresa para mostrar
       
       // Estadísticas de la sesión
       sessionScans: 0,
@@ -30,9 +35,15 @@ export const useStore = create(
       codesCache: new Set(),
       
       // Actions
-      setOperator: (name, id) => set({ 
-        operator: name, 
-        operatorId: id 
+      setOperator: (name, id) => set({
+        operator: name,
+        operatorId: id
+      }),
+
+      setUserProfile: (role, companyId, companyName) => set({
+        role,
+        companyId,
+        companyName
       }),
       
       setSelectedStore: (store) => set({ selectedStore: store }),
@@ -44,6 +55,9 @@ export const useStore = create(
         operatorId: null,
         selectedStore: null,
         selectedWarehouse: null,
+        role: null,
+        companyId: null,
+        companyName: null,
         sessionScans: 0,
         sessionRepeated: 0
       }),
@@ -82,7 +96,10 @@ export const useStore = create(
         operator: state.operator,
         operatorId: state.operatorId,
         selectedStore: state.selectedStore,
-        selectedWarehouse: state.selectedWarehouse
+        selectedWarehouse: state.selectedWarehouse,
+        role: state.role,
+        companyId: state.companyId,
+        companyName: state.companyName
       })
     }
   )

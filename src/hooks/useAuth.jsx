@@ -17,7 +17,23 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState(null);
-  const { setOperator, logout: logoutStore } = useStore();
+  const { setOperator, setUserProfile, logout: logoutStore } = useStore();
+
+  // Carga el perfil completo (role + empresa) después del login o restaurar sesión
+  const loadUserProfile = async (userId) => {
+    try {
+      const { data: profile, error } = await supabase
+        .rpc('get_user_profile', { p_user_id: userId });
+      if (error) throw error;
+      if (profile?.[0]) {
+        const { role, company_id, company_name } = profile[0];
+        setUserProfile(role, company_id, company_name);
+        console.log(`🎭 Perfil cargado: role=${role}, empresa=${company_name || 'ninguna'}`);
+      }
+    } catch (err) {
+      console.warn('⚠️ No se pudo cargar perfil de usuario:', err.message);
+    }
+  };
 
   useEffect(() => {
     // Obtener sesión actual
@@ -26,10 +42,11 @@ export function AuthProvider({ children }) {
       setUser(session?.user ?? null);
       setLoading(false);
 
-      // Si hay sesión activa, guardar operador en Zustand
+      // Si hay sesión activa, guardar operador + perfil en Zustand
       if (session?.user) {
         const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario';
         setOperator(userName, session.user.id);
+        loadUserProfile(session.user.id);
         console.log('🧑 Operador guardado desde sesión inicial:', userName, session.user.id);
       }
     });
@@ -48,6 +65,7 @@ export function AuthProvider({ children }) {
       if (event === 'SIGNED_IN' && session?.user) {
         const userName = session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuario';
         setOperator(userName, session.user.id);
+        loadUserProfile(session.user.id);
         console.log('🧑 Operador guardado:', userName, session.user.id);
       }
 
@@ -80,6 +98,7 @@ export function AuthProvider({ children }) {
             user_email: data.user.email,
             user_name: userName
           });
+          await loadUserProfile(data.user.id);
           console.log('✅ Operador sincronizado en login:', userName);
         } catch (syncError) {
           console.warn('⚠️ No se pudo sincronizar operador:', syncError);
@@ -118,6 +137,7 @@ export function AuthProvider({ children }) {
             user_email: data.user.email,
             user_name: userName
           });
+          await loadUserProfile(data.user.id);
           console.log('✅ Operador sincronizado en registro:', userName);
         } catch (syncError) {
           console.warn('⚠️ No se pudo sincronizar operador:', syncError);

@@ -9,11 +9,12 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { UnifiedDashboard } from './UnifiedDashboard'; // Dashboard único
-import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings, TrendingDown, Monitor } from 'lucide-react';
+import { QrCode, Package, Upload, FileEdit, ClipboardList, ArrowLeft, BarChart3, History, Settings, TrendingDown, Monitor, Shield, Building2 } from 'lucide-react';
 
 export function WMSHome() {
   const navigate = useNavigate();
   const operator = useStore((state) => state.operator);
+  const role = useStore((state) => state.role);
   const selectedWarehouse = useStore((state) => state.selectedWarehouse);
 
   // Si no hay almacén seleccionado, redirigir a selector (en useEffect)
@@ -150,12 +151,30 @@ export function WMSHome() {
             </span>
             <span>•</span>
             <span>{selectedWarehouse.name}</span>
-            <button
-              onClick={() => navigate('/wms/select-warehouse')}
-              className="ml-auto text-xs px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10"
-            >
-              Cambiar almacén
-            </button>
+            <div className="ml-auto flex items-center gap-2">
+              {role === 'superadmin' && (
+                <button
+                  onClick={() => navigate('/superadmin')}
+                  className="text-xs px-3 py-1 rounded-lg bg-yellow-500/10 hover:bg-yellow-500/20 transition-all border border-yellow-500/20 text-yellow-300 flex items-center gap-1"
+                >
+                  <Shield className="w-3 h-3" /> Super Admin
+                </button>
+              )}
+              {(role === 'admin' || role === 'superadmin') && (
+                <button
+                  onClick={() => navigate('/admin')}
+                  className="text-xs px-3 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 transition-all border border-indigo-500/20 text-indigo-300 flex items-center gap-1"
+                >
+                  <Building2 className="w-3 h-3" /> Admin
+                </button>
+              )}
+              <button
+                onClick={() => navigate('/wms/select-warehouse')}
+                className="text-xs px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 transition-all border border-white/10"
+              >
+                Cambiar almacén
+              </button>
+            </div>
           </div>
         </div>
       </div>
