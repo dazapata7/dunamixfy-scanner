@@ -95,8 +95,8 @@ function AppContent() {
               <SidebarLayout />
               <div className="lg:ml-60">
                 <Routes>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/" element={<Navigate to="/wms/dashboard" replace />} />
+                  <Route path="/dashboard" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/profile" element={<UserProfile />} />
                   <Route path="/register-company" element={<RegisterCompany />} />
 
@@ -111,7 +111,7 @@ function AppContent() {
                     <Route path="/superadmin" element={<SuperAdminDashboard />} />
                   )}
 
-                  <Route path="/wms" element={<WMSHome />} />
+                  <Route path="/wms" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
                   <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
                   <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
