@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useStore } from "./store/useStore";
 import { Toaster } from "react-hot-toast";
+import { SidebarLayout } from "./components/layout/SidebarLayout";
 import "./App.css";
 
 // V4: Code-Splitting - Lazy load de componentes pesados
@@ -39,6 +40,7 @@ const AdminDashboard = lazy(() => import("./components/admin/AdminDashboard"));
 const ManageBodegas = lazy(() => import("./components/admin/ManageBodegas"));
 const ManageOperators = lazy(() => import("./components/admin/ManageOperators"));
 const SuperAdminDashboard = lazy(() => import("./components/superadmin/SuperAdminDashboard"));
+const UserProfile = lazy(() => import("./components/UserProfile"));
 
 // Componente interno que usa el hook useAuth
 function AppContent() {
@@ -74,50 +76,61 @@ function AppContent() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           ) : (
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/dashboard" element={<Dashboard />} />
+            <>
+              {/* Sidebar desktop (oculto en móvil, visible lg+) */}
+              <SidebarLayout />
 
-              {/* Registro de empresa (usuario sin company) */}
-              <Route path="/register-company" element={<RegisterCompany />} />
+              {/* Contenido principal: margen izquierdo en desktop para el sidebar */}
+              <div className="lg:ml-60">
+                <Routes>
+                  <Route path="/" element={<Dashboard />} />
+                  <Route path="/dashboard" element={<Dashboard />} />
 
-              {/* Admin Routes (role === 'admin' o 'superadmin') */}
-              {(role === 'admin' || role === 'superadmin') && (
-                <>
-                  <Route path="/admin" element={<AdminDashboard />} />
-                  <Route path="/admin/bodegas" element={<ManageBodegas />} />
-                  <Route path="/admin/operadores" element={<ManageOperators />} />
-                </>
-              )}
+                  {/* Perfil de usuario */}
+                  <Route path="/profile" element={<UserProfile />} />
 
-              {/* SuperAdmin Routes */}
-              {role === 'superadmin' && (
-                <Route path="/superadmin" element={<SuperAdminDashboard />} />
-              )}
+                  {/* Registro de empresa (usuario sin company) */}
+                  <Route path="/register-company" element={<RegisterCompany />} />
 
-              {/* WMS Routes (todos los roles autenticados) */}
-              <Route path="/wms" element={<WMSHome />} />
-              <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
-              <Route path="/wms/scan-guide" element={<ScanGuide />} />
-              <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
+                  {/* Admin Routes (role === 'admin' o 'superadmin') */}
+                  {(role === 'admin' || role === 'superadmin') && (
+                    <>
+                      <Route path="/admin" element={<AdminDashboard />} />
+                      <Route path="/admin/bodegas" element={<ManageBodegas />} />
+                      <Route path="/admin/operadores" element={<ManageOperators />} />
+                    </>
+                  )}
 
-              {/* Remote Scanner Routes */}
-              <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
-              <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
-              <Route path="/wms/debug-guide" element={<DebugGuide />} />
-              <Route path="/wms/inventory" element={<InventoryList />} />
-              <Route path="/wms/import-csv" element={<CSVImporter />} />
-              <Route path="/wms/receipt" element={<ReceiptForm />} />
-              <Route path="/wms/adjustment" element={<AdjustmentForm />} />
-              <Route path="/wms/dashboard" element={<DispatchDashboard />} />
-              <Route path="/wms/history" element={<DispatchHistory />} />
-              <Route path="/wms/inventory-history" element={<InventoryHistory />} />
-              <Route path="/wms/scan-history" element={<ScanHistory />} />
-              <Route path="/wms/manage-warehouses" element={<WarehouseManagement />} />
-              <Route path="/wms/manage-products" element={<ProductManagement />} />
+                  {/* SuperAdmin Routes */}
+                  {role === 'superadmin' && (
+                    <Route path="/superadmin" element={<SuperAdminDashboard />} />
+                  )}
 
-              <Route path="*" element={<Navigate to="/dashboard" replace />} />
-            </Routes>
+                  {/* WMS Routes (todos los roles autenticados) */}
+                  <Route path="/wms" element={<WMSHome />} />
+                  <Route path="/wms/select-warehouse" element={<WarehouseSelector />} />
+                  <Route path="/wms/scan-guide" element={<ScanGuide />} />
+                  <Route path="/wms/batch-summary" element={<BatchSummaryPage />} />
+
+                  {/* Remote Scanner Routes */}
+                  <Route path="/wms/remote-scanner/host" element={<RemoteScannerHost />} />
+                  <Route path="/wms/remote-scanner/client/:sessionCode" element={<RemoteScannerClient />} />
+                  <Route path="/wms/debug-guide" element={<DebugGuide />} />
+                  <Route path="/wms/inventory" element={<InventoryList />} />
+                  <Route path="/wms/import-csv" element={<CSVImporter />} />
+                  <Route path="/wms/receipt" element={<ReceiptForm />} />
+                  <Route path="/wms/adjustment" element={<AdjustmentForm />} />
+                  <Route path="/wms/dashboard" element={<DispatchDashboard />} />
+                  <Route path="/wms/history" element={<DispatchHistory />} />
+                  <Route path="/wms/inventory-history" element={<InventoryHistory />} />
+                  <Route path="/wms/scan-history" element={<ScanHistory />} />
+                  <Route path="/wms/manage-warehouses" element={<WarehouseManagement />} />
+                  <Route path="/wms/manage-products" element={<ProductManagement />} />
+
+                  <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                </Routes>
+              </div>
+            </>
           )}
         </Suspense>
       </BrowserRouter>
