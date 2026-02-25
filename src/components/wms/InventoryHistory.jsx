@@ -17,11 +17,27 @@ import {
   Loader2,
   Search,
   Filter,
-  X
+  X,
+  Download
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+// ── CSV helper ────────────────────────────────────────
+function downloadCSV(rows, filename) {
+  if (!rows.length) { toast.error('No hay datos para exportar'); return; }
+  const headers = Object.keys(rows[0]);
+  const escape = (v) => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
 
 export function InventoryHistory() {
   const navigate = useNavigate();
@@ -110,6 +126,24 @@ export function InventoryHistory() {
     return matchesSearch && matchesType && matchesDate;
   });
 
+  function handleExportCSV() {
+    const rows = filteredMovements.map(m => ({
+      Fecha:        m.created_at ? format(new Date(m.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
+      Tipo:         m.movement_type || '',
+      Producto:     m.product?.name || '',
+      SKU:          m.product?.sku || '',
+      Cantidad:     Math.abs(m.qty_signed ?? m.quantity ?? 0),
+      Guia:         m.guide_code || '',
+      Orden:        m.external_order_id || '',
+      Transportadora: m.carrier?.display_name || '',
+      Referencia:   m.ref_type || '',
+      Descripcion:  m.description || '',
+    }));
+    const date = new Date().toISOString().split('T')[0];
+    downloadCSV(rows, `movimientos_inventario_${date}.csv`);
+    toast.success(`${rows.length} movimientos exportados`);
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
@@ -188,10 +222,20 @@ export function InventoryHistory() {
             />
           </div>
 
-          {/* Results count + Clear filters */}
+          {/* Results count + CSV + Clear filters */}
           <div className="flex items-center justify-between">
-            <div className="text-white/60 text-sm">
-              Mostrando {filteredMovements.length} de {movements.length} movimientos
+            <div className="flex items-center gap-3">
+              <div className="text-white/60 text-sm">
+                Mostrando {filteredMovements.length} de {movements.length} movimientos
+              </div>
+              <button
+                onClick={handleExportCSV}
+                disabled={filteredMovements.length === 0}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs disabled:opacity-40"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Exportar CSV
+              </button>
             </div>
 
             {(searchTerm || typeFilter !== 'all' || dateFrom || dateTo) && (

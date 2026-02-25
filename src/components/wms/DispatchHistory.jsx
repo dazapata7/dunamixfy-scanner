@@ -28,6 +28,21 @@ import toast from 'react-hot-toast';
 import { format, isToday, isYesterday, subDays, startOfDay, endOfDay, parseISO } from 'date-fns';
 import { es } from 'date-fns/locale';
 
+// ── CSV helper ────────────────────────────────────────
+function downloadCSV(rows, filename) {
+  if (!rows.length) { toast.error('No hay datos para exportar'); return; }
+  const headers = Object.keys(rows[0]);
+  const escape = (v) => {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+  };
+  const csv = [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+}
+
 // Preset de fechas rápidas
 const DATE_PRESETS = [
   { key: 'all', label: 'Todos' },
@@ -222,6 +237,23 @@ export function DispatchHistory({ warehouseId = null }) {
     setSearchTerm('');
   }
 
+  function handleExportCSV() {
+    const rows = filteredDispatches.map(d => ({
+      Guia:          d.guide_code || d.dispatch_number || '',
+      Transportadora: d.shipment_record?.carriers?.display_name || '',
+      Tienda:        d.shipment_record?.raw_payload?.store || '',
+      Cliente:       d.shipment_record?.raw_payload?.customer_name || '',
+      Bodega:        d.warehouse?.name || '',
+      Operador:      d.operator?.name || '',
+      Estado:        d.status || '',
+      Fecha:         d.created_at ? format(new Date(d.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
+      Productos:     (d.dispatch_items || []).map(i => `${i.products?.name || ''} x${i.quantity}`).join(' | '),
+    }));
+    const date = new Date().toISOString().split('T')[0];
+    downloadCSV(rows, `historial_despachos_${date}.csv`);
+    toast.success(`${rows.length} despachos exportados`);
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
@@ -347,11 +379,21 @@ export function DispatchHistory({ warehouseId = null }) {
             </div>
           )}
 
-          {/* Resumen de resultados */}
-          <p className="text-white/40 text-xs">
-            {filteredDispatches.length} de {dispatches.length} pedidos
-            {hasActiveFilters && <span className="ml-1 text-primary-400">• filtros activos</span>}
-          </p>
+          {/* Resumen de resultados + CSV */}
+          <div className="flex items-center gap-3">
+            <p className="text-white/40 text-xs">
+              {filteredDispatches.length} de {dispatches.length} pedidos
+              {hasActiveFilters && <span className="ml-1 text-primary-400">• filtros activos</span>}
+            </p>
+            <button
+              onClick={handleExportCSV}
+              disabled={filteredDispatches.length === 0}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs disabled:opacity-40"
+            >
+              <Download className="w-3.5 h-3.5" />
+              Exportar CSV
+            </button>
+          </div>
         </div>
 
         {/* Lista de dispatches */}
