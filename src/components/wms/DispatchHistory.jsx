@@ -256,252 +256,224 @@ export function DispatchHistory({ warehouseId = null }) {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-center h-screen">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-primary-400 animate-spin mx-auto mb-4" />
-            <p className="text-white/60">Cargando historial...</p>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-4 md:p-6">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-4 lg:p-6">
+      <div className="max-w-[1600px] mx-auto">
 
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            onClick={() => navigate('/wms')}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver
+        {/* Header – solo móvil */}
+        <div className="lg:hidden mb-4 flex items-center gap-3">
+          <button onClick={() => navigate('/wms')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all">
+            <ArrowLeft className="w-4 h-4" /> Volver
           </button>
-
-          <h1 className="text-2xl font-bold text-white flex-1 text-center">
-            📋 Historial de Pedidos
-          </h1>
-
-          <div className="w-[100px]"></div>
+          <h1 className="text-xl font-bold text-white">Historial de Pedidos</h1>
         </div>
 
-        {/* Filtros */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 shadow-glass-lg mb-6 space-y-3">
+        {/* ── Filtros ──────────────────────────── */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-4 space-y-3">
 
-          {/* Búsqueda por guía / cliente */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-            <input
-              type="text"
-              placeholder="Buscar por guía, cliente, tienda..."
-              value={searchTerm}
-              onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 bg-white/5 border border-white/10 rounded-xl text-white placeholder-white/40 text-sm focus:outline-none focus:border-primary-500/50 transition-all"
-            />
-            {searchTerm && (
-              <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80">
-                <X className="w-4 h-4" />
-              </button>
-            )}
-          </div>
+          <div className="flex flex-wrap gap-3 items-center">
+            {/* Búsqueda */}
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <input type="text" placeholder="Buscar por guía, cliente, tienda..."
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70">
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
 
-          {/* Filtros de fecha + transportadora */}
-          <div className="flex flex-wrap gap-2 items-center">
-            {/* Presets de fecha */}
+            {/* Presets fecha */}
             <div className="flex gap-1 flex-wrap">
-              {DATE_PRESETS.map(preset => (
-                <button
-                  key={preset.key}
-                  onClick={() => setDatePreset(preset.key)}
+              {DATE_PRESETS.map(p => (
+                <button key={p.key} onClick={() => setDatePreset(p.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                    datePreset === preset.key
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  {preset.label}
+                    datePreset === p.key ? 'bg-primary-500 text-white' : 'bg-white/5 border border-white/10 text-white/60 hover:bg-white/10'
+                  }`}>
+                  {p.label}
                 </button>
               ))}
             </div>
 
-            {/* Separador */}
-            <div className="w-px h-5 bg-white/10 hidden md:block" />
-
-            {/* Filtro de transportadora */}
+            {/* Transportadora */}
             {availableCarriers.length > 0 && (
               <div className="relative">
-                <select
-                  value={selectedCarrier}
-                  onChange={e => setSelectedCarrier(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white/80 focus:outline-none focus:border-primary-500/50 transition-all cursor-pointer"
-                >
+                <select value={selectedCarrier} onChange={e => setSelectedCarrier(e.target.value)}
+                  className="appearance-none pl-3 pr-8 py-2 bg-white/5 border border-white/10 rounded-lg text-sm text-white/80 focus:outline-none focus:border-primary-500/50 transition-all"
+                  style={{ colorScheme: 'dark' }}>
                   <option value="all">Todas las transportadoras</option>
-                  {availableCarriers.map(c => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
+                  {availableCarriers.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
               </div>
             )}
 
-            {/* Limpiar filtros */}
+            {/* Limpiar */}
             {hasActiveFilters && (
-              <button
-                onClick={clearFilters}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all"
-              >
-                <X className="w-3 h-3" />
-                Limpiar
+              <button onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm">
+                <X className="w-4 h-4" /> Limpiar
               </button>
             )}
+
+            {/* CSV */}
+            <button onClick={handleExportCSV} disabled={filteredDispatches.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-sm disabled:opacity-40">
+              <Download className="w-4 h-4" /> Exportar CSV
+            </button>
           </div>
 
-          {/* Inputs de rango personalizado */}
+          {/* Rango personalizado */}
           {showCustomDates && (
             <div className="flex gap-2 items-center flex-wrap">
               <span className="text-white/40 text-xs">Desde:</span>
-              <input
-                type="date"
-                value={customDateFrom}
-                onChange={e => setCustomDateFrom(e.target.value)}
-                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50 transition-all"
-              />
+              <input type="date" value={customDateFrom} onChange={e => setCustomDateFrom(e.target.value)}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50"
+                style={{ colorScheme: 'dark' }} />
               <span className="text-white/40 text-xs">Hasta:</span>
-              <input
-                type="date"
-                value={customDateTo}
-                onChange={e => setCustomDateTo(e.target.value)}
-                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50 transition-all"
-              />
+              <input type="date" value={customDateTo} onChange={e => setCustomDateTo(e.target.value)}
+                className="px-3 py-1.5 bg-white/5 border border-white/10 rounded-lg text-xs text-white focus:outline-none focus:border-primary-500/50"
+                style={{ colorScheme: 'dark' }} />
             </div>
           )}
 
-          {/* Resumen de resultados + CSV */}
-          <div className="flex items-center gap-3">
-            <p className="text-white/40 text-xs">
-              {filteredDispatches.length} de {dispatches.length} pedidos
-              {hasActiveFilters && <span className="ml-1 text-primary-400">• filtros activos</span>}
-            </p>
-            <button
-              onClick={handleExportCSV}
-              disabled={filteredDispatches.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs disabled:opacity-40"
-            >
-              <Download className="w-3.5 h-3.5" />
-              Exportar CSV
-            </button>
+          {/* Contador */}
+          <div className="text-white/40 text-xs">
+            {filteredDispatches.length} de {dispatches.length} pedidos
+            {hasActiveFilters && <span className="ml-1.5 text-primary-400">• filtros activos</span>}
           </div>
         </div>
 
-        {/* Lista de dispatches */}
-        <div className="space-y-3">
-          {filteredDispatches.length === 0 ? (
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-12 text-center">
-              <Package className="w-16 h-16 text-white/20 mx-auto mb-4" />
-              <p className="text-white/60">
-                {hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}
-              </p>
-              {hasActiveFilters && (
-                <button onClick={clearFilters} className="mt-3 text-primary-400 text-sm hover:underline">
-                  Limpiar filtros
-                </button>
-              )}
+        {/* ── DESKTOP: tabla ─────────────────────── */}
+        {filteredDispatches.length === 0 ? (
+          <div className="bg-white/5 rounded-2xl border border-white/10 p-16 text-center">
+            <Package className="w-14 h-14 text-white/20 mx-auto mb-3" />
+            <p className="text-white/40">{hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}</p>
+            {hasActiveFilters && <button onClick={clearFilters} className="mt-3 text-primary-400 text-sm hover:underline">Limpiar filtros</button>}
+          </div>
+        ) : (
+          <>
+            {/* Tabla desktop */}
+            <div className="hidden lg:block bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/3">
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Guía</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-28">Estado</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-40">Transportadora</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Tienda</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Cliente</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Productos</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-36">Fecha</th>
+                    <th className="px-4 py-3 text-center text-white/40 font-medium text-xs uppercase tracking-wider w-20">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredDispatches.map(dispatch => {
+                    const customerName = dispatch.shipment_record?.raw_payload?.customer_name || '—';
+                    const storeName    = dispatch.shipment_record?.raw_payload?.store || dispatch.shipment_record?.raw_payload?.dropshipper || '—';
+                    const carrierName  = dispatch.shipment_record?.carriers?.display_name || '—';
+                    const isDraft      = dispatch.status !== 'confirmed';
+                    return (
+                      <tr key={dispatch.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3 font-mono text-white/90 font-medium text-xs">{dispatch.guide_code}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                            isDraft ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'
+                          }`}>
+                            {isDraft ? 'BORRADOR' : 'CONFIRMADO'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-white/70 text-xs truncate max-w-[140px]">{carrierName}</td>
+                        <td className="px-4 py-3 text-white/70 text-xs truncate max-w-[140px]" title={storeName}>{storeName}</td>
+                        <td className="px-4 py-3 text-white/70 text-xs truncate max-w-[160px]" title={customerName}>{customerName}</td>
+                        <td className="px-4 py-3 text-white/50 text-xs max-w-[220px]">
+                          <div className="truncate">
+                            {(dispatch.dispatch_items || []).map((item, i) => (
+                              <span key={i}>{item.products?.name || 'Prod.'} <span className="text-white/30">×{item.qty || item.quantity}</span>{i < dispatch.dispatch_items.length - 1 ? ' · ' : ''}</span>
+                            ))}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-white/50 text-xs whitespace-nowrap">
+                          {format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center justify-center gap-1">
+                            {isDraft && (
+                              <button onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
+                                className="p-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 text-green-400 transition-all" title="Confirmar">
+                                <CheckCircle className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <button onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
+                              className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 transition-all" title="Eliminar">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
-          ) : (
-            filteredDispatches.map((dispatch) => {
-              const customerName = dispatch.shipment_record?.raw_payload?.customer_name || 'N/A';
-              const storeName = dispatch.shipment_record?.raw_payload?.store ||
-                                dispatch.shipment_record?.raw_payload?.dropshipper ||
-                                'Sin tienda';
-              const carrierName = dispatch.shipment_record?.carriers?.display_name || 'Sin transportadora';
-              const isDraft = dispatch.status !== 'confirmed';
 
-              return (
-                <div
-                  key={dispatch.id}
-                  className="bg-white/5 backdrop-blur-xl rounded-xl border border-white/10 p-3 shadow-glass-lg hover:bg-white/10 transition-all"
-                >
-                  {/* Compact Header: Guía + Status + Actions */}
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-white font-bold text-sm font-mono truncate">
-                        📦 {dispatch.guide_code}
-                      </span>
-
-                      {/* Status Badge - CORRECTO: isDraft = borrador, !isDraft = confirmado */}
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-medium whitespace-nowrap ${
-                        isDraft
-                          ? 'bg-orange-500/20 text-orange-400 border border-orange-500/30'
-                          : 'bg-green-500/20 text-green-400 border border-green-500/30'
-                      }`}>
-                        {isDraft ? 'BORRADOR' : 'CONFIRMADO'}
-                      </span>
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center gap-2">
-                      {isDraft && (
-                        <button
-                          onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
-                          className="p-1.5 rounded-lg bg-green-500/10 hover:bg-green-500/20 border border-green-500/20 hover:border-green-500/30 text-green-400 transition-all"
-                          title="Confirmar dispatch"
-                        >
-                          <CheckCircle className="w-4 h-4" />
+            {/* Cards móvil */}
+            <div className="lg:hidden space-y-2">
+              {filteredDispatches.map(dispatch => {
+                const customerName = dispatch.shipment_record?.raw_payload?.customer_name || '—';
+                const storeName    = dispatch.shipment_record?.raw_payload?.store || dispatch.shipment_record?.raw_payload?.dropshipper || '—';
+                const carrierName  = dispatch.shipment_record?.carriers?.display_name || '—';
+                const isDraft      = dispatch.status !== 'confirmed';
+                return (
+                  <div key={dispatch.id} className="bg-white/5 rounded-xl border border-white/10 p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-white font-bold text-sm font-mono truncate">{dispatch.guide_code}</span>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
+                          isDraft ? 'bg-orange-500/20 text-orange-400 border-orange-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'
+                        }`}>{isDraft ? 'BORRADOR' : 'CONFIRMADO'}</span>
+                      </div>
+                      <div className="flex gap-1">
+                        {isDraft && (
+                          <button onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
+                            className="p-1.5 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400">
+                            <CheckCircle className="w-4 h-4" />
+                          </button>
+                        )}
+                        <button onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
+                          className="p-1.5 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400">
+                          <Trash2 className="w-4 h-4" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
-                        className="p-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 hover:border-red-500/30 text-red-400 transition-all"
-                        title="Eliminar"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      </div>
                     </div>
-                  </div>
-
-                  {/* Compact Info Grid */}
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                    <div>
-                      <p className="text-white/40 mb-0.5">🚚 Transportadora</p>
-                      <p className="text-white font-medium truncate" title={carrierName}>{carrierName}</p>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
+                      <div><p className="text-white/40">Transportadora</p><p className="text-white truncate">{carrierName}</p></div>
+                      <div><p className="text-white/40">Tienda</p><p className="text-white truncate">{storeName}</p></div>
+                      <div><p className="text-white/40">Cliente</p><p className="text-white truncate">{customerName}</p></div>
+                      <div><p className="text-white/40">Fecha</p><p className="text-white">{format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}</p></div>
                     </div>
-                    <div>
-                      <p className="text-white/40 mb-0.5">🏪 Tienda</p>
-                      <p className="text-white font-medium truncate" title={storeName}>{storeName}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/40 mb-0.5">👤 Cliente</p>
-                      <p className="text-white font-medium truncate" title={customerName}>{customerName}</p>
-                    </div>
-                    <div>
-                      <p className="text-white/40 mb-0.5">📅 Fecha</p>
-                      <p className="text-white font-medium">
-                        {format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Productos */}
-                  <div className="mt-2 pt-2 border-t border-white/10">
-                    <p className="text-white/40 text-[10px] mb-1">📦 Productos ({dispatch.dispatch_items?.length || 0})</p>
-                    <div className="text-xs text-white/80">
-                      {dispatch.dispatch_items?.map((item, idx) => (
-                        <span key={idx}>
-                          {item.products?.name || 'Producto'} <span className="text-white/60">x{item.qty}</span>
-                          {idx < dispatch.dispatch_items.length - 1 && <span className="text-white/40"> • </span>}
-                        </span>
+                    <div className="pt-2 border-t border-white/10 text-xs text-white/60">
+                      {(dispatch.dispatch_items || []).map((item, i) => (
+                        <span key={i}>{item.products?.name} <span className="text-white/40">×{item.qty || item.quantity}</span>{i < dispatch.dispatch_items.length - 1 ? ' · ' : ''}</span>
                       ))}
                     </div>
                   </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
+                );
+              })}
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

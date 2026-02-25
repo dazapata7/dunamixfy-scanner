@@ -1,24 +1,16 @@
 // =====================================================
 // INVENTORY HISTORY - Historial de Movimientos de Inventario
 // =====================================================
-// Muestra todos los movimientos de inventario (IN/OUT)
-// Filtrable por producto, rango de fechas, tipo de movimiento
+// Desktop: tabla con columnas
+// Mobile: cards compactas
 // =====================================================
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import {
-  ArrowLeft,
-  TrendingDown,
-  TrendingUp,
-  Calendar,
-  Package,
-  Loader2,
-  Search,
-  Filter,
-  X,
-  Download
+  ArrowLeft, TrendingDown, TrendingUp,
+  Package, Loader2, Search, X, Download, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -45,301 +37,253 @@ export function InventoryHistory() {
   const [movements, setMovements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all'); // 'all', 'in', 'out'
+  const [typeFilter, setTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => {
-    loadMovements();
-  }, []);
+  useEffect(() => { loadMovements(); }, []);
 
   async function loadMovements() {
     setIsLoading(true);
     try {
-      let query = supabase
+      const { data, error } = await supabase
         .from('inventory_movements')
-        .select(`
-          *,
-          product:products(id, name, sku),
-          carrier:carriers(id, display_name, code)
-        `)
+        .select(`*, product:products(id, name, sku), carrier:carriers(id, display_name, code)`)
         .order('created_at', { ascending: false })
         .limit(500);
 
-      const { data, error } = await query;
-
       if (error) throw error;
 
-      // Obtener detalles de despachos para movimientos con ref_type='dispatch'
       const dispatchIds = [...new Set(data?.filter(m => m.ref_type === 'dispatch').map(m => m.ref_id) || [])];
       let dispatchMap = {};
-
       if (dispatchIds.length > 0) {
-        const { data: dispatchData } = await supabase
-          .from('dispatches')
-          .select('id, dispatch_number, guide_code')
-          .in('id', dispatchIds);
-
-        dispatchMap = Object.fromEntries(dispatchData?.map(d => [d.id, d]) || []);
+        const { data: dd } = await supabase.from('dispatches').select('id, dispatch_number, guide_code').in('id', dispatchIds);
+        dispatchMap = Object.fromEntries(dd?.map(d => [d.id, d]) || []);
       }
 
-      // Enriquecer movimientos con datos de despachos
-      const enrichedData = data?.map(m => ({
+      setMovements(data?.map(m => ({
         ...m,
         dispatch: m.ref_type === 'dispatch' ? dispatchMap[m.ref_id] : null,
         guide_code: m.ref_type === 'dispatch' && dispatchMap[m.ref_id] ? dispatchMap[m.ref_id].guide_code : null
-      })) || [];
-
-      setMovements(enrichedData);
-      console.log(`✅ ${enrichedData?.length || 0} movimientos cargados`);
-
+      })) || []);
     } catch (error) {
-      console.error('❌ Error al cargar movimientos:', error);
       toast.error('Error al cargar historial de movimientos');
     } finally {
       setIsLoading(false);
     }
   }
 
-  // Filtrar movimientos según criterios
-  const filteredMovements = movements.filter(movement => {
-    const matchesSearch =
-      movement.product?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.product?.sku?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.dispatch?.dispatch_number?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.guide_code?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.carrier?.display_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      movement.external_order_id?.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredMovements = movements.filter(m => {
+    const q = searchTerm.toLowerCase();
+    const matchesSearch = !q ||
+      m.product?.name?.toLowerCase().includes(q) ||
+      m.product?.sku?.toLowerCase().includes(q) ||
+      m.dispatch?.dispatch_number?.toLowerCase().includes(q) ||
+      m.guide_code?.toLowerCase().includes(q) ||
+      m.carrier?.display_name?.toLowerCase().includes(q) ||
+      m.external_order_id?.toLowerCase().includes(q);
 
-    const matchesType =
-      typeFilter === 'all' ||
-      movement.movement_type === (typeFilter === 'in' ? 'IN' : 'OUT');
+    const matchesType = typeFilter === 'all' || m.movement_type === (typeFilter === 'in' ? 'IN' : 'OUT');
 
-    const movementDate = new Date(movement.created_at);
+    const date = new Date(m.created_at);
+    const from = dateFrom ? new Date(dateFrom + 'T00:00:00') : new Date('2000-01-01');
+    const to   = dateTo   ? new Date(dateTo   + 'T23:59:59') : new Date('2099-12-31');
 
-    // Fechas con hora para comparación correcta
-    const fromDate = dateFrom ? new Date(dateFrom + 'T00:00:00') : new Date('2000-01-01');
-    const toDate = dateTo ? new Date(dateTo + 'T23:59:59') : new Date('2099-12-31');
-
-    const matchesDate = movementDate >= fromDate && movementDate <= toDate;
-
-    return matchesSearch && matchesType && matchesDate;
+    return matchesSearch && matchesType && date >= from && date <= to;
   });
 
   function handleExportCSV() {
     const rows = filteredMovements.map(m => ({
-      Fecha:        m.created_at ? format(new Date(m.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
-      Tipo:         m.movement_type || '',
-      Producto:     m.product?.name || '',
-      SKU:          m.product?.sku || '',
-      Cantidad:     Math.abs(m.qty_signed ?? m.quantity ?? 0),
-      Guia:         m.guide_code || '',
-      Orden:        m.external_order_id || '',
+      Fecha:          m.created_at ? format(new Date(m.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
+      Tipo:           m.movement_type || '',
+      Producto:       m.product?.name || '',
+      SKU:            m.product?.sku || '',
+      Cantidad:       Math.abs(m.qty_signed ?? m.quantity ?? 0),
+      Guia:           m.guide_code || '',
+      Orden:          m.external_order_id || '',
       Transportadora: m.carrier?.display_name || '',
-      Referencia:   m.ref_type || '',
-      Descripcion:  m.description || '',
+      Referencia:     m.ref_type || '',
+      Descripcion:    m.description || '',
     }));
-    const date = new Date().toISOString().split('T')[0];
-    downloadCSV(rows, `movimientos_inventario_${date}.csv`);
+    downloadCSV(rows, `movimientos_inventario_${new Date().toISOString().split('T')[0]}.csv`);
     toast.success(`${rows.length} movimientos exportados`);
   }
 
-  if (isLoading) {
+  const hasFilters = searchTerm || typeFilter !== 'all' || dateFrom || dateTo;
+  const clearFilters = () => { setSearchTerm(''); setTypeFilter('all'); setDateFrom(''); setDateTo(''); };
+
+  // ── Badge de tipo ─────────────────────────────────
+  const TypeBadge = ({ type }) => type === 'OUT'
+    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold">
+        <TrendingDown className="w-3 h-3" /> Salida
+      </span>
+    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-semibold">
+        <TrendingUp className="w-3 h-3" /> Entrada
+      </span>;
+
+  const QtyCell = ({ m }) => {
+    const qty = Math.abs(m.qty_signed ?? m.quantity ?? 0);
     return (
-      <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-        <div className="max-w-6xl mx-auto flex items-center justify-center h-screen">
-          <div className="text-center">
-            <Loader2 className="w-12 h-12 text-primary-400 animate-spin mx-auto mb-4" />
-            <p className="text-white/60">Cargando movimientos...</p>
-          </div>
-        </div>
-      </div>
+      <span className={`font-bold tabular-nums ${m.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'}`}>
+        {m.movement_type === 'OUT' ? '-' : '+'}{qty}
+      </span>
     );
-  }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-4 lg:p-6">
+      <div className="max-w-[1600px] mx-auto">
 
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between gap-4">
-          <button
-            onClick={() => navigate('/wms')}
-            className="lg:hidden flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            Volver
+        {/* Header – solo móvil */}
+        <div className="lg:hidden mb-4 flex items-center gap-3">
+          <button onClick={() => navigate('/wms')}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all">
+            <ArrowLeft className="w-4 h-4" /> Volver
           </button>
-
-          <h1 className="text-2xl font-bold text-white flex-1 text-center">
-            📊 Historial de Movimientos de Inventario
-          </h1>
-
-          <div className="w-[120px]"></div>
+          <h1 className="text-xl font-bold text-white">Movimientos</h1>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg mb-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-3 w-4 h-4 text-white/40" />
-              <input
-                type="text"
-                placeholder="Buscar producto, guía, orden o transportadora..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white placeholder-white/40 focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
+        {/* ── Filtros ─────────────────────────────── */}
+        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-4">
+          <div className="flex flex-wrap gap-3 items-center">
+
+            {/* Búsqueda */}
+            <div className="relative flex-1 min-w-[220px]">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+              <input type="text" placeholder="Buscar producto, guía, orden, transportadora..."
+                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all"
               />
             </div>
 
-            {/* Type Filter */}
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
-              style={{ colorScheme: 'dark' }}
-            >
-              <option value="all" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Todos los tipos</option>
-              <option value="in" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Entradas (IN)</option>
-              <option value="out" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Salidas (OUT)</option>
+            {/* Tipo */}
+            <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              style={{ colorScheme: 'dark' }}>
+              <option value="all">Todos los tipos</option>
+              <option value="in">Entradas (IN)</option>
+              <option value="out">Salidas (OUT)</option>
             </select>
 
-            {/* Date From */}
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => setDateFrom(e.target.value)}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
-            />
+            {/* Fecha desde */}
+            <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              style={{ colorScheme: 'dark' }} />
 
-            {/* Date To */}
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => setDateTo(e.target.value)}
-              className="px-4 py-2 bg-white/5 border border-white/10 rounded-lg text-white focus:outline-none focus:border-primary-400 focus:bg-white/10 transition-all"
-            />
-          </div>
+            {/* Fecha hasta */}
+            <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              style={{ colorScheme: 'dark' }} />
 
-          {/* Results count + CSV + Clear filters */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="text-white/60 text-sm">
-                Mostrando {filteredMovements.length} de {movements.length} movimientos
-              </div>
-              <button
-                onClick={handleExportCSV}
-                disabled={filteredMovements.length === 0}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-xs disabled:opacity-40"
-              >
-                <Download className="w-3.5 h-3.5" />
-                Exportar CSV
-              </button>
-            </div>
+            {/* Actualizar */}
+            <button onClick={loadMovements} disabled={isLoading}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all text-sm disabled:opacity-50">
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span className="hidden sm:inline">Actualizar</span>
+            </button>
 
-            {(searchTerm || typeFilter !== 'all' || dateFrom || dateTo) && (
-              <button
-                onClick={() => {
-                  setSearchTerm('');
-                  setTypeFilter('all');
-                  setDateFrom('');
-                  setDateTo('');
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 hover:text-white transition-all text-sm"
-              >
+            {/* Limpiar */}
+            {hasFilters && (
+              <button onClick={clearFilters}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm">
                 <X className="w-4 h-4" />
-                Limpiar filtros
+                <span className="hidden sm:inline">Limpiar</span>
               </button>
             )}
+
+            {/* CSV */}
+            <button onClick={handleExportCSV} disabled={filteredMovements.length === 0}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-sm disabled:opacity-40">
+              <Download className="w-4 h-4" />
+              Exportar CSV
+            </button>
+          </div>
+
+          {/* Contador */}
+          <div className="mt-3 text-white/40 text-xs">
+            {filteredMovements.length} de {movements.length} movimientos
+            {hasFilters && <span className="ml-1.5 text-primary-400">• filtros activos</span>}
           </div>
         </div>
 
-        {/* Movements Table */}
-        <div className="space-y-3">
-          {filteredMovements.length === 0 ? (
-            <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-8 text-center">
-              <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
-              <p className="text-white/60">No hay movimientos que coincidan con los filtros</p>
-            </div>
-          ) : (
-            filteredMovements.map((movement) => (
-              <div
-                key={movement.id}
-                className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-3 hover:bg-white/10 transition-all"
-              >
-                <div className="grid grid-cols-1 md:grid-cols-7 gap-3 items-center text-sm">
-                  {/* Tipo de movimiento */}
-                  <div className="flex items-center gap-2">
-                    {movement.movement_type === 'OUT' ? (
-                      <div className="p-1.5 rounded-lg bg-red-500/20">
-                        <TrendingDown className="w-4 h-4 text-red-400" />
-                      </div>
-                    ) : (
-                      <div className="p-1.5 rounded-lg bg-green-500/20">
-                        <TrendingUp className="w-4 h-4 text-green-400" />
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-white font-medium text-xs">
-                        {movement.movement_type === 'OUT' ? 'SALIDA' : 'ENTRADA'}
-                      </p>
-                    </div>
-                  </div>
+        {/* ── Loading ───────────────────────────── */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
+          </div>
+        )}
 
-                  {/* Producto */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">📦 Producto</p>
-                    <p className="text-white font-medium text-xs truncate">{movement.product?.name || 'N/A'}</p>
-                  </div>
+        {/* ── DESKTOP: tabla ─────────────────────── */}
+        {!isLoading && (
+          <div className="hidden lg:block bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+            {filteredMovements.length === 0 ? (
+              <div className="p-16 text-center">
+                <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                <p className="text-white/40">No hay movimientos con los filtros aplicados</p>
+                {hasFilters && <button onClick={clearFilters} className="mt-3 text-primary-400 text-sm hover:underline">Limpiar filtros</button>}
+              </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/3">
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Tipo</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Producto</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-28">SKU</th>
+                    <th className="px-4 py-3 text-center text-white/40 font-medium text-xs uppercase tracking-wider w-24">Cantidad</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-40">Transportadora</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Guía</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-28">Orden</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-36">Fecha</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredMovements.map(m => (
+                    <tr key={m.id} className="hover:bg-white/5 transition-colors group">
+                      <td className="px-4 py-3"><TypeBadge type={m.movement_type} /></td>
+                      <td className="px-4 py-3">
+                        <p className="text-white/90 font-medium truncate max-w-[200px]" title={m.product?.name}>{m.product?.name || 'N/A'}</p>
+                        {m.description && <p className="text-white/30 text-xs truncate max-w-[200px]">{m.description}</p>}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.product?.sku || '—'}</td>
+                      <td className="px-4 py-3 text-center"><QtyCell m={m} /></td>
+                      <td className="px-4 py-3 text-white/70 truncate">{m.carrier?.display_name || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/60 text-xs">{m.guide_code || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.external_order_id || '—'}</td>
+                      <td className="px-4 py-3 text-white/50 text-xs whitespace-nowrap">
+                        {format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
 
-                  {/* Cantidad */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">📊 Cant</p>
-                    <p className={`font-bold ${
-                      movement.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'
-                    }`}>
-                      {movement.movement_type === 'OUT' ? '-' : '+'}{Math.abs(movement.qty_signed)}
-                    </p>
-                  </div>
-
-                  {/* Transportadora */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">🚚 Transportadora</p>
-                    <p className="text-white font-medium text-xs truncate">
-                      {movement.carrier?.display_name || 'N/A'}
-                    </p>
-                  </div>
-
-                  {/* Guía */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">📋 Guía</p>
-                    <p className="text-white font-medium text-xs font-mono truncate">
-                      {movement.guide_code || movement.dispatch?.guide_code || 'N/A'}
-                    </p>
-                  </div>
-
-                  {/* Orden Externa */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">🔢 Orden</p>
-                    <p className="text-white font-medium text-xs font-mono truncate">
-                      {movement.external_order_id || 'N/A'}
-                    </p>
-                  </div>
-
-                  {/* Fecha */}
-                  <div>
-                    <p className="text-white/40 text-xs mb-0.5">📅 Fecha</p>
-                    <p className="text-white font-medium text-xs">
-                      {format(new Date(movement.created_at), 'dd/MM/yy HH:mm', { locale: es })}
-                    </p>
-                  </div>
+        {/* ── MÓVIL: cards ──────────────────────── */}
+        {!isLoading && (
+          <div className="lg:hidden space-y-2">
+            {filteredMovements.length === 0 ? (
+              <div className="bg-white/5 rounded-2xl border border-white/10 p-8 text-center">
+                <Package className="w-10 h-10 text-white/20 mx-auto mb-2" />
+                <p className="text-white/50 text-sm">No hay movimientos</p>
+              </div>
+            ) : filteredMovements.map(m => (
+              <div key={m.id} className="bg-white/5 rounded-xl border border-white/10 p-3">
+                <div className="flex items-center justify-between mb-2">
+                  <TypeBadge type={m.movement_type} />
+                  <span className="text-white/40 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
+                  <div><p className="text-white/40">Producto</p><p className="text-white font-medium truncate">{m.product?.name || 'N/A'}</p></div>
+                  <div><p className="text-white/40">Cantidad</p><QtyCell m={m} /></div>
+                  <div><p className="text-white/40">Transportadora</p><p className="text-white truncate">{m.carrier?.display_name || '—'}</p></div>
+                  <div><p className="text-white/40">Guía</p><p className="text-white font-mono truncate">{m.guide_code || '—'}</p></div>
                 </div>
               </div>
-            ))
-          )}
-        </div>
-
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
