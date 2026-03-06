@@ -63,9 +63,9 @@ export function TopBar() {
           <ChevronLeft className="w-3.5 h-3.5 text-white/40" />
         </button>
 
-        {/* Icono de sección en cuadro oscuro */}
-        <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center flex-shrink-0">
-          <Icon className="w-4 h-4 text-primary-400" />
+        {/* Ícono WMS (XFY) en cuadro oscuro */}
+        <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center flex-shrink-0 overflow-hidden">
+          <img src="/Logos DFX WMS Black sl.jpg" alt="WMS" className="w-6 h-6 object-contain" />
         </div>
 
         {/* Título + descripción apilados */}

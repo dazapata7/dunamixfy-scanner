@@ -165,16 +165,12 @@ export function SidebarLayout() {
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-950 border-r border-white/[0.05] z-40">
 
       {/* ── Logo ──────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5 px-4 h-14 border-b border-white/[0.05] flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(0,229,191,0.35)]">
-          <span className="text-dark-950 font-black text-[11px]">D</span>
-        </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-white font-black text-[12px] leading-none tracking-widest uppercase">Dunamixfy</p>
-          <p className="text-primary-500/40 text-[8px] mt-1 font-semibold tracking-[0.20em] uppercase">
-            {companyName || 'WMS'}
-          </p>
-        </div>
+      <div className="flex items-center px-4 h-14 border-b border-white/[0.05] flex-shrink-0">
+        <img
+          src="/Logos DFX WMS Black.jpg"
+          alt="Dunamixfy WMS"
+          className="h-7 w-auto object-contain"
+        />
       </div>
 
       {/* ── Bodega activa ─────────────────────────────── */}
