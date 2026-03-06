@@ -167,7 +167,7 @@ export function SidebarLayout() {
       {/* ── Logo ──────────────────────────────────────── */}
       <div className="flex items-center px-4 h-14 border-b border-white/[0.05] flex-shrink-0">
         <img
-          src="/Logos DFX WMS Black.jpg"
+          src="/Logos%20DFX%20WMS%20Black.jpg"
           alt="Dunamixfy WMS"
           className="h-7 w-auto object-contain"
         />
