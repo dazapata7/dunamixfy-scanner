@@ -1,11 +1,11 @@
 // =====================================================
 // PRODUCT MANAGEMENT - Dunamix WMS
 // =====================================================
-// Gestión completa de productos: Crear, Editar, Eliminar
-// Solo para administradores
+// Desktop: lista tipo tabla con fotos en fila + modal para crear/editar
+// Móvil: cards compactas
 // =====================================================
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productsService, skuMappingsService, comboProductsService } from '../../services/wmsService';
 import {
@@ -19,90 +19,100 @@ import {
   X,
   Image as ImageIcon,
   Barcode as BarcodeIcon,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Search,
+  RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+// ── Badge de tipo ──────────────────────────────────
+const TypeBadge = ({ type }) => type === 'combo'
+  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-semibold">Combo</span>
+  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">Simple</span>;
+
+// ── Badge de estado ────────────────────────────────
+const StatusBadge = ({ active }) => active
+  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-semibold">Activo</span>
+  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold">Inactivo</span>;
+
+// ── Thumbnail de producto ──────────────────────────
+const ProductThumb = ({ src, name, size = 'md' }) => {
+  const [err, setErr] = useState(false);
+  const cls = size === 'sm'
+    ? 'w-10 h-10 rounded-lg flex-shrink-0'
+    : 'w-14 h-14 rounded-xl flex-shrink-0';
+  if (src && !err) {
+    return <img src={src} alt={name} className={`${cls} object-cover border border-white/10`} onError={() => setErr(true)} />;
+  }
+  return (
+    <div className={`${cls} bg-white/5 border border-white/10 flex items-center justify-center`}>
+      <Package className={size === 'sm' ? 'w-4 h-4 text-white/20' : 'w-6 h-6 text-white/20'} />
+    </div>
+  );
+};
+
+// ── Source Badge ───────────────────────────────────
+const SourceBadge = ({ source }) => {
+  if (source === 'dunamixfy') return <span className="px-2 py-0.5 rounded text-xs bg-orange-500/20 text-orange-300 border border-orange-500/30">Dunamixfy</span>;
+  if (source === 'interrapidisimo') return <span className="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">Interrápidisimo</span>;
+  return <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-white/50 border border-white/20">{source}</span>;
+};
+
+// ─────────────────────────────────────────────────
 export function ProductManagement() {
   const navigate = useNavigate();
-  const formRef = useRef(null);
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [editingProduct, setEditingProduct] = useState(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Modal state
+  const [showModal, setShowModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState(null); // null = creating
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState({
-    sku: '',
-    name: '',
-    barcode: '',
-    photo_url: '',
-    description: '',
-    is_active: true,
-    type: 'simple'  // ⭐ NUEVO: Tipo de producto (simple/combo)
+    sku: '', name: '', barcode: '', photo_url: '',
+    description: '', is_active: true, type: 'simple'
   });
 
-  // SKU Mappings state
+  // SKU Mappings
   const [skuMappings, setSkuMappings] = useState([]);
   const [isLoadingMappings, setIsLoadingMappings] = useState(false);
-  const [newMapping, setNewMapping] = useState({
-    source: 'dunamixfy',
-    external_sku: '',
-    notes: ''
-  });
+  const [newMapping, setNewMapping] = useState({ source: 'dunamixfy', external_sku: '', notes: '' });
 
-  // ⭐ NUEVO: Combo components state
+  // Combo components
   const [comboComponents, setComboComponents] = useState([]);
-  const [isLoadingComponents, setIsLoadingComponents] = useState(false);
   const [availableProducts, setAvailableProducts] = useState([]);
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
+  useEffect(() => { loadProducts(); }, []);
 
   async function loadProducts() {
     setIsLoading(true);
     try {
       const data = await productsService.getAll();
       setProducts(data);
-    } catch (error) {
-      console.error('❌ Error al cargar productos:', error);
-      toast.error('Error al cargar productos');
-    } finally {
-      setIsLoading(false);
-    }
+    } catch { toast.error('Error al cargar productos'); }
+    finally { setIsLoading(false); }
   }
 
-  async function handleCreate() {
-    setIsCreating(true);
+  // ── Abrir modal (crear) ───────────────────────────
+  async function openCreate() {
     setEditingProduct(null);
-    setFormData({
-      sku: '',
-      name: '',
-      barcode: '',
-      photo_url: '',
-      description: '',
-      is_active: true,
-      type: 'simple'  // ⭐ NUEVO
-    });
-    setComboComponents([]);  // ⭐ NUEVO: Limpiar componentes
-    setSkuMappings([]);      // ⭐ NUEVO: Limpiar SKU mappings
-    setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' }); // Reset form
-
-    // ⭐ Cargar productos disponibles anticipadamente
+    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'simple' });
+    setSkuMappings([]);
+    setComboComponents([]);
+    setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
     try {
-      const allProducts = await productsService.getAll();
-      setAvailableProducts(allProducts.filter(p => p.type === 'simple' || !p.type));
-    } catch (error) {
-      console.error('Error al cargar productos:', error);
-    }
-
-    // Scroll al formulario
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      const all = await productsService.getAll();
+      setAvailableProducts(all.filter(p => p.type === 'simple' || !p.type));
+    } catch { /* ignore */ }
+    setShowModal(true);
   }
 
-  async function handleEdit(product) {
-    setIsCreating(false);
-    setEditingProduct(product.id);
+  // ── Abrir modal (editar) ──────────────────────────
+  async function openEdit(product) {
+    setEditingProduct(product);
     setFormData({
       sku: product.sku,
       name: product.name,
@@ -110,772 +120,583 @@ export function ProductManagement() {
       photo_url: product.photo_url || '',
       description: product.description || '',
       is_active: product.is_active,
-      type: product.type || 'simple'  // ⭐ NUEVO
+      type: product.type || 'simple'
     });
-
-    // Cargar SKU mappings del producto
-    await loadSkuMappings(product.id);
-
-    // ⭐ NUEVO: Cargar componentes si es combo
-    if (product.type === 'combo') {
-      await loadComboComponents(product.id);
-    } else {
-      setComboComponents([]);
-    }
-
-    // Scroll al formulario
-    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
-  }
-
-  function handleCancel() {
-    setIsCreating(false);
-    setEditingProduct(null);
-    setFormData({
-      sku: '',
-      name: '',
-      barcode: '',
-      photo_url: '',
-      description: '',
-      is_active: true,
-      type: 'simple'  // ⭐ NUEVO
-    });
-    setSkuMappings([]);
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
-    setComboComponents([]);  // ⭐ NUEVO
-  }
 
-  async function loadSkuMappings(productId) {
+    // Cargar mappings y componentes en paralelo
     setIsLoadingMappings(true);
     try {
-      const mappings = await skuMappingsService.getByProductId(productId);
+      const [mappings, allProds] = await Promise.all([
+        skuMappingsService.getByProductId(product.id),
+        productsService.getAll()
+      ]);
       setSkuMappings(mappings);
-    } catch (error) {
-      console.error('❌ Error al cargar mappings:', error);
-      toast.error('Error al cargar SKU externos');
-    } finally {
-      setIsLoadingMappings(false);
-    }
-  }
+      setAvailableProducts(allProds.filter(p => p.type === 'simple' && p.id !== product.id));
 
-  // ⭐ NUEVO: Cargar componentes del combo
-  async function loadComboComponents(comboProductId) {
-    setIsLoadingComponents(true);
-    try {
-      const components = await comboProductsService.getComponents(comboProductId);
-      setComboComponents(components.map(c => ({
-        id: c.id,
-        product_id: c.component.id,
-        product_name: c.component.name,
-        quantity: c.quantity
-      })));
-
-      // Cargar productos disponibles (solo simples)
-      const allProducts = await productsService.getAll();
-      setAvailableProducts(allProducts.filter(p => p.type === 'simple' && p.id !== comboProductId));
-    } catch (error) {
-      console.error('❌ Error al cargar componentes:', error);
-      toast.error('Error al cargar componentes del combo');
-    } finally {
-      setIsLoadingComponents(false);
-    }
-  }
-
-  // ⭐ NUEVO: Agregar componente al combo
-  function handleAddComponent() {
-    setComboComponents([...comboComponents, { product_id: '', quantity: 1 }]);
-  }
-
-  // ⭐ NUEVO: Remover componente del combo
-  function handleRemoveComponent(index) {
-    setComboComponents(comboComponents.filter((_, i) => i !== index));
-  }
-
-  // ⭐ NUEVO: Actualizar componente
-  function handleUpdateComponent(index, field, value) {
-    const updated = [...comboComponents];
-    updated[index][field] = value;
-    setComboComponents(updated);
-  }
-
-  async function handleAddMapping() {
-    if (!newMapping.external_sku.trim()) {
-      toast.error('El SKU externo es requerido');
-      return;
-    }
-
-    try {
-      // ⭐ Si estamos CREANDO (no editando), guardar en estado local
-      if (isCreating) {
-        // Verificar duplicado local
-        const duplicateLocal = skuMappings.find(
-          m => m.source === newMapping.source &&
-               m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase()
-        );
-
-        if (duplicateLocal) {
-          toast.error('Este SKU externo ya fue agregado');
-          return;
-        }
-
-        // Agregar al estado local (se guardará en BD al hacer Save)
-        setSkuMappings([
-          ...skuMappings,
-          {
-            id: `temp-${Date.now()}`, // ID temporal
-            source: newMapping.source,
-            external_sku: newMapping.external_sku.trim().toUpperCase(),
-            notes: newMapping.notes.trim() || null,
-            is_active: true
-          }
-        ]);
-
-        toast.success('SKU externo agregado (se guardará al crear el producto)');
-        setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
-        return;
-      }
-
-      // ⭐ Si estamos EDITANDO, guardar directamente en BD
-      if (!editingProduct) {
-        toast.error('Debe guardar el producto primero');
-        return;
-      }
-
-      // VALIDACIÓN: Verificar si el SKU externo ya existe en OTRO producto
-      const allMappings = await skuMappingsService.getAll();
-      const duplicateInOtherProduct = allMappings.find(
-        m => m.source === newMapping.source &&
-             m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase() &&
-             m.product_id !== editingProduct
-      );
-
-      if (duplicateInOtherProduct) {
-        // Obtener nombre del producto donde ya existe
-        const productWithDuplicate = products.find(p => p.id === duplicateInOtherProduct.product_id);
-        const productName = productWithDuplicate?.name || 'otro producto';
-
-        toast.error(
-          `❌ El SKU "${newMapping.external_sku}" de ${newMapping.source === 'dunamixfy' ? 'Coordinadora' : 'Interrápidisimo'} ya está asignado a: ${productName}`,
-          { duration: 5000 }
-        );
-        return;
-      }
-
-      await skuMappingsService.create({
-        product_id: editingProduct,
-        source: newMapping.source,
-        external_sku: newMapping.external_sku.trim().toUpperCase(),
-        notes: newMapping.notes.trim() || null,
-        is_active: true
-      });
-
-      toast.success('SKU externo agregado');
-      setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
-      await loadSkuMappings(editingProduct);
-    } catch (error) {
-      console.error('❌ Error al agregar mapping:', error);
-      if (error.code === '23505') {
-        toast.error('Este SKU externo ya existe para esta fuente');
+      if (product.type === 'combo') {
+        const components = await comboProductsService.getComponents(product.id);
+        setComboComponents(components.map(c => ({
+          id: c.id, product_id: c.component.id,
+          product_name: c.component.name, quantity: c.quantity
+        })));
       } else {
-        toast.error(error.message || 'Error al agregar SKU externo');
+        setComboComponents([]);
       }
-    }
+    } catch { toast.error('Error al cargar datos del producto'); }
+    finally { setIsLoadingMappings(false); }
+
+    setShowModal(true);
   }
 
-  async function handleDeleteMapping(mappingId) {
-    if (!confirm('¿Eliminar este SKU externo?')) {
-      return;
-    }
-
-    try {
-      // ⭐ Si estamos CREANDO, eliminar del estado local
-      if (isCreating) {
-        setSkuMappings(skuMappings.filter(m => m.id !== mappingId));
-        toast.success('SKU externo eliminado');
-        return;
-      }
-
-      // ⭐ Si estamos EDITANDO, eliminar de BD
-      await skuMappingsService.delete(mappingId);
-      toast.success('SKU externo eliminado');
-      await loadSkuMappings(editingProduct);
-    } catch (error) {
-      console.error('❌ Error al eliminar mapping:', error);
-      toast.error(error.message || 'Error al eliminar SKU externo');
-    }
+  function closeModal() {
+    setShowModal(false);
+    setEditingProduct(null);
   }
 
+  // ── Guardar ───────────────────────────────────────
   async function handleSave() {
-    // Validaciones
-    if (!formData.sku || !formData.name) {
-      toast.error('SKU y nombre son requeridos');
-      return;
+    if (!formData.sku || !formData.name) { toast.error('SKU y nombre son requeridos'); return; }
+    if (formData.type === 'combo' && comboComponents.length === 0) { toast.error('Un combo debe tener al menos 1 componente'); return; }
+    if (formData.type === 'combo' && comboComponents.some(c => !c.product_id || c.quantity < 1)) {
+      toast.error('Todos los componentes deben tener producto y cantidad válida'); return;
     }
 
-    // ⭐ NUEVO: Validar que combo tenga al menos 1 componente
-    if (formData.type === 'combo' && comboComponents.length === 0) {
-      toast.error('Un combo debe tener al menos 1 componente');
-      return;
-    }
-
-    // ⭐ NUEVO: Validar que todos los componentes tengan producto y cantidad
-    if (formData.type === 'combo') {
-      const invalidComponents = comboComponents.filter(c => !c.product_id || c.quantity < 1);
-      if (invalidComponents.length > 0) {
-        toast.error('Todos los componentes deben tener un producto y cantidad válida');
-        return;
-      }
-    }
-
+    setIsSaving(true);
     try {
-      let productId = editingProduct;
+      let productId = editingProduct?.id;
+      const isCreating = !productId;
 
       if (isCreating) {
-        // Crear nuevo
-        const newProduct = await productsService.create(formData);
-        productId = newProduct.id;
+        const newProd = await productsService.create(formData);
+        productId = newProd.id;
       } else {
-        // Actualizar existente
-        await productsService.update(editingProduct, formData);
+        await productsService.update(productId, formData);
       }
 
-      // ⭐ NUEVO: Guardar componentes si es combo
       if (formData.type === 'combo') {
         await comboProductsService.setComponents(productId, comboComponents);
-        console.log(`✅ Componentes guardados para combo ${productId}`);
       }
 
-      // ⭐ NUEVO: Guardar SKU mappings si los hay (especialmente al crear)
       if (isCreating && skuMappings.length > 0) {
-        for (const mapping of skuMappings) {
+        for (const m of skuMappings) {
           try {
             await skuMappingsService.create({
-              product_id: productId,
-              source: mapping.source,
-              external_sku: mapping.external_sku.trim().toUpperCase(),
-              notes: mapping.notes?.trim() || null,
-              is_active: true
+              product_id: productId, source: m.source,
+              external_sku: m.external_sku.trim().toUpperCase(),
+              notes: m.notes?.trim() || null, is_active: true
             });
-            console.log(`✅ SKU mapping creado: ${mapping.source} - ${mapping.external_sku}`);
-          } catch (error) {
-            console.error('❌ Error al crear SKU mapping:', error);
-          }
+          } catch { /* ignore individual errors */ }
         }
       }
 
-      toast.success(isCreating ? '✅ Producto creado exitosamente' : '✅ Producto actualizado exitosamente');
-      handleCancel();
+      toast.success(isCreating ? 'Producto creado' : 'Producto actualizado');
+      closeModal();
       loadProducts();
     } catch (error) {
-      console.error('❌ Error al guardar producto:', error);
       toast.error(error.message || 'Error al guardar producto');
+    } finally {
+      setIsSaving(false);
     }
   }
 
+  // ── Eliminar ──────────────────────────────────────
   async function handleDelete(product) {
-    if (!confirm(`¿Estás seguro de eliminar el producto "${product.name}"?\n\nNOTA: Solo se puede eliminar si no tiene movimientos de inventario.`)) {
-      return;
-    }
-
+    if (!confirm(`¿Eliminar "${product.name}"?\n\nSolo se puede eliminar si no tiene movimientos de inventario.`)) return;
     try {
       await productsService.delete(product.id);
       toast.success('Producto eliminado');
       loadProducts();
     } catch (error) {
-      console.error('❌ Error al eliminar producto:', error);
       toast.error(error.message || 'Error al eliminar producto');
     }
   }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-6xl mx-auto">
+  // ── SKU Mappings ──────────────────────────────────
+  async function handleAddMapping() {
+    if (!newMapping.external_sku.trim()) { toast.error('El SKU externo es requerido'); return; }
 
-        {/* Header */}
-        <button
-          onClick={() => navigate('/wms')}
-          className="lg:hidden mb-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Volver
+    const isCreating = !editingProduct;
+    if (isCreating) {
+      const dup = skuMappings.find(m => m.source === newMapping.source && m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase());
+      if (dup) { toast.error('Este SKU externo ya fue agregado'); return; }
+      setSkuMappings([...skuMappings, {
+        id: `temp-${Date.now()}`, source: newMapping.source,
+        external_sku: newMapping.external_sku.trim().toUpperCase(),
+        notes: newMapping.notes.trim() || null, is_active: true
+      }]);
+      setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+      return;
+    }
+
+    try {
+      const allMappings = await skuMappingsService.getAll();
+      const dup = allMappings.find(m => m.source === newMapping.source && m.external_sku.toUpperCase() === newMapping.external_sku.trim().toUpperCase() && m.product_id !== editingProduct.id);
+      if (dup) {
+        const prod = products.find(p => p.id === dup.product_id);
+        toast.error(`SKU ya asignado a: ${prod?.name || 'otro producto'}`, { duration: 5000 });
+        return;
+      }
+      await skuMappingsService.create({
+        product_id: editingProduct.id, source: newMapping.source,
+        external_sku: newMapping.external_sku.trim().toUpperCase(),
+        notes: newMapping.notes.trim() || null, is_active: true
+      });
+      setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+      const mappings = await skuMappingsService.getByProductId(editingProduct.id);
+      setSkuMappings(mappings);
+    } catch (error) {
+      toast.error(error.code === '23505' ? 'SKU externo ya existe para esta fuente' : (error.message || 'Error al agregar'));
+    }
+  }
+
+  async function handleDeleteMapping(mappingId) {
+    if (!confirm('¿Eliminar este SKU externo?')) return;
+    if (!editingProduct) {
+      setSkuMappings(skuMappings.filter(m => m.id !== mappingId));
+      return;
+    }
+    try {
+      await skuMappingsService.delete(mappingId);
+      const mappings = await skuMappingsService.getByProductId(editingProduct.id);
+      setSkuMappings(mappings);
+    } catch (error) { toast.error(error.message || 'Error al eliminar'); }
+  }
+
+  // ── Combo components ──────────────────────────────
+  function addComponent() { setComboComponents([...comboComponents, { product_id: '', quantity: 1 }]); }
+  function removeComponent(i) { setComboComponents(comboComponents.filter((_, idx) => idx !== i)); }
+  function updateComponent(i, field, value) {
+    const updated = [...comboComponents];
+    updated[i][field] = value;
+    setComboComponents(updated);
+  }
+
+  // ── Filtro ────────────────────────────────────────
+  const filtered = products.filter(p => {
+    const q = searchTerm.toLowerCase();
+    return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
+  });
+
+  const simples = filtered.filter(p => !p.type || p.type === 'simple');
+  const combos  = filtered.filter(p => p.type === 'combo');
+
+  // ── Row de producto (desktop tabla) ───────────────
+  const ProductRow = ({ product }) => (
+    <tr className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+      <td className="px-4 py-3">
+        <ProductThumb src={product.photo_url} name={product.name} size="sm" />
+      </td>
+      <td className="px-4 py-3">
+        <p className="text-white/90 font-medium text-sm truncate max-w-[220px]">{product.name}</p>
+        <p className="text-white/40 text-xs font-mono">{product.sku}</p>
+      </td>
+      <td className="px-4 py-3"><TypeBadge type={product.type} /></td>
+      <td className="px-4 py-3 font-mono text-white/50 text-xs">{product.barcode || '—'}</td>
+      <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
+      <td className="px-4 py-3">
+        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => openEdit(product)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-xs">
+            <Edit2 className="w-3.5 h-3.5" /> Editar
+          </button>
+          <button onClick={() => handleDelete(product)}
+            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all text-xs">
+            <Trash2 className="w-3.5 h-3.5" /> Eliminar
+          </button>
+        </div>
+      </td>
+    </tr>
+  );
+
+  // ── Card de producto (móvil) ───────────────────────
+  const ProductCard = ({ product }) => (
+    <div className="bg-white/5 rounded-xl border border-white/10 p-3 flex gap-3">
+      <ProductThumb src={product.photo_url} name={product.name} size="sm" />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="text-white font-medium text-sm truncate">{product.name}</p>
+            <p className="text-white/40 text-xs font-mono">{product.sku}</p>
+          </div>
+          <StatusBadge active={product.is_active} />
+        </div>
+        <div className="flex items-center gap-2 mt-2">
+          <TypeBadge type={product.type} />
+          <div className="flex-1" />
+          <button onClick={() => openEdit(product)}
+            className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all">
+            <Edit2 className="w-3.5 h-3.5" />
+          </button>
+          <button onClick={() => handleDelete(product)}
+            className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  // ── Sección de tabla (desktop) ────────────────────
+  const TableSection = ({ title, items, color }) => (
+    items.length === 0 ? null : (
+      <>
+        <tr>
+          <td colSpan={6} className="px-4 pt-5 pb-2">
+            <p className={`text-[10px] font-semibold uppercase tracking-widest ${color}`}>{title} ({items.length})</p>
+          </td>
+        </tr>
+        {items.map(p => <ProductRow key={p.id} product={p} />)}
+      </>
+    )
+  );
+
+  return (
+    <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
+      <div className="max-w-[1400px] mx-auto">
+
+        {/* Volver – solo móvil */}
+        <button onClick={() => navigate('/wms')}
+          className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all">
+          <ArrowLeft className="w-4 h-4" /> Volver
         </button>
 
-        {/* Title Card */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-4 rounded-2xl bg-purple-500/20">
-                <Package className="w-8 h-8 text-purple-400" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">
-                  Gestión de Productos
-                </h1>
-                <p className="text-white/60 text-sm mt-1">
-                  Crear, editar y eliminar productos del catálogo
-                </p>
-              </div>
-            </div>
+        {/* Barra superior */}
+        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-4 mb-4 flex flex-wrap items-center gap-3">
+          {/* Búsqueda */}
+          <div className="relative flex-1 min-w-[220px]">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <input type="text" placeholder="Buscar por nombre, SKU, código de barras..."
+              value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all" />
+          </div>
 
-            <button
-              onClick={handleCreate}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all"
-            >
-              <Plus className="w-5 h-5" />
-              Nuevo Producto
-            </button>
+          {/* Actualizar */}
+          <button onClick={loadProducts} disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all text-sm disabled:opacity-50">
+            <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Actualizar</span>
+          </button>
+
+          {/* Nuevo producto */}
+          <button onClick={openCreate}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm font-medium">
+            <Plus className="w-4 h-4" /> Nuevo Producto
+          </button>
+
+          {/* Contador */}
+          <div className="w-full mt-1 text-white/40 text-xs">
+            {filtered.length} de {products.length} productos
+            {searchTerm && <span className="ml-1.5 text-primary-400">• búsqueda activa</span>}
           </div>
         </div>
 
-        {/* Form (Crear o Editar) */}
-        {(isCreating || editingProduct) && (
-          <div ref={formRef} className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-            <h2 className="text-xl font-bold text-white mb-4">
-              {isCreating ? 'Crear Producto' : 'Editar Producto'}
-            </h2>
+        {/* Loading */}
+        {isLoading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
+          </div>
+        )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* SKU */}
-              <div>
-                <label className="block text-white/80 text-sm mb-2">
-                  SKU * <span className="text-white/40">(ej: PROD-001)</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.sku}
-                  onChange={(e) => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
-                  placeholder="PROD-001"
-                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  disabled={!isCreating} // No permitir cambiar SKU en edición
-                />
+        {/* DESKTOP: tabla */}
+        {!isLoading && (
+          <div className="hidden lg:block bg-dark-900 rounded-2xl border border-white/[0.06] overflow-hidden">
+            {filtered.length === 0 ? (
+              <div className="p-16 text-center">
+                <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
+                <p className="text-white/40 mb-4">
+                  {searchTerm ? 'No hay productos con esa búsqueda' : 'No hay productos creados'}
+                </p>
+                {!searchTerm && (
+                  <button onClick={openCreate}
+                    className="px-6 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm">
+                    Crear primer producto
+                  </button>
+                )}
               </div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-white/10 bg-white/3">
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-16">Foto</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Producto</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Tipo</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-36">Código de Barras</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Estado</th>
+                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-40">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  <TableSection title="Productos" items={simples} color="text-cyan-400/60" />
+                  <TableSection title="Combos" items={combos} color="text-violet-400/60" />
+                </tbody>
+              </table>
+            )}
+          </div>
+        )}
 
-              {/* Nombre */}
-              <div>
-                <label className="block text-white/80 text-sm mb-2">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Nombre del producto"
-                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                />
+        {/* MÓVIL: cards */}
+        {!isLoading && (
+          <div className="lg:hidden space-y-4">
+            {filtered.length === 0 ? (
+              <div className="bg-white/5 rounded-2xl border border-white/10 p-10 text-center">
+                <Package className="w-10 h-10 text-white/20 mx-auto mb-2" />
+                <p className="text-white/50 text-sm">No hay productos</p>
               </div>
+            ) : (
+              <>
+                {simples.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400/60 mb-2 px-1">Productos ({simples.length})</p>
+                    <div className="space-y-2">{simples.map(p => <ProductCard key={p.id} product={p} />)}</div>
+                  </div>
+                )}
+                {combos.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-400/60 mb-2 px-1">Combos ({combos.length})</p>
+                    <div className="space-y-2">{combos.map(p => <ProductCard key={p.id} product={p} />)}</div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
-              {/* ⭐ NUEVO: Tipo de Producto */}
-              <div>
-                <label className="block text-white/80 text-sm mb-2">
-                  Tipo de Producto *
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  style={{ colorScheme: 'dark' }}
-                  disabled={!isCreating} // No permitir cambiar tipo en edición
-                >
-                  <option value="simple" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Simple (Producto Individual)</option>
-                  <option value="combo" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Combo (Compuesto de otros productos)</option>
-                </select>
-              </div>
+      {/* ══════════════════════════════════════════════
+          MODAL - Crear / Editar Producto
+      ══════════════════════════════════════════════ */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
+          <div className="bg-dark-900 border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
 
-              {/* Barcode */}
-              <div>
-                <label className="block text-white/80 text-sm mb-2">
-                  Código de Barras (Opcional)
-                </label>
-                <div className="relative">
-                  <BarcodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="text"
-                    value={formData.barcode}
-                    onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    placeholder="7891234567890"
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  />
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-purple-500/20">
+                  <Package className="w-5 h-5 text-purple-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-semibold text-base">
+                    {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
+                  </h2>
+                  {editingProduct && <p className="text-white/40 text-xs font-mono">{editingProduct.sku}</p>}
                 </div>
               </div>
-
-              {/* Photo URL */}
-              <div>
-                <label className="block text-white/80 text-sm mb-2">
-                  URL de Foto (Opcional)
-                </label>
-                <div className="relative">
-                  <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                  <input
-                    type="text"
-                    value={formData.photo_url}
-                    onChange={(e) => setFormData({ ...formData, photo_url: e.target.value })}
-                    placeholder="https://ejemplo.com/foto.jpg"
-                    className="w-full pl-10 pr-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                  />
-                </div>
-              </div>
-
-              {/* Descripción */}
-              <div className="md:col-span-2">
-                <label className="block text-white/80 text-sm mb-2">
-                  Descripción (Opcional)
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descripción del producto"
-                  rows={3}
-                  className="w-full px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-purple-500/50 resize-none"
-                />
-              </div>
-
-              {/* Activo */}
-              <div className="md:col-span-2 flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="is_active"
-                  checked={formData.is_active}
-                  onChange={(e) => setFormData({ ...formData, is_active: e.target.checked })}
-                  className="w-4 h-4 rounded bg-white/10 border-white/20 text-purple-500 focus:ring-2 focus:ring-purple-500/50"
-                />
-                <label htmlFor="is_active" className="text-white/80 text-sm">
-                  Producto activo
-                </label>
-              </div>
+              <button onClick={closeModal}
+                className="p-2 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-all">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {/* ⭐ NUEVO: Componentes del Combo */}
-            {formData.type === 'combo' && (
-              <div className="mt-6 pt-6 border-t border-white/10">
-                <div className="flex items-center justify-between mb-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-white">📦 Componentes del Combo</h3>
-                    <p className="text-white/60 text-sm">Define qué productos y cantidades forman este combo</p>
-                  </div>
-                  <button
-                    onClick={async () => {
-                      if (availableProducts.length === 0) {
-                        const allProducts = await productsService.getAll();
-                        setAvailableProducts(allProducts.filter(p => p.type === 'simple'));
-                      }
-                      handleAddComponent();
-                    }}
-                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all text-sm"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Agregar Componente
-                  </button>
+            {/* Modal body – scrollable */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+
+              {/* ── Campos del producto ── */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* SKU */}
+                <div>
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">SKU *</label>
+                  <input type="text" value={formData.sku}
+                    onChange={e => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
+                    placeholder="PROD-001" disabled={!!editingProduct}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 disabled:opacity-50 transition-all" />
                 </div>
 
-                {comboComponents.length === 0 ? (
-                  <div className="bg-white/5 rounded-xl border border-white/10 p-6 text-center">
-                    <Package className="w-12 h-12 text-white/20 mx-auto mb-2" />
-                    <p className="text-white/60 text-sm">Sin componentes. Haz clic en "Agregar Componente" para comenzar.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {comboComponents.map((component, index) => (
-                      <div key={index} className="bg-white/5 rounded-xl border border-white/10 p-3">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
-                          {/* Producto */}
-                          <div className="md:col-span-2">
-                            <label className="block text-white/60 text-xs mb-1">Producto *</label>
-                            <select
-                              value={component.product_id}
-                              onChange={(e) => {
-                                const selectedProduct = availableProducts.find(p => p.id === e.target.value);
-                                handleUpdateComponent(index, 'product_id', e.target.value);
-                                if (selectedProduct) {
-                                  handleUpdateComponent(index, 'product_name', selectedProduct.name);
-                                }
-                              }}
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                              style={{ colorScheme: 'dark' }}
-                            >
-                              <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Selecciona un producto...</option>
-                              {availableProducts.map(p => (
-                                <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>{p.name} ({p.sku})</option>
-                              ))}
-                            </select>
-                          </div>
+                {/* Nombre */}
+                <div>
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Nombre *</label>
+                  <input type="text" value={formData.name}
+                    onChange={e => setFormData({ ...formData, name: e.target.value })}
+                    placeholder="Nombre del producto"
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                </div>
 
-                          {/* Cantidad */}
-                          <div>
-                            <label className="block text-white/60 text-xs mb-1">Cantidad *</label>
-                            <div className="flex gap-2">
-                              <input
-                                type="number"
-                                min="1"
-                                value={component.quantity}
-                                onChange={(e) => handleUpdateComponent(index, 'quantity', parseInt(e.target.value) || 1)}
-                                className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500/50"
-                              />
-                              <button
-                                onClick={() => handleRemoveComponent(index)}
-                                className="px-3 py-2 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all"
-                              >
-                                <X className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </div>
+                {/* Tipo */}
+                <div>
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Tipo</label>
+                  <select value={formData.type}
+                    onChange={e => setFormData({ ...formData, type: e.target.value })}
+                    disabled={!!editingProduct}
+                    style={{ colorScheme: 'dark' }}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50 disabled:opacity-50 transition-all">
+                    <option value="simple">Simple (Producto Individual)</option>
+                    <option value="combo">Combo (Compuesto de otros)</option>
+                  </select>
+                </div>
+
+                {/* Código de Barras */}
+                <div>
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Código de Barras</label>
+                  <div className="relative">
+                    <BarcodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <input type="text" value={formData.barcode}
+                      onChange={e => setFormData({ ...formData, barcode: e.target.value })}
+                      placeholder="7891234567890"
+                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                  </div>
+                </div>
+
+                {/* URL de Foto */}
+                <div className="md:col-span-2">
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">URL de Foto</label>
+                  <div className="flex gap-3">
+                    <div className="relative flex-1">
+                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <input type="text" value={formData.photo_url}
+                        onChange={e => setFormData({ ...formData, photo_url: e.target.value })}
+                        placeholder="https://ejemplo.com/foto.jpg"
+                        className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                    </div>
+                    {formData.photo_url && (
+                      <ProductThumb src={formData.photo_url} name={formData.name} size="md" />
+                    )}
+                  </div>
+                </div>
+
+                {/* Descripción */}
+                <div className="md:col-span-2">
+                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Descripción</label>
+                  <textarea value={formData.description}
+                    onChange={e => setFormData({ ...formData, description: e.target.value })}
+                    placeholder="Descripción del producto" rows={2}
+                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 resize-none transition-all" />
+                </div>
+
+                {/* Activo */}
+                <div className="md:col-span-2 flex items-center gap-2">
+                  <input type="checkbox" id="is_active" checked={formData.is_active}
+                    onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
+                    className="w-4 h-4 rounded bg-white/10 border-white/20 text-purple-500 focus:ring-2 focus:ring-purple-500/50" />
+                  <label htmlFor="is_active" className="text-white/70 text-sm">Producto activo</label>
+                </div>
+              </div>
+
+              {/* ── Componentes del Combo ── */}
+              {formData.type === 'combo' && (
+                <div className="border-t border-white/10 pt-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-white font-semibold text-sm">Componentes del Combo</h3>
+                      <p className="text-white/40 text-xs mt-0.5">Productos que forman este combo</p>
+                    </div>
+                    <button onClick={addComponent}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs">
+                      <Plus className="w-3.5 h-3.5" /> Agregar
+                    </button>
+                  </div>
+                  {comboComponents.length === 0 ? (
+                    <p className="text-center text-white/30 text-sm py-4">Sin componentes aún</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {comboComponents.map((c, i) => (
+                        <div key={i} className="flex gap-2 items-center">
+                          <select value={c.product_id}
+                            onChange={e => {
+                              const prod = availableProducts.find(p => p.id === e.target.value);
+                              updateComponent(i, 'product_id', e.target.value);
+                              if (prod) updateComponent(i, 'product_name', prod.name);
+                            }}
+                            style={{ colorScheme: 'dark' }}
+                            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50">
+                            <option value="">Selecciona un producto...</option>
+                            {availableProducts.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                            ))}
+                          </select>
+                          <input type="number" min="1" value={c.quantity}
+                            onChange={e => updateComponent(i, 'quantity', parseInt(e.target.value) || 1)}
+                            className="w-20 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50 text-center" />
+                          <button onClick={() => removeComponent(i)}
+                            className="p-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+                            <X className="w-4 h-4" />
+                          </button>
                         </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── SKU Externos ── */}
+              <div className="border-t border-white/10 pt-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <LinkIcon className="w-4 h-4 text-blue-400" />
+                  <h3 className="text-white font-semibold text-sm">SKU Externos</h3>
+                  <span className="text-white/30 text-xs">Mapeo de Dunamixfy e Interrápidisimo</span>
+                </div>
+
+                {/* Agregar mapping */}
+                <div className="bg-white/5 rounded-xl border border-white/10 p-4 mb-3">
+                  <div className="flex flex-wrap gap-2 items-end">
+                    <div className="min-w-[160px]">
+                      <label className="block text-white/50 text-xs mb-1">Fuente</label>
+                      <select value={newMapping.source}
+                        onChange={e => setNewMapping({ ...newMapping, source: e.target.value })}
+                        style={{ colorScheme: 'dark' }}
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500/50">
+                        <option value="dunamixfy">Coordinadora (Dunamixfy)</option>
+                        <option value="interrapidisimo">Interrápidisimo</option>
+                      </select>
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-white/50 text-xs mb-1">SKU Externo *</label>
+                      <input type="text" value={newMapping.external_sku}
+                        onChange={e => setNewMapping({ ...newMapping, external_sku: e.target.value })}
+                        placeholder="Ej: 210"
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-blue-500/50" />
+                    </div>
+                    <div className="flex-1 min-w-[140px]">
+                      <label className="block text-white/50 text-xs mb-1">Notas</label>
+                      <input type="text" value={newMapping.notes}
+                        onChange={e => setNewMapping({ ...newMapping, notes: e.target.value })}
+                        placeholder="Opcional"
+                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-blue-500/50" />
+                    </div>
+                    <button onClick={handleAddMapping}
+                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-sm">
+                      <Plus className="w-4 h-4" /> Agregar
+                    </button>
+                  </div>
+                </div>
+
+                {isLoadingMappings ? (
+                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-white/40 animate-spin" /></div>
+                ) : skuMappings.length === 0 ? (
+                  <p className="text-center text-white/30 text-sm py-3">No hay SKU externos configurados</p>
+                ) : (
+                  <div className="space-y-2">
+                    {skuMappings.map(m => (
+                      <div key={m.id} className="flex items-center gap-3 bg-white/5 rounded-lg border border-white/10 px-3 py-2">
+                        <SourceBadge source={m.source} />
+                        <span className="font-mono text-white font-bold text-sm flex-1">{m.external_sku}</span>
+                        {m.notes && <span className="text-white/40 text-xs">{m.notes}</span>}
+                        <button onClick={() => handleDeleteMapping(m.id)}
+                          className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-            )}
+            </div>
 
-            {/* Botones */}
-            <div className="flex gap-3 pt-6 border-t border-white/10 mt-6">
-              <button
-                onClick={handleSave}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all"
-              >
-                <Save className="w-5 h-5" />
-                Guardar
-              </button>
-              <button
-                onClick={handleCancel}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all"
-              >
-                <X className="w-5 h-5" />
+            {/* Modal footer */}
+            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 flex-shrink-0">
+              <button onClick={closeModal} disabled={isSaving}
+                className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all text-sm">
                 Cancelar
               </button>
-            </div>
-          </div>
-        )}
-
-        {/* SKU Mappings - Mostrar tanto en edición como en creación */}
-        {(editingProduct || isCreating) && (
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <LinkIcon className="w-6 h-6 text-blue-400" />
-                <div>
-                  <h2 className="text-xl font-bold text-white">SKU Externos</h2>
-                  <p className="text-white/60 text-sm">Mapeo de SKUs de Dunamixfy e Interrápidisimo</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Agregar nuevo mapping */}
-            <div className="bg-white/5 rounded-2xl border border-white/10 p-4 mb-4">
-              <p className="text-white/80 font-medium mb-3">➕ Agregar SKU Externo</p>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                {/* Source */}
-                <div>
-                  <label className="block text-white/60 text-xs mb-1">Fuente</label>
-                  <select
-                    value={newMapping.source}
-                    onChange={(e) => setNewMapping({ ...newMapping, source: e.target.value })}
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                    style={{ colorScheme: 'dark' }}
-                  >
-                    <option value="dunamixfy" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Coordinadora (Dunamixfy)</option>
-                    <option value="interrapidisimo" style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>Interrápidisimo</option>
-                  </select>
-                </div>
-
-                {/* External SKU */}
-                <div>
-                  <label className="block text-white/60 text-xs mb-1">SKU Externo *</label>
-                  <input
-                    type="text"
-                    value={newMapping.external_sku}
-                    onChange={(e) => setNewMapping({ ...newMapping, external_sku: e.target.value })}
-                    placeholder="Ej: 210, ABC-123"
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  />
-                </div>
-
-                {/* Notes */}
-                <div>
-                  <label className="block text-white/60 text-xs mb-1">Notas (Opcional)</label>
-                  <input
-                    type="text"
-                    value={newMapping.notes}
-                    onChange={(e) => setNewMapping({ ...newMapping, notes: e.target.value })}
-                    placeholder="Notas adicionales"
-                    className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/50"
-                  />
-                </div>
-              </div>
-
-              <button
-                onClick={handleAddMapping}
-                className="mt-3 w-full md:w-auto px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-sm flex items-center justify-center gap-2"
-              >
-                <Plus className="w-4 h-4" />
-                Agregar Mapping
+              <button onClick={handleSave} disabled={isSaving}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all text-sm font-medium disabled:opacity-50">
+                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {isSaving ? 'Guardando...' : (editingProduct ? 'Guardar Cambios' : 'Crear Producto')}
               </button>
             </div>
-
-            {/* Lista de mappings existentes */}
-            {isLoadingMappings ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-6 h-6 text-white/60 animate-spin" />
-              </div>
-            ) : skuMappings.length === 0 ? (
-              <div className="text-center py-8 text-white/40">
-                <p>No hay SKU externos configurados</p>
-                <p className="text-xs mt-1">Agrega el primer mapping arriba</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {skuMappings.map((mapping) => (
-                  <div
-                    key={mapping.id}
-                    className="flex items-center justify-between bg-white/5 rounded-xl border border-white/10 p-3 hover:bg-white/10 transition-all"
-                  >
-                    <div className="flex items-center gap-4 flex-1">
-                      {/* Source Badge */}
-                      <div className={`
-                        px-3 py-1 rounded-lg text-xs font-medium
-                        ${mapping.source === 'dunamixfy' ? 'bg-orange-500/20 text-orange-300 border border-orange-500/30' : ''}
-                        ${mapping.source === 'interrapidisimo' ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30' : ''}
-                        ${!['dunamixfy', 'interrapidisimo'].includes(mapping.source) ? 'bg-gray-500/20 text-gray-300 border border-gray-500/30' : ''}
-                      `}>
-                        {mapping.source === 'dunamixfy' ? 'Dunamixfy' :
-                         mapping.source === 'interrapidisimo' ? 'Interrápidisimo' :
-                         mapping.source.toUpperCase()}
-                      </div>
-
-                      {/* External SKU */}
-                      <div className="flex-1">
-                        <p className="text-white font-mono font-bold">{mapping.external_sku}</p>
-                        {mapping.notes && (
-                          <p className="text-white/60 text-xs mt-0.5">{mapping.notes}</p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Delete Button */}
-                    <button
-                      onClick={() => handleDeleteMapping(mapping.id)}
-                      className="p-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-        )}
-
-        {/* Loading */}
-        {isLoading && (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-8 h-8 text-white/60 animate-spin" />
-          </div>
-        )}
-
-        {/* Products List */}
-        {!isLoading && (
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <h2 className="text-xl font-bold text-white mb-4">
-              Productos ({products.length})
-            </h2>
-
-            {products.length === 0 ? (
-              <div className="text-center py-12">
-                <Package className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                <p className="text-white/40">No hay productos creados</p>
-                <button
-                  onClick={handleCreate}
-                  className="mt-4 px-6 py-2 rounded-xl bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all"
-                >
-                  Crear primer producto
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {products.map((product) => (
-                  <div
-                    key={product.id}
-                    className="bg-white/5 rounded-2xl border border-white/10 p-4 hover:bg-white/10 transition-all"
-                  >
-                    {/* Photo */}
-                    {product.photo_url ? (
-                      <img
-                        src={product.photo_url}
-                        alt={product.name}
-                        className="w-full h-32 object-cover rounded-xl mb-3 border border-white/10"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                          e.target.nextElementSibling.style.display = 'flex';
-                        }}
-                      />
-                    ) : null}
-                    <div
-                      className={`w-full h-32 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mb-3 ${product.photo_url ? 'hidden' : 'flex'}`}
-                    >
-                      <Package className="w-12 h-12 text-white/20" />
-                    </div>
-
-                    {/* Info */}
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-bold text-white mb-1">
-                            {product.name}
-                          </h3>
-                          <p className="text-white/40 text-sm mb-1">
-                            SKU: {product.sku}
-                          </p>
-                          {product.barcode && (
-                            <p className="text-white/60 text-xs flex items-center gap-1">
-                              <BarcodeIcon className="w-3 h-3" />
-                              {product.barcode}
-                            </p>
-                          )}
-                        </div>
-                        {product.is_active ? (
-                          <span className="px-2 py-0.5 rounded-lg text-xs bg-green-500/20 text-green-300 border border-green-500/30">
-                            Activo
-                          </span>
-                        ) : (
-                          <span className="px-2 py-0.5 rounded-lg text-xs bg-red-500/20 text-red-300 border border-red-500/30">
-                            Inactivo
-                          </span>
-                        )}
-                      </div>
-
-                      {product.description && (
-                        <p className="text-white/60 text-sm mb-3 line-clamp-2">
-                          {product.description}
-                        </p>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex items-center gap-2 pt-3 border-t border-white/10">
-                        <button
-                          onClick={() => handleEdit(product)}
-                          className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all text-sm"
-                          title="Editar"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                          Editar
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product)}
-                          className="flex-1 flex items-center justify-center gap-1 p-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all text-sm"
-                          title="Eliminar"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-      </div>
+        </div>
+      )}
     </div>
   );
 }

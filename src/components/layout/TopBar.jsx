@@ -46,23 +46,23 @@ export function TopBar() {
   const { title, desc } = resolveMeta(location.pathname);
 
   return (
-    <header className="hidden lg:flex fixed top-0 left-60 right-0 h-14 z-30 items-center justify-between px-6 bg-dark-950/90 backdrop-blur-xl border-b border-white/8">
+    <header className="hidden lg:flex fixed top-0 left-60 right-0 h-14 z-30 items-center justify-between px-6 bg-dark-950 border-b border-white/[0.06]">
       {/* Título de la sección */}
-      <div className="flex items-center gap-3">
-        <h1 className="text-white font-semibold text-base leading-none">{title}</h1>
+      <div className="flex items-center gap-2.5">
+        <h1 className="text-white/90 font-semibold text-sm leading-none">{title}</h1>
         {desc && (
           <>
-            <span className="text-white/20 text-sm">/</span>
-            <span className="text-white/40 text-sm">{desc}</span>
+            <span className="text-white/15 text-xs">·</span>
+            <span className="text-white/30 text-xs">{desc}</span>
           </>
         )}
       </div>
 
       {/* Bodega activa */}
       {selectedWarehouse && (
-        <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/8">
-          <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-white/60 text-xs font-medium">{selectedWarehouse.name}</span>
+        <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
+          <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse" />
+          <span className="text-white/50 text-xs font-medium">{selectedWarehouse.name}</span>
         </div>
       )}
     </header>

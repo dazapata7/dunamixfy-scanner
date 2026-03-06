@@ -29,6 +29,11 @@ export const csvImportService = {
    * @param {function} onProgress - Callback (current, total, message) opcional
    * @returns {Promise<Object>} - { batchId, successCount, errorCount, errors }
    */
+  // Alias genérico — funciona para cualquier transportadora
+  async importCSV(file, carrierId, operatorId, onProgress = null) {
+    return this.importInterrapidisimoCSV(file, carrierId, operatorId, onProgress);
+  },
+
   async importInterrapidisimoCSV(file, carrierId, operatorId, onProgress = null) {
     const report = (current, total, message) => {
       if (onProgress) onProgress(current, total, message);

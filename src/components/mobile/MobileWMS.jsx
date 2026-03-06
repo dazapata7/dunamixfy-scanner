@@ -178,7 +178,7 @@ export function MobileWMS() {
 
       {/* Footer info */}
       <div className="px-5 pb-safe pb-6 text-center">
-        <p className="text-white/20 text-xs">Dunamix WMS · Solo escaneo desde móvil</p>
+        <p className="text-white/20 text-xs">Dunamixfy WMS · Solo escaneo desde móvil</p>
       </div>
     </div>
   );

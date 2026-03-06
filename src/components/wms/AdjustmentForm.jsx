@@ -197,182 +197,174 @@ export function AdjustmentForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-2xl mx-auto">
+    <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
+      <div className="max-w-[1100px] mx-auto">
 
-        {/* Header */}
+        {/* Volver – solo móvil */}
         <button
           onClick={() => navigate('/wms')}
-          className="lg:hidden mb-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+          className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
           Volver
         </button>
 
-        {/* Title Card */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 rounded-2xl bg-orange-500/20">
-              <FileEdit className="w-8 h-8 text-orange-400" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">
-                Ajuste de Inventario
-              </h1>
-              <p className="text-white/60 text-sm mt-1">
-                {selectedWarehouse?.name}
-              </p>
-            </div>
-          </div>
-        </div>
+        <form onSubmit={handleSubmit}>
+          {/* Layout desktop: dos columnas | móvil: columna única */}
+          <div className="lg:grid lg:grid-cols-[1fr,380px] lg:gap-6 space-y-4 lg:space-y-0">
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+            {/* ── Columna izquierda ── */}
+            <div className="space-y-4">
 
-          {/* Mode Selector — 3 tabs */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-3 shadow-glass-lg">
-            <div className="grid grid-cols-3 gap-2">
-              {MODES.map(({ key, label, icon: Icon, activeClass, hoverClass, description }) => (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => { setMode(key); setQuantity(''); }}
-                  className={`
-                    p-4 rounded-2xl border-2 transition-all text-center
-                    ${mode === key ? activeClass : 'bg-white/5 border-white/10 text-white/60'}
-                    ${hoverClass}
-                  `}
-                >
-                  <Icon className="w-6 h-6 mx-auto mb-1.5" />
-                  <p className="font-semibold text-sm">{label}</p>
-                  <p className="text-[11px] mt-0.5 opacity-70">{description}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Product Selection */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">Producto</label>
-            <select
-              value={selectedProduct}
-              onChange={(e) => setSelectedProduct(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50"
-              style={{ colorScheme: 'dark' }}
-              required
-            >
-              <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Seleccionar producto...</option>
-              {products.map(p => (
-                <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
-                  {p.sku} - {p.name}
-                </option>
-              ))}
-            </select>
-
-            {/* Current Stock Display */}
-            {currentStock !== null && (
-              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-white/60 text-xs mb-1">Stock Actual</p>
-                <p className="text-white text-2xl font-bold">{currentStock} unidades</p>
-              </div>
-            )}
-          </div>
-
-          {/* Quantity */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">
-              {mode === 'set' ? 'Cantidad objetivo (stock final deseado)' : 'Cantidad'}
-            </label>
-            <input
-              type="number"
-              min={mode === 'set' ? '0' : '1'}
-              value={quantity}
-              onChange={(e) => setQuantity(e.target.value)}
-              placeholder={mode === 'set' ? 'Ej: 385' : 'Ej: 50'}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-lg font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder-white/20"
-              required
-            />
-
-            {/* New Stock Preview */}
-            {newStock !== null && currentStock !== null && parsedQty > 0 && (
-              <div className="mt-4 p-4 rounded-xl bg-white/5 border border-white/10">
-                <p className="text-white/50 text-xs mb-2">Vista previa del cambio</p>
-                <div className="flex items-center justify-between">
-                  <div className="text-center">
-                    <p className="text-white/50 text-xs">Actual</p>
-                    <p className="text-white text-xl font-bold">{currentStock}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className={`text-sm font-bold ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/40'}`}>
-                      {delta > 0 ? `+${delta}` : delta}
-                    </p>
-                    <div className="w-12 h-px bg-white/20 my-1 mx-auto" />
-                    <p className="text-white/30 text-[10px]">
-                      {mode === 'set' ? 'ajuste' : mode === 'increase' ? 'entrada' : 'salida'}
-                    </p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-white/50 text-xs">Nuevo</p>
-                    <p className={`text-xl font-bold ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/40'}`}>
-                      {newStock}
-                    </p>
-                  </div>
+              {/* Mode Selector */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-3">
+                <p className="text-white/40 text-xs uppercase tracking-wider px-1 mb-3">Tipo de movimiento</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {MODES.map(({ key, label, icon: Icon, activeClass, hoverClass, description }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => { setMode(key); setQuantity(''); }}
+                      className={`
+                        p-4 rounded-xl border-2 transition-all text-center
+                        ${mode === key ? activeClass : 'bg-white/5 border-white/10 text-white/60'}
+                        ${hoverClass}
+                      `}
+                    >
+                      <Icon className="w-5 h-5 mx-auto mb-1.5" />
+                      <p className="font-semibold text-sm">{label}</p>
+                      <p className="text-[11px] mt-0.5 opacity-70 hidden sm:block">{description}</p>
+                    </button>
+                  ))}
                 </div>
-                {delta === 0 && (
-                  <p className="text-center text-white/40 text-xs mt-2">
-                    El stock ya está en ese valor — no hay cambio
-                  </p>
+              </div>
+
+              {/* Product Selection */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">Producto</label>
+                <select
+                  value={selectedProduct}
+                  onChange={(e) => setSelectedProduct(e.target.value)}
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white focus:outline-none focus:ring-2 focus:ring-orange-500/50"
+                  style={{ colorScheme: 'dark' }}
+                  required
+                >
+                  <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Seleccionar producto...</option>
+                  {products.map(p => (
+                    <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
+                      {p.sku} - {p.name}
+                    </option>
+                  ))}
+                </select>
+
+                {currentStock !== null && (
+                  <div className="mt-4 flex items-center justify-between px-4 py-3 rounded-xl bg-white/5 border border-white/10">
+                    <p className="text-white/50 text-sm">Stock actual en bodega</p>
+                    <p className="text-white text-2xl font-bold tabular-nums">{currentStock}</p>
+                  </div>
                 )}
               </div>
-            )}
+
+              {/* Quantity */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">
+                  {mode === 'set' ? 'Stock final deseado' : 'Cantidad'}
+                </label>
+                <input
+                  type="number"
+                  min={mode === 'set' ? '0' : '1'}
+                  value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  placeholder={mode === 'set' ? 'Ej: 385' : 'Ej: 50'}
+                  className="w-full px-4 py-4 rounded-xl bg-white/5 border border-white/10 text-white text-2xl font-bold text-center focus:outline-none focus:ring-2 focus:ring-orange-500/50 placeholder-white/20"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* ── Columna derecha ── */}
+            <div className="space-y-4">
+
+              {/* Vista previa del cambio */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <p className="text-white/40 text-xs uppercase tracking-wider mb-4">Vista previa</p>
+                {newStock !== null && currentStock !== null && parsedQty > 0 ? (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="text-center flex-1">
+                        <p className="text-white/40 text-xs mb-1">Actual</p>
+                        <p className="text-white text-3xl font-bold tabular-nums">{currentStock}</p>
+                      </div>
+                      <div className="text-center px-4">
+                        <p className={`text-xl font-bold tabular-nums ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/30'}`}>
+                          {delta > 0 ? `+${delta}` : delta}
+                        </p>
+                        <p className="text-white/20 text-[10px] mt-1">
+                          {mode === 'set' ? 'ajuste' : mode === 'increase' ? 'entrada' : 'salida'}
+                        </p>
+                      </div>
+                      <div className="text-center flex-1">
+                        <p className="text-white/40 text-xs mb-1">Nuevo</p>
+                        <p className={`text-3xl font-bold tabular-nums ${delta > 0 ? 'text-green-400' : delta < 0 ? 'text-red-400' : 'text-white/30'}`}>
+                          {newStock}
+                        </p>
+                      </div>
+                    </div>
+                    {delta === 0 && (
+                      <p className="text-center text-white/40 text-xs">El stock ya está en ese valor</p>
+                    )}
+                  </>
+                ) : (
+                  <div className="py-6 text-center">
+                    <p className="text-white/20 text-sm">Selecciona producto y cantidad para ver la vista previa</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Razón */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">
+                  Razón <span className="text-red-400">*</span>
+                </label>
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Ej: Conteo físico, Producto dañado, Corrección de inventario..."
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 resize-none text-sm"
+                  required
+                />
+                <p className="text-white/30 text-xs mt-2">Quedará registrado para auditoría</p>
+              </div>
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={isProcessing || !selectedProduct || isLoadingProducts}
+                className={`
+                  w-full px-6 py-4 rounded-xl font-medium
+                  flex items-center justify-center gap-2 transition-all
+                  ${currentMode?.buttonClass ?? 'bg-orange-500'}
+                  text-white hover:shadow-lg
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                `}
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5" />
+                    {mode === 'increase' ? 'Registrar Entrada' : mode === 'decrease' ? 'Registrar Salida' : 'Aplicar Ajuste'}
+                  </>
+                )}
+              </button>
+
+              <p className="text-center text-white/30 text-xs">{currentMode?.preview}</p>
+            </div>
           </div>
-
-          {/* Reason */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">
-              Razón <span className="text-red-400">*</span>
-            </label>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="Ej: Conteo físico, Producto dañado, Corrección de inventario..."
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-orange-500/50 resize-none"
-              required
-            />
-            <p className="text-white/40 text-xs mt-2">
-              Quedará registrado para auditoría
-            </p>
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isProcessing || !selectedProduct || isLoadingProducts}
-            className={`
-              w-full px-6 py-4 rounded-2xl font-medium
-              flex items-center justify-center gap-2 transition-all
-              ${currentMode?.buttonClass ?? 'bg-orange-500'}
-              text-white hover:shadow-lg
-              disabled:opacity-50 disabled:cursor-not-allowed
-            `}
-          >
-            {isProcessing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                {mode === 'increase' ? 'Registrar Entrada' : mode === 'decrease' ? 'Registrar Salida' : 'Aplicar Ajuste'}
-              </>
-            )}
-          </button>
-
-          <p className="text-center text-white/40 text-sm">
-            {currentMode?.preview}
-          </p>
-
         </form>
       </div>
     </div>

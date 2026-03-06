@@ -170,7 +170,7 @@ export function InventoryList() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+    <div className="min-h-screen bg-dark-950 p-6">
       <div className="max-w-[1600px] mx-auto">
 
         {/* Header – solo móvil (desktop usa TopBar) */}
@@ -243,7 +243,7 @@ export function InventoryList() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-6 flex items-center gap-3 flex-wrap">
+        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-4 mb-6 flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[260px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
             <input type="text" placeholder="Buscar por nombre, SKU o categoría..."
@@ -297,7 +297,7 @@ export function InventoryList() {
 
         {/* Empty State */}
         {!isLoading && filteredRegular.length === 0 && filteredCombos.length === 0 && (
-          <div className="text-center py-12 bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10">
+          <div className="text-center py-12 bg-dark-900 rounded-2xl border border-white/[0.06]">
             <div className="inline-flex p-4 rounded-2xl bg-white/5 mb-4">
               <Package className="w-12 h-12 text-white/40" />
             </div>

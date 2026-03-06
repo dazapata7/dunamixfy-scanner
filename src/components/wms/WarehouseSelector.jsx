@@ -52,7 +52,7 @@ export function WarehouseSelector() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
+    <div className="min-h-screen bg-dark-950 p-6">
       <div className="max-w-2xl mx-auto">
         {/* Back Button */}
         <button

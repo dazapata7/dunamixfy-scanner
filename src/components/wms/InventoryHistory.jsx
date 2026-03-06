@@ -114,51 +114,51 @@ export function InventoryHistory() {
 
   // ── Badge de tipo ─────────────────────────────────
   const TypeBadge = ({ type }) => type === 'OUT'
-    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold">
+    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold">
         <TrendingDown className="w-3 h-3" /> Salida
       </span>
-    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-semibold">
+    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-500/10 border border-primary-500/20 text-primary-400 text-[11px] font-semibold">
         <TrendingUp className="w-3 h-3" /> Entrada
       </span>;
 
   const QtyCell = ({ m }) => {
     const qty = Math.abs(m.qty_signed ?? m.quantity ?? 0);
     return (
-      <span className={`font-bold tabular-nums ${m.movement_type === 'OUT' ? 'text-red-400' : 'text-green-400'}`}>
+      <span className={`font-bold tabular-nums text-sm ${m.movement_type === 'OUT' ? 'text-red-400' : 'text-primary-400'}`}>
         {m.movement_type === 'OUT' ? '-' : '+'}{qty}
       </span>
     );
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-4 lg:p-6">
+    <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
       <div className="max-w-[1600px] mx-auto">
 
         {/* Header – solo móvil */}
         <div className="lg:hidden mb-4 flex items-center gap-3">
           <button onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all">
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/[0.06] text-white/70 hover:bg-white/8 transition-all text-sm">
             <ArrowLeft className="w-4 h-4" /> Volver
           </button>
-          <h1 className="text-xl font-bold text-white">Movimientos</h1>
+          <h1 className="text-lg font-bold text-white">Movimientos</h1>
         </div>
 
         {/* ── Filtros ─────────────────────────────── */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-4 mb-4">
-          <div className="flex flex-wrap gap-3 items-center">
+        <div className="bg-dark-900 border border-white/[0.06] rounded-2xl p-4 mb-3">
+          <div className="flex flex-wrap gap-2 items-center">
 
             {/* Búsqueda */}
             <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
-              <input type="text" placeholder="Buscar producto, guía, orden, transportadora..."
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+              <input type="text" placeholder="Buscar producto, guía, orden..."
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all"
+                className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 transition-all"
               />
             </div>
 
             {/* Tipo */}
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
               style={{ colorScheme: 'dark' }}>
               <option value="all">Todos los tipos</option>
               <option value="in">Entradas (IN)</option>
@@ -167,17 +167,17 @@ export function InventoryHistory() {
 
             {/* Fecha desde */}
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
               style={{ colorScheme: 'dark' }} />
 
             {/* Fecha hasta */}
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white focus:outline-none focus:border-primary-500/50 transition-all"
+              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
               style={{ colorScheme: 'dark' }} />
 
             {/* Actualizar */}
             <button onClick={loadMovements} disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all text-sm disabled:opacity-50">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white/80 hover:bg-white/[0.07] transition-all text-sm disabled:opacity-40">
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline">Actualizar</span>
             </button>
@@ -185,7 +185,7 @@ export function InventoryHistory() {
             {/* Limpiar */}
             {hasFilters && (
               <button onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 hover:bg-red-500/20 transition-all text-sm">
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/15 text-red-400/80 hover:text-red-400 hover:bg-red-500/15 transition-all text-sm">
                 <X className="w-4 h-4" />
                 <span className="hidden sm:inline">Limpiar</span>
               </button>
@@ -193,63 +193,63 @@ export function InventoryHistory() {
 
             {/* CSV */}
             <button onClick={handleExportCSV} disabled={filteredMovements.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20 transition-all text-sm disabled:opacity-40">
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/8 border border-primary-500/20 text-primary-400/80 hover:text-primary-400 hover:bg-primary-500/15 transition-all text-sm disabled:opacity-30">
               <Download className="w-4 h-4" />
-              Exportar CSV
+              CSV
             </button>
           </div>
 
           {/* Contador */}
-          <div className="mt-3 text-white/40 text-xs">
+          <div className="mt-2.5 text-white/30 text-xs">
             {filteredMovements.length} de {movements.length} movimientos
-            {hasFilters && <span className="ml-1.5 text-primary-400">• filtros activos</span>}
+            {hasFilters && <span className="ml-1.5 text-primary-500/70">· filtros activos</span>}
           </div>
         </div>
 
         {/* ── Loading ───────────────────────────── */}
         {isLoading && (
           <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
+            <Loader2 className="w-8 h-8 text-primary-500/60 animate-spin" />
           </div>
         )}
 
         {/* ── DESKTOP: tabla ─────────────────────── */}
         {!isLoading && (
-          <div className="hidden lg:block bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 overflow-hidden">
+          <div className="hidden lg:block bg-dark-900 border border-white/[0.06] rounded-2xl overflow-hidden">
             {filteredMovements.length === 0 ? (
               <div className="p-16 text-center">
-                <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
-                <p className="text-white/40">No hay movimientos con los filtros aplicados</p>
-                {hasFilters && <button onClick={clearFilters} className="mt-3 text-primary-400 text-sm hover:underline">Limpiar filtros</button>}
+                <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                <p className="text-white/30 text-sm">No hay movimientos con los filtros aplicados</p>
+                {hasFilters && <button onClick={clearFilters} className="mt-3 text-primary-500/70 text-sm hover:text-primary-400 transition-colors">Limpiar filtros</button>}
               </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/3">
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Tipo</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Producto</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-28">SKU</th>
-                    <th className="px-4 py-3 text-center text-white/40 font-medium text-xs uppercase tracking-wider w-24">Cantidad</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-40">Transportadora</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Guía</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-28">Orden</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-36">Fecha</th>
+                  <tr className="border-b border-white/[0.05] bg-black/20">
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Tipo</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">SKU</th>
+                    <th className="px-4 py-3 text-center text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Cantidad</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-40">Transportadora</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Guía</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">Orden</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
+                <tbody className="divide-y divide-white/[0.03]">
                   {filteredMovements.map(m => (
-                    <tr key={m.id} className="hover:bg-white/5 transition-colors group">
+                    <tr key={m.id} className="hover:bg-primary-500/[0.03] transition-colors group">
                       <td className="px-4 py-3"><TypeBadge type={m.movement_type} /></td>
                       <td className="px-4 py-3">
-                        <p className="text-white/90 font-medium truncate max-w-[200px]" title={m.product?.name}>{m.product?.name || 'N/A'}</p>
-                        {m.description && <p className="text-white/30 text-xs truncate max-w-[200px]">{m.description}</p>}
+                        <p className="text-white/80 font-medium truncate max-w-[200px]" title={m.product?.name}>{m.product?.name || 'N/A'}</p>
+                        {m.description && <p className="text-white/25 text-xs truncate max-w-[200px] mt-0.5">{m.description}</p>}
                       </td>
-                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.product?.sku || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.product?.sku || '—'}</td>
                       <td className="px-4 py-3 text-center"><QtyCell m={m} /></td>
-                      <td className="px-4 py-3 text-white/70 truncate">{m.carrier?.display_name || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/60 text-xs">{m.guide_code || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.external_order_id || '—'}</td>
-                      <td className="px-4 py-3 text-white/50 text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-white/55 text-xs truncate">{m.carrier?.display_name || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.guide_code || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/35 text-xs">{m.external_order_id || '—'}</td>
+                      <td className="px-4 py-3 text-white/35 text-xs whitespace-nowrap">
                         {format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                       </td>
                     </tr>
@@ -264,21 +264,21 @@ export function InventoryHistory() {
         {!isLoading && (
           <div className="lg:hidden space-y-2">
             {filteredMovements.length === 0 ? (
-              <div className="bg-white/5 rounded-2xl border border-white/10 p-8 text-center">
-                <Package className="w-10 h-10 text-white/20 mx-auto mb-2" />
-                <p className="text-white/50 text-sm">No hay movimientos</p>
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-8 text-center">
+                <Package className="w-10 h-10 text-white/10 mx-auto mb-2" />
+                <p className="text-white/30 text-sm">No hay movimientos</p>
               </div>
             ) : filteredMovements.map(m => (
-              <div key={m.id} className="bg-white/5 rounded-xl border border-white/10 p-3">
+              <div key={m.id} className="bg-dark-900 rounded-xl border border-white/[0.06] p-3">
                 <div className="flex items-center justify-between mb-2">
                   <TypeBadge type={m.movement_type} />
-                  <span className="text-white/40 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>
+                  <span className="text-white/30 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                  <div><p className="text-white/40">Producto</p><p className="text-white font-medium truncate">{m.product?.name || 'N/A'}</p></div>
-                  <div><p className="text-white/40">Cantidad</p><QtyCell m={m} /></div>
-                  <div><p className="text-white/40">Transportadora</p><p className="text-white truncate">{m.carrier?.display_name || '—'}</p></div>
-                  <div><p className="text-white/40">Guía</p><p className="text-white font-mono truncate">{m.guide_code || '—'}</p></div>
+                  <div><p className="text-white/30 mb-0.5">Producto</p><p className="text-white/75 font-medium truncate">{m.product?.name || 'N/A'}</p></div>
+                  <div><p className="text-white/30 mb-0.5">Cantidad</p><QtyCell m={m} /></div>
+                  <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/60 truncate">{m.carrier?.display_name || '—'}</p></div>
+                  <div><p className="text-white/30 mb-0.5">Guía</p><p className="text-white/60 font-mono truncate">{m.guide_code || '—'}</p></div>
                 </div>
               </div>
             ))}

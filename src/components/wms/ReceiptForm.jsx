@@ -106,167 +106,211 @@ export function ReceiptForm() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 p-6">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
+      <div className="max-w-[1100px] mx-auto">
 
-        {/* Header */}
+        {/* Volver – solo móvil */}
         <button
           onClick={() => navigate('/wms')}
-          className="lg:hidden mb-6 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+          className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
         >
           <ArrowLeft className="w-4 h-4" />
           Volver
         </button>
 
-        {/* Title Card */}
-        <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg mb-6">
-          <div className="flex items-center gap-4">
-            <div className="p-4 rounded-2xl bg-green-500/20">
-              <Package className="w-8 h-8 text-green-400" />
-            </div>
-            <div className="flex-1">
-              <h1 className="text-2xl font-bold text-white">
-                Entrada de Inventario
-              </h1>
-              <p className="text-white/60 text-sm mt-1">
-                {selectedWarehouse?.name}
-              </p>
-            </div>
-          </div>
-        </div>
+        {/* Layout desktop: dos columnas | móvil: columna única */}
+        <form onSubmit={handleSubmit}>
+          <div className="lg:grid lg:grid-cols-[1fr,320px] lg:gap-6 space-y-4 lg:space-y-0">
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-6">
-
-          {/* Items */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-3xl border border-white/10 p-6 shadow-glass-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-bold text-white">Productos</h2>
-              <button
-                type="button"
-                onClick={handleAddItem}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl bg-green-500/20 border border-green-500/30 text-green-300 hover:bg-green-500/30 transition-all"
-              >
-                <Plus className="w-4 h-4" />
-                Agregar producto
-              </button>
-            </div>
-
-            {items.length === 0 ? (
-              <div className="text-center py-8 text-white/60">
-                <Package className="w-12 h-12 mx-auto mb-3 text-white/40" />
-                <p>No hay productos agregados</p>
-                <p className="text-sm mt-1">Click en "Agregar producto" para empezar</p>
+            {/* ── Columna izquierda: tabla de ítems ── */}
+            <div className="bg-dark-900 rounded-2xl border border-white/[0.06] overflow-hidden">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+                <div>
+                  <h2 className="text-white font-semibold text-sm">Productos a ingresar</h2>
+                  <p className="text-white/30 text-xs mt-0.5">{items.length} ítem{items.length !== 1 ? 's' : ''}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleAddItem}
+                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm"
+                >
+                  <Plus className="w-4 h-4" />
+                  Agregar
+                </button>
               </div>
-            ) : (
-              <div className="space-y-3">
-                {items.map((item, index) => (
-                  <div key={index} className="p-4 rounded-xl bg-white/5 border border-white/10">
-                    <div className="grid grid-cols-12 gap-3">
-                      {/* Product Select */}
-                      <div className="col-span-6">
-                        <label className="block text-white/60 text-xs mb-2">Producto</label>
-                        <select
-                          value={item.product_id}
-                          onChange={(e) => handleItemChange(index, 'product_id', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                          style={{ colorScheme: 'dark' }}
-                          required
-                        >
-                          <option value="" style={{ backgroundColor: '#1a1a1a', color: '#999' }}>Seleccionar...</option>
+
+              {items.length === 0 ? (
+                <div className="py-16 text-center">
+                  <Package className="w-12 h-12 mx-auto mb-3 text-white/20" />
+                  <p className="text-white/40 text-sm">Sin productos todavía</p>
+                  <button type="button" onClick={handleAddItem}
+                    className="mt-3 text-emerald-400 text-sm hover:underline">
+                    Agregar el primero
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* DESKTOP: tabla */}
+                  <table className="hidden lg:table w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 bg-white/3">
+                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">#</th>
+                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">Producto</th>
+                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs w-28">Cantidad</th>
+                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">Notas</th>
+                        <th className="px-4 py-2.5 w-10"></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/5">
+                      {items.map((item, index) => (
+                        <tr key={index}>
+                          <td className="px-4 py-3 text-white/30 text-xs">{index + 1}</td>
+                          <td className="px-4 py-3">
+                            <select value={item.product_id}
+                              onChange={e => handleItemChange(index, 'product_id', e.target.value)}
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-green-500/50"
+                              style={{ colorScheme: 'dark' }} required>
+                              <option value="">Seleccionar...</option>
+                              {products.map(p => (
+                                <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="px-4 py-3">
+                            <input type="number" min="1" value={item.qty}
+                              onChange={e => handleItemChange(index, 'qty', parseInt(e.target.value))}
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm text-center focus:outline-none focus:border-green-500/50"
+                              required />
+                          </td>
+                          <td className="px-4 py-3">
+                            <input type="text" value={item.notes}
+                              onChange={e => handleItemChange(index, 'notes', e.target.value)}
+                              placeholder="Lote, proveedor..."
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-green-500/50" />
+                          </td>
+                          <td className="px-4 py-3">
+                            <button type="button" onClick={() => handleRemoveItem(index)}
+                              className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+
+                  {/* MÓVIL: cards */}
+                  <div className="lg:hidden divide-y divide-white/5">
+                    {items.map((item, index) => (
+                      <div key={index} className="p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/30 text-xs">Ítem {index + 1}</span>
+                          <button type="button" onClick={() => handleRemoveItem(index)}
+                            className="p-1.5 rounded-lg text-red-300 hover:bg-red-500/10 transition-all">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <select value={item.product_id}
+                          onChange={e => handleItemChange(index, 'product_id', e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none"
+                          style={{ colorScheme: 'dark' }} required>
+                          <option value="">Seleccionar producto...</option>
                           {products.map(p => (
-                            <option key={p.id} value={p.id} style={{ backgroundColor: '#1a1a1a', color: '#fff' }}>
-                              {p.sku} - {p.name}
-                            </option>
+                            <option key={p.id} value={p.id}>{p.sku} - {p.name}</option>
                           ))}
                         </select>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-white/50 text-xs mb-1">Cantidad</label>
+                            <input type="number" min="1" value={item.qty}
+                              onChange={e => handleItemChange(index, 'qty', parseInt(e.target.value))}
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none" required />
+                          </div>
+                          <div>
+                            <label className="block text-white/50 text-xs mb-1">Notas</label>
+                            <input type="text" value={item.notes}
+                              onChange={e => handleItemChange(index, 'notes', e.target.value)}
+                              placeholder="Lote..."
+                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none" />
+                          </div>
+                        </div>
                       </div>
-
-                      {/* Quantity */}
-                      <div className="col-span-3">
-                        <label className="block text-white/60 text-xs mb-2">Cantidad</label>
-                        <input
-                          type="number"
-                          min="1"
-                          value={item.qty}
-                          onChange={(e) => handleItemChange(index, 'qty', parseInt(e.target.value))}
-                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                          required
-                        />
-                      </div>
-
-                      {/* Delete */}
-                      <div className="col-span-3 flex items-end">
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="w-full px-3 py-2 rounded-lg bg-red-500/10 border border-red-500/20 text-red-300 hover:bg-red-500/20 transition-all"
-                        >
-                          <Trash2 className="w-4 h-4 mx-auto" />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Notes */}
-                    <div className="mt-3">
-                      <label className="block text-white/60 text-xs mb-2">Notas (opcional)</label>
-                      <input
-                        type="text"
-                        value={item.notes}
-                        onChange={(e) => handleItemChange(index, 'notes', e.target.value)}
-                        placeholder="Ej: Lote ABC123"
-                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                      />
-                    </div>
+                    ))}
                   </div>
-                ))}
+                </>
+              )}
+            </div>
+
+            {/* ── Columna derecha: resumen + notas + submit ── */}
+            <div className="space-y-4">
+
+              {/* Resumen */}
+              {items.length > 0 && (
+                <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                  <p className="text-white/40 text-xs uppercase tracking-wider mb-3">Resumen</p>
+                  <div className="space-y-2">
+                    {items.filter(i => i.product_id).map((item, i) => {
+                      const prod = products.find(p => p.id === item.product_id);
+                      return (
+                        <div key={i} className="flex items-center justify-between text-sm">
+                          <span className="text-white/70 truncate flex-1 mr-2">{prod?.name || 'Producto'}</span>
+                          <span className="text-green-400 font-bold tabular-nums">+{item.qty}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {items.filter(i => i.product_id).length > 0 && (
+                    <div className="border-t border-white/10 mt-3 pt-3 flex items-center justify-between text-sm">
+                      <span className="text-white/50">Total unidades</span>
+                      <span className="text-white font-bold tabular-nums">
+                        {items.filter(i => i.product_id).reduce((sum, i) => sum + (i.qty || 0), 0)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Observaciones generales */}
+              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">Observaciones</label>
+                <textarea
+                  value={notes}
+                  onChange={(e) => setNotes(e.target.value)}
+                  placeholder="Ej: Recibido de proveedor XYZ, Factura #12345"
+                  rows={4}
+                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none text-sm"
+                />
               </div>
-            )}
+
+              {/* Submit */}
+              <button
+                type="submit"
+                disabled={isProcessing || items.length === 0 || isLoadingProducts}
+                className="
+                  w-full px-6 py-4 rounded-xl
+                  bg-gradient-to-r from-green-500 to-emerald-500
+                  text-white font-medium
+                  hover:shadow-lg hover:shadow-green-500/20
+                  disabled:opacity-50 disabled:cursor-not-allowed
+                  transition-all
+                  flex items-center justify-center gap-2
+                "
+              >
+                {isProcessing ? (
+                  <>
+                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    Procesando...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-5 h-5" />
+                    Confirmar Entrada
+                  </>
+                )}
+              </button>
+              <p className="text-center text-white/30 text-xs">El inventario se actualiza automáticamente</p>
+            </div>
           </div>
-
-          {/* General Notes */}
-          <div className="bg-white/5 backdrop-blur-xl rounded-2xl border border-white/10 p-6 shadow-glass-lg">
-            <label className="block text-white/80 font-medium mb-3">Observaciones Generales</label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ej: Recibido de proveedor XYZ, Factura #12345"
-              rows={3}
-              className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none"
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={isProcessing || items.length === 0 || isLoadingProducts}
-            className="
-              w-full px-6 py-4 rounded-2xl
-              bg-gradient-to-r from-green-500 to-emerald-500
-              border border-green-400/30
-              text-white font-medium
-              hover:shadow-lg hover:shadow-green-500/20
-              disabled:opacity-50 disabled:cursor-not-allowed
-              transition-all
-              flex items-center justify-center gap-2
-            "
-          >
-            {isProcessing ? (
-              <>
-                <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              <>
-                <Check className="w-5 h-5" />
-                Confirmar Entrada
-              </>
-            )}
-          </button>
-
-          <p className="text-center text-white/40 text-sm">
-            El inventario se actualizará automáticamente al confirmar
-          </p>
         </form>
       </div>
     </div>
