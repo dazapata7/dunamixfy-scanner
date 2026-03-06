@@ -65,7 +65,7 @@ export function TopBar() {
 
         {/* Ícono WMS (XFY) en cuadro oscuro */}
         <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center flex-shrink-0 overflow-hidden">
-          <img src="/Logos%20DFX%20WMS%20Black%20sl.jpg" alt="WMS" className="w-6 h-6 object-contain" />
+          <img src="/Logo%20DFX%20-%20WMS%20Black%20-s.png" alt="WMS" className="w-6 h-6 object-contain" />
         </div>
 
         {/* Título + descripción apilados */}
