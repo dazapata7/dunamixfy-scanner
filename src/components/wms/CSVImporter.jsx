@@ -197,7 +197,7 @@ export function CSVImporter() {
         </button>
 
         {/* Selector de transportadora */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5 mb-4">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5 mb-4">
           <label className="block text-white/50 text-xs uppercase tracking-wider mb-3">
             Transportadora
           </label>
@@ -255,7 +255,7 @@ export function CSVImporter() {
         </div>
 
         {/* Zona de carga de archivo */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5 mb-4">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5 mb-4">
           <p className="text-white/50 text-xs uppercase tracking-wider mb-3">Archivo</p>
 
           <label
@@ -313,7 +313,7 @@ export function CSVImporter() {
 
         {/* Validando */}
         {isValidating && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5 mb-4">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5 mb-4">
             <div className="flex items-center gap-3 text-white/70">
               <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
               <span className="text-sm">Validando archivo...</span>
@@ -323,7 +323,7 @@ export function CSVImporter() {
 
         {/* Progreso de importación */}
         {isImporting && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5 mb-4">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5 mb-4">
             <div className="flex items-center justify-between mb-3">
               <span className="text-white text-sm font-medium flex items-center gap-2">
                 <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin" />
@@ -345,7 +345,7 @@ export function CSVImporter() {
 
         {/* Preview */}
         {preview && preview.length > 0 && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5 mb-4">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5 mb-4">
             <h3 className="text-white font-semibold text-sm mb-4 flex items-center gap-2">
               <FileText className="w-4 h-4 text-white/50" />
               Preview — primeras {preview.length} filas

@@ -123,7 +123,7 @@ export function ReceiptForm() {
           <div className="lg:grid lg:grid-cols-[1fr,320px] lg:gap-6 space-y-4 lg:space-y-0">
 
             {/* ── Columna izquierda: tabla de ítems ── */}
-            <div className="bg-dark-900 rounded-2xl border border-white/[0.06] overflow-hidden">
+            <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
                 <div>
                   <h2 className="text-white font-semibold text-sm">Productos a ingresar</h2>
@@ -246,7 +246,7 @@ export function ReceiptForm() {
 
               {/* Resumen */}
               {items.length > 0 && (
-                <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+                <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                   <p className="text-white/40 text-xs uppercase tracking-wider mb-3">Resumen</p>
                   <div className="space-y-2">
                     {items.filter(i => i.product_id).map((item, i) => {
@@ -271,7 +271,7 @@ export function ReceiptForm() {
               )}
 
               {/* Observaciones generales */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                 <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">Observaciones</label>
                 <textarea
                   value={notes}

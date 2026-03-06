@@ -95,7 +95,7 @@ export function WarehouseManagement() {
         </button>
 
         {/* Barra superior */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-4 mb-4 flex items-center gap-3">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-4 mb-4 flex items-center gap-3">
           <div className="flex-1">
             <p className="text-white/40 text-xs">{warehouses.length} almacén{warehouses.length !== 1 ? 'es' : ''} configurado{warehouses.length !== 1 ? 's' : ''}</p>
           </div>
@@ -119,7 +119,7 @@ export function WarehouseManagement() {
 
         {/* DESKTOP: tabla */}
         {!isLoading && (
-          <div className="hidden lg:block bg-dark-900 rounded-2xl border border-white/[0.06] overflow-hidden">
+          <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
             {warehouses.length === 0 ? (
               <div className="p-16 text-center">
                 <MapPin className="w-12 h-12 text-white/20 mx-auto mb-3" />

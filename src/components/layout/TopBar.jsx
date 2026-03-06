@@ -1,11 +1,12 @@
 // =====================================================
 // TOP BAR - Dunamixfy WMS (Desktop/Tablet)
 // =====================================================
-// Estilo Dunamixfy: logo + icono de sección + título/desc apilados
+// Estilo Dunamixfy: logo + chevron + icono sección + título/desc
 // =====================================================
 
 import { useLocation } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
+import { ChevronLeft } from 'lucide-react';
 import {
   BarChart3, Monitor, History, ArrowLeftRight,
   Package, PackagePlus, TrendingDown,
@@ -14,24 +15,24 @@ import {
 } from 'lucide-react';
 
 const ROUTE_META = {
-  '/wms/dashboard':           { title: 'Dashboard',             desc: 'Despachos del día',                icon: BarChart3    },
-  '/wms/inventory':           { title: 'Stock actual',          desc: 'Inventario disponible',            icon: Package      },
-  '/wms/history':             { title: 'Historial de Despachos',desc: 'Trazabilidad completa',            icon: History      },
-  '/wms/adjustment':          { title: 'Ajustes de Inventario', desc: 'Correcciones de stock',            icon: TrendingDown },
-  '/wms/receipt':             { title: 'Recepción de Mercancía',desc: 'Entrada de inventario',            icon: PackagePlus  },
-  '/wms/inventory-history':   { title: 'Movimientos',           desc: 'Entradas y salidas de inventario', icon: ArrowLeftRight},
-  '/wms/import-csv':          { title: 'Importar CSV',          desc: 'Interrápidisimo y otras fuentes',  icon: Upload       },
-  '/wms/manage-products':     { title: 'Productos',             desc: 'Catálogo de referencias',          icon: Tag          },
-  '/wms/manage-warehouses':   { title: 'Bodegas',               desc: 'Gestión de almacenes',             icon: Warehouse    },
-  '/wms/remote-scanner/host': { title: 'Remote Scanner',        desc: 'PC + móvil conectado',             icon: Monitor      },
-  '/wms/scan-history':        { title: 'Historial de Escaneos', desc: 'Escaneos por fecha',               icon: QrCode       },
-  '/wms/batch-summary':       { title: 'Resumen de Batch',      desc: 'Revisión antes de confirmar',      icon: Layers       },
-  '/wms/select-warehouse':    { title: 'Seleccionar Bodega',    desc: 'Elige el almacén activo',          icon: MapPin       },
-  '/admin':                   { title: 'Administración',        desc: 'Panel de administración',          icon: Shield       },
-  '/admin/bodegas':           { title: 'Mis Bodegas',           desc: 'Gestión de almacenes',             icon: Warehouse    },
-  '/admin/operadores':        { title: 'Operadores',            desc: 'Usuarios del sistema',             icon: Users        },
-  '/superadmin':              { title: 'Super Admin',           desc: 'Configuración global',             icon: Shield       },
-  '/profile':                 { title: 'Mi Perfil',             desc: 'Datos de usuario',                 icon: User         },
+  '/wms/dashboard':           { title: 'Dashboard',              desc: 'Despachos del día',                icon: BarChart3     },
+  '/wms/inventory':           { title: 'Stock actual',           desc: 'Inventario disponible',            icon: Package       },
+  '/wms/history':             { title: 'Historial de Despachos', desc: 'Trazabilidad completa',            icon: History       },
+  '/wms/adjustment':          { title: 'Ajustes de Inventario',  desc: 'Correcciones de stock',            icon: TrendingDown  },
+  '/wms/receipt':             { title: 'Recepción de Mercancía', desc: 'Entrada de inventario',            icon: PackagePlus   },
+  '/wms/inventory-history':   { title: 'Movimientos',            desc: 'Entradas y salidas de inventario', icon: ArrowLeftRight },
+  '/wms/import-csv':          { title: 'Importar CSV',           desc: 'Interrápidisimo y otras fuentes',  icon: Upload        },
+  '/wms/manage-products':     { title: 'Gestión de Productos',   desc: 'Catálogo de referencias',          icon: Tag           },
+  '/wms/manage-warehouses':   { title: 'Gestión de Bodegas',     desc: 'Administra tus almacenes',         icon: Warehouse     },
+  '/wms/remote-scanner/host': { title: 'Remote Scanner',         desc: 'PC + móvil conectado',             icon: Monitor       },
+  '/wms/scan-history':        { title: 'Historial de Escaneos',  desc: 'Escaneos por fecha',               icon: QrCode        },
+  '/wms/batch-summary':       { title: 'Resumen de Batch',       desc: 'Revisión antes de confirmar',      icon: Layers        },
+  '/wms/select-warehouse':    { title: 'Seleccionar Bodega',     desc: 'Elige el almacén activo',          icon: MapPin        },
+  '/admin':                   { title: 'Administración',         desc: 'Panel de administración',          icon: Shield        },
+  '/admin/bodegas':           { title: 'Mis Bodegas',            desc: 'Gestión de almacenes',             icon: Warehouse     },
+  '/admin/operadores':        { title: 'Operadores',             desc: 'Usuarios del sistema',             icon: Users         },
+  '/superadmin':              { title: 'Super Admin',            desc: 'Configuración global',             icon: Shield        },
+  '/profile':                 { title: 'Mi Perfil',              desc: 'Datos de usuario',                 icon: User          },
 };
 
 function resolveMeta(pathname) {
@@ -48,15 +49,25 @@ export function TopBar() {
   const operator          = useStore((s) => s.operator);
   const { title, desc, icon: Icon } = resolveMeta(location.pathname);
 
-  return (
-    <header className="hidden lg:flex fixed top-0 left-60 right-0 h-14 z-30 items-center justify-between px-5 bg-dark-950 border-b border-white/[0.06]">
+  const initials = operator
+    ? operator.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+    : '?';
 
-      {/* ── Izquierda: icono de sección + título/desc ── */}
+  return (
+    <header className="hidden lg:flex fixed top-0 left-44 right-0 h-14 z-30 items-center justify-between px-5 bg-dark-950 border-b border-white/[0.06]">
+
+      {/* ── Izquierda: collapse btn + icono + título/desc ── */}
       <div className="flex items-center gap-3">
-        {/* Icono en cuadro — igual que Dunamixfy */}
+        {/* Botón collapse — visual estilo Dunamixfy */}
+        <button className="w-7 h-7 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center hover:bg-white/[0.09] transition-all flex-shrink-0">
+          <ChevronLeft className="w-3.5 h-3.5 text-white/40" />
+        </button>
+
+        {/* Icono de sección en cuadro oscuro */}
         <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center flex-shrink-0">
           <Icon className="w-4 h-4 text-primary-400" />
         </div>
+
         {/* Título + descripción apilados */}
         <div>
           <p className="text-white font-bold text-sm leading-none">{title}</p>
@@ -66,24 +77,22 @@ export function TopBar() {
         </div>
       </div>
 
-      {/* ── Derecha: bodega + operador ────────────────── */}
+      {/* ── Derecha: bodega + operador ─────────────────── */}
       <div className="flex items-center gap-2">
         {selectedWarehouse && (
           <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06]">
-            <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
             <div className="text-right">
-              <p className="text-white/25 text-[9px] uppercase tracking-widest leading-none">Bodega</p>
-              <p className="text-white/60 text-xs font-medium leading-none mt-0.5">{selectedWarehouse.name}</p>
+              <p className="text-white/20 text-[9px] uppercase tracking-widest leading-none">Bodega</p>
+              <p className="text-white/55 text-xs font-medium leading-none mt-0.5">{selectedWarehouse.name}</p>
             </div>
+            <div className="w-1.5 h-1.5 rounded-full bg-primary-500 animate-pulse flex-shrink-0" />
           </div>
         )}
-        {operator && (
-          <div className="w-7 h-7 rounded-full bg-primary-500/20 border border-primary-500/25 flex items-center justify-center flex-shrink-0">
-            <span className="text-primary-400 font-bold text-[10px]">
-              {operator.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-            </span>
-          </div>
-        )}
+
+        {/* Avatar operador */}
+        <div className="w-8 h-8 rounded-full bg-primary-500/15 border border-primary-500/25 flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-primary-500/25 transition-all">
+          <span className="text-primary-400 font-bold text-[11px]">{initials}</span>
+        </div>
       </div>
     </header>
   );

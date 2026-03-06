@@ -69,7 +69,7 @@ function ProgressBar({ value, max, color = 'bg-green-500' }) {
 // ─── KPI Card ───────────────────────────────────────
 function KpiCard({ label, value, sub, icon: Icon, iconColor, valueColor = 'text-white' }) {
   return (
-    <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3 flex flex-col gap-1">
+    <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3 flex flex-col gap-1">
       <div className="flex items-center justify-between">
         <p className="text-white/50 text-xs font-medium">{label}</p>
         <Icon className={`w-4 h-4 ${iconColor}`} />
@@ -262,7 +262,7 @@ export function DispatchDashboard() {
         <div className="flex items-center justify-between gap-3">
           <button
             onClick={() => navigate('/wms')}
-            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-dark-900 border border-white/[0.06] text-white/80 hover:bg-white/10 transition-all text-sm"
+            className="lg:hidden flex items-center gap-2 px-3 py-2 rounded-xl bg-white/[0.04] backdrop-blur-md border border-white/[0.08] text-white/80 hover:bg-white/10 transition-all text-sm"
           >
             <ArrowLeft className="w-4 h-4" />
             Volver
@@ -278,7 +278,7 @@ export function DispatchDashboard() {
         </div>
 
         {/* ── Selector de Fecha ── */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3 flex items-center gap-3 flex-wrap">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3 flex items-center gap-3 flex-wrap">
           <div className="flex items-center gap-1">
             <button
               onClick={() => shiftDay(-1)}
@@ -380,7 +380,7 @@ export function DispatchDashboard() {
 
         {/* ── Mini stats: Transportadoras ── */}
         {Object.keys(stats.byCarrier).length > 0 && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3">
             <p className="text-xs text-white/50 font-medium mb-3 flex items-center gap-1.5">
               <Truck className="w-3.5 h-3.5 text-green-400" />
               Por Transportadora
@@ -408,7 +408,7 @@ export function DispatchDashboard() {
 
         {/* ── Top Producto ── */}
         {topProduct && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3 flex items-center gap-3">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3 flex items-center gap-3">
             <div className="p-2 rounded-xl bg-yellow-500/10 border border-yellow-500/20 shrink-0">
               <Star className="w-4 h-4 text-yellow-400" />
             </div>
@@ -425,7 +425,7 @@ export function DispatchDashboard() {
         )}
 
         {/* ── Filtros ── */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3 flex flex-wrap gap-2 items-center">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3 flex flex-wrap gap-2 items-center">
           {/* Búsqueda guía */}
           <div className="relative flex-1 min-w-[160px]">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-white/30" />
@@ -481,7 +481,7 @@ export function DispatchDashboard() {
 
         {/* ── Sin datos ── */}
         {stats.total === 0 && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-10 text-center">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-10 text-center">
             <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
             <p className="text-white/50">Sin despachos {isToday ? 'hoy' : `el ${formatDateLabel(selectedDate)}`}</p>
           </div>
@@ -621,7 +621,7 @@ export function DispatchDashboard() {
 
         {/* ── Resumen de Productos ── */}
         {Object.keys(stats.byProduct).length > 0 && (
-          <div className="bg-dark-900 rounded-2xl border border-white/[0.06] px-4 py-3">
+          <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3">
             <p className="text-xs text-white/50 font-medium mb-3 flex items-center gap-1.5">
               <Box className="w-3.5 h-3.5 text-purple-400" />
               Resumen de Productos Despachados

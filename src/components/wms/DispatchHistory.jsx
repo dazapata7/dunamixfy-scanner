@@ -215,7 +215,7 @@ export function DispatchHistory({ warehouseId = null }) {
         </div>
 
         {/* ── Filtros ──────────────────────────── */}
-        <div className="bg-dark-900 border border-white/[0.06] rounded-2xl p-4 mb-3 space-y-2.5">
+        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4 mb-3 space-y-2.5">
 
           <div className="flex flex-wrap gap-2 items-center">
             {/* Búsqueda */}
@@ -297,7 +297,7 @@ export function DispatchHistory({ warehouseId = null }) {
 
         {/* ── Vacío ──────────────────────────────── */}
         {filteredDispatches.length === 0 ? (
-          <div className="bg-dark-900 border border-white/[0.06] rounded-2xl p-16 text-center">
+          <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-16 text-center">
             <Package className="w-12 h-12 text-white/10 mx-auto mb-3" />
             <p className="text-white/30 text-sm">{hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}</p>
             {hasActiveFilters && <button onClick={clearFilters} className="mt-3 text-primary-500/70 text-sm hover:text-primary-400 transition-colors">Limpiar filtros</button>}
@@ -305,7 +305,7 @@ export function DispatchHistory({ warehouseId = null }) {
         ) : (
           <>
             {/* ── DESKTOP: tabla ─────────────────────── */}
-            <div className="hidden lg:block bg-dark-900 border border-white/[0.06] rounded-2xl overflow-hidden">
+            <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.05] bg-black/20">

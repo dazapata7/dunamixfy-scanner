@@ -144,7 +144,7 @@ export function InventoryHistory() {
         </div>
 
         {/* ── Filtros ─────────────────────────────── */}
-        <div className="bg-dark-900 border border-white/[0.06] rounded-2xl p-4 mb-3">
+        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4 mb-3">
           <div className="flex flex-wrap gap-2 items-center">
 
             {/* Búsqueda */}
@@ -215,7 +215,7 @@ export function InventoryHistory() {
 
         {/* ── DESKTOP: tabla ─────────────────────── */}
         {!isLoading && (
-          <div className="hidden lg:block bg-dark-900 border border-white/[0.06] rounded-2xl overflow-hidden">
+          <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl overflow-hidden">
             {filteredMovements.length === 0 ? (
               <div className="p-16 text-center">
                 <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
@@ -264,12 +264,12 @@ export function InventoryHistory() {
         {!isLoading && (
           <div className="lg:hidden space-y-2">
             {filteredMovements.length === 0 ? (
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-8 text-center">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-8 text-center">
                 <Package className="w-10 h-10 text-white/10 mx-auto mb-2" />
                 <p className="text-white/30 text-sm">No hay movimientos</p>
               </div>
             ) : filteredMovements.map(m => (
-              <div key={m.id} className="bg-dark-900 rounded-xl border border-white/[0.06] p-3">
+              <div key={m.id} className="bg-white/[0.04] backdrop-blur-md rounded-xl border border-white/[0.08] p-3">
                 <div className="flex items-center justify-between mb-2">
                   <TypeBadge type={m.movement_type} />
                   <span className="text-white/30 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>

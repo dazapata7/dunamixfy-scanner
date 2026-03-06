@@ -217,7 +217,7 @@ export function AdjustmentForm() {
             <div className="space-y-4">
 
               {/* Mode Selector */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-3">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-3">
                 <p className="text-white/40 text-xs uppercase tracking-wider px-1 mb-3">Tipo de movimiento</p>
                 <div className="grid grid-cols-3 gap-2">
                   {MODES.map(({ key, label, icon: Icon, activeClass, hoverClass, description }) => (
@@ -240,7 +240,7 @@ export function AdjustmentForm() {
               </div>
 
               {/* Product Selection */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                 <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">Producto</label>
                 <select
                   value={selectedProduct}
@@ -266,7 +266,7 @@ export function AdjustmentForm() {
               </div>
 
               {/* Quantity */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                 <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">
                   {mode === 'set' ? 'Stock final deseado' : 'Cantidad'}
                 </label>
@@ -286,7 +286,7 @@ export function AdjustmentForm() {
             <div className="space-y-4">
 
               {/* Vista previa del cambio */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                 <p className="text-white/40 text-xs uppercase tracking-wider mb-4">Vista previa</p>
                 {newStock !== null && currentStock !== null && parsedQty > 0 ? (
                   <>
@@ -322,7 +322,7 @@ export function AdjustmentForm() {
               </div>
 
               {/* Razón */}
-              <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-5">
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
                 <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">
                   Razón <span className="text-red-400">*</span>
                 </label>

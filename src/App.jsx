@@ -95,7 +95,7 @@ function AppContent() {
             <>
               <SidebarLayout />
               <TopBar />
-              <div className="lg:ml-60 lg:pt-14">
+              <div className="lg:ml-44 lg:pt-14">
                 <Routes>
                   <Route path="/" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/wms/dashboard" replace />} />

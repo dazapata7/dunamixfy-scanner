@@ -243,7 +243,7 @@ export function InventoryList() {
         </div>
 
         {/* Filtros y Búsqueda */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-4 mb-6 flex items-center gap-3 flex-wrap">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-4 mb-6 flex items-center gap-3 flex-wrap">
           <div className="flex-1 min-w-[260px] relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
             <input type="text" placeholder="Buscar por nombre, SKU o categoría..."
@@ -297,7 +297,7 @@ export function InventoryList() {
 
         {/* Empty State */}
         {!isLoading && filteredRegular.length === 0 && filteredCombos.length === 0 && (
-          <div className="text-center py-12 bg-dark-900 rounded-2xl border border-white/[0.06]">
+          <div className="text-center py-12 bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08]">
             <div className="inline-flex p-4 rounded-2xl bg-white/5 mb-4">
               <Package className="w-12 h-12 text-white/40" />
             </div>

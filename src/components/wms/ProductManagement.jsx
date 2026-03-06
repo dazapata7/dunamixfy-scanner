@@ -362,7 +362,7 @@ export function ProductManagement() {
         </button>
 
         {/* Barra superior */}
-        <div className="bg-dark-900 rounded-2xl border border-white/[0.06] p-4 mb-4 flex flex-wrap items-center gap-3">
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-4 mb-4 flex flex-wrap items-center gap-3">
           {/* Búsqueda */}
           <div className="relative flex-1 min-w-[220px]">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
@@ -400,7 +400,7 @@ export function ProductManagement() {
 
         {/* DESKTOP: tabla */}
         {!isLoading && (
-          <div className="hidden lg:block bg-dark-900 rounded-2xl border border-white/[0.06] overflow-hidden">
+          <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
             {filtered.length === 0 ? (
               <div className="p-16 text-center">
                 <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
