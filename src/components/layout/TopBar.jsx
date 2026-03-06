@@ -54,7 +54,7 @@ export function TopBar() {
     : '?';
 
   return (
-    <header className="hidden lg:flex fixed top-0 left-44 right-0 h-14 z-30 items-center justify-between px-5 bg-dark-950 border-b border-white/[0.06]">
+    <header className="hidden lg:flex fixed top-0 left-48 right-0 h-14 z-30 items-center justify-between px-5 bg-dark-950 border-b border-white/[0.05]">
 
       {/* ── Izquierda: collapse btn + icono + título/desc ── */}
       <div className="flex items-center gap-3">

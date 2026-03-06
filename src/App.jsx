@@ -95,7 +95,7 @@ function AppContent() {
             <>
               <SidebarLayout />
               <TopBar />
-              <div className="lg:ml-44 lg:pt-14">
+              <div className="lg:ml-48 lg:pt-14 min-h-screen" style={{ background: 'radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,229,191,0.06) 0%, transparent 55%), #05070d' }}>
                 <Routes>
                   <Route path="/" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/wms/dashboard" replace />} />
