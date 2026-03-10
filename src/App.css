@@ -1,13 +1,13 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Bai+Jamjuree:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-primary: #00D9C0;
-  --color-dark-900: #0a0e1a;
-  --color-dark-800: #1a1f2e;
+  --color-primary: #0afdbd;
+  --color-dark-900: #13111C;
+  --color-dark-800: #202126;
   --color-dark-700: #2a2f3e;
 }
 
@@ -18,10 +18,15 @@
 }
 
 body {
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  font-family: 'Manrope', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: var(--color-dark-900);
+  background:
+    radial-gradient(ellipse 35% 30% at 20% 20%, rgba(10,253,189,0.08) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 50% 25%, rgba(23,177,211,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 30% 25% at 80% 15%, rgba(139,92,246,0.07) 0%, transparent 60%),
+    radial-gradient(ellipse 50% 30% at 60% 85%, rgba(10,253,189,0.04) 0%, transparent 70%),
+    #0a0a0f;
   color: white;
 }
 
@@ -48,15 +53,15 @@ body {
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--color-dark-800);
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-dark-700);
+  background: rgba(255,255,255,0.08);
   border-radius: 4px;
 }
 

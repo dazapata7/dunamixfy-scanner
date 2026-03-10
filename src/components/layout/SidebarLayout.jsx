@@ -93,47 +93,48 @@ function NavItem({ item, isActive, hasActiveChild }) {
   const highlighted = isActive || hasActiveChild;
 
   if (!item.children) {
-    // Standalone
+    // Standalone — sin bg activo (igual que Dunamixfy real)
     return (
       <div className="px-2">
         <button
           onClick={() => navigate(item.path)}
           className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group ${
             highlighted
-              ? 'bg-white/[0.06] text-white'
-              : 'text-white/45 hover:text-white/80 hover:bg-white/[0.03]'
+              ? 'text-white'
+              : 'text-white/45 hover:text-white/80 hover:bg-white/[0.05]'
           }`}
         >
           <item.icon className={`w-[17px] h-[17px] flex-shrink-0 transition-colors ${
-            highlighted ? 'text-primary-400' : 'text-white/25 group-hover:text-primary-400/60'
+            highlighted ? 'text-primary-500' : 'text-white/25 group-hover:text-primary-500/60'
           }`} />
           <span className={`text-sm ${highlighted ? 'font-semibold' : 'font-medium'}`}>
             {item.label}
           </span>
+          {highlighted && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary-500 flex-shrink-0" />}
         </button>
       </div>
     );
   }
 
-  // Expandable
+  // Expandable — bg-white/5 solo cuando está abierto (igual que Dunamixfy real)
   return (
     <div className="px-2">
       <button
         onClick={() => setOpen(o => !o)}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group ${
-          highlighted
-            ? 'bg-white/[0.06] text-white'
-            : 'text-white/45 hover:text-white/80 hover:bg-white/[0.03]'
+          open
+            ? 'bg-white/[0.05] text-primary-500'
+            : 'text-white/45 hover:text-white/80 hover:bg-white/[0.05]'
         }`}
       >
         <item.icon className={`w-[17px] h-[17px] flex-shrink-0 transition-colors ${
-          highlighted ? 'text-primary-400' : 'text-white/25 group-hover:text-primary-400/60'
+          open ? 'text-primary-500' : 'text-white/25 group-hover:text-primary-500/60'
         }`} />
-        <span className={`flex-1 text-left text-sm ${highlighted ? 'font-semibold' : 'font-medium'}`}>
+        <span className={`flex-1 text-left text-sm ${open ? 'font-semibold' : 'font-medium'}`}>
           {item.label}
         </span>
         <ChevronDown className={`w-3.5 h-3.5 flex-shrink-0 transition-all ${
-          highlighted ? 'text-white/50' : 'text-white/20 group-hover:text-white/40'
+          open ? 'text-primary-500/60' : 'text-white/20 group-hover:text-white/40'
         } ${open ? 'rotate-0' : '-rotate-90'}`} />
       </button>
 
@@ -162,11 +163,11 @@ export function SidebarLayout() {
   const nav = buildNav(role);
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-950 border-r border-white/[0.05] z-40">
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-900/90 backdrop-blur-xl border-r border-white/[0.06] z-40">
 
       {/* ── Logo ──────────────────────────────────────── */}
-      <div className="flex items-center gap-2.5 px-4 h-14 border-b border-white/[0.05] flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_12px_rgba(0,229,191,0.35)]">
+      <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/[0.06] flex-shrink-0">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(10,253,189,0.40)]">
           <span className="text-dark-950 font-black text-[11px]">D</span>
         </div>
         <div className="min-w-0 flex-1">

@@ -56,7 +56,7 @@ function AppContent() {
 
   // V4: Componente de loading reutilizable para Suspense y auth
   const LoadingScreen = ({ message = "Cargando..." }) => (
-    <div className="min-h-screen bg-gradient-to-br from-dark-950 via-dark-900 to-dark-950 flex items-center justify-center">
+    <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-primary-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-gray-400 text-lg font-medium">{message}</p>
@@ -95,7 +95,7 @@ function AppContent() {
             <>
               <SidebarLayout />
               <TopBar />
-              <div className="lg:ml-48 lg:pt-14 min-h-screen" style={{ background: 'radial-gradient(ellipse 70% 40% at 50% 0%, rgba(0,229,191,0.06) 0%, transparent 55%), #05070d' }}>
+              <div className="lg:ml-48 lg:pt-16 min-h-screen">
                 <Routes>
                   <Route path="/" element={<Navigate to="/wms/dashboard" replace />} />
                   <Route path="/dashboard" element={<Navigate to="/wms/dashboard" replace />} />
@@ -191,23 +191,23 @@ function App() {
         toastOptions={{
           duration: 2000,
           style: {
-            background: "#1a1f2e",
+            background: "#202126",
             color: "#fff",
-            border: "1px solid #00D9C0",
+            border: "1px solid rgba(10,253,189,0.25)",
             borderRadius: "12px",
             fontSize: "14px",
             fontWeight: "600",
           },
           success: {
             iconTheme: {
-              primary: "#00D9C0",
-              secondary: "#1a1f2e",
+              primary: "#0afdbd",
+              secondary: "#202126",
             },
           },
           error: {
             iconTheme: {
               primary: "#ef4444",
-              secondary: "#1a1f2e",
+              secondary: "#202126",
             },
           },
         }}

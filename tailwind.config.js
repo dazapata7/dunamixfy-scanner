@@ -8,41 +8,31 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#00E5BF',
-          50: '#e6fffb',
+          DEFAULT: '#0afdbd',
+          50:  '#e6fffb',
           100: '#b3fff5',
           200: '#80ffee',
           300: '#4dffe8',
-          400: '#1affe1',
-          500: '#00E5BF',
-          600: '#00bf9f',
-          700: '#00997f',
-          800: '#00735f',
-          900: '#004d40',
-        },
-        cyan: {
-          DEFAULT: '#00E5BF',
-          400: '#1affe1',
-          500: '#00E5BF',
-          600: '#00bf9f',
-        },
-        purple: {
-          400: '#a855f7',
-          500: '#9333ea',
-          600: '#7e22ce',
+          400: '#0bfec1',
+          500: '#0afdbd',
+          600: '#0BB588',
+          700: '#008f6b',
+          800: '#006b50',
+          900: '#004d3a',
         },
         dark: {
-          DEFAULT: '#0a0e1a',
-          950: '#05070d',
-          900: '#0a0e1a',
-          800: '#1a1f2e',
+          DEFAULT: '#13111C',
+          950: '#0a0a0f',
+          900: '#13111C',
+          800: '#202126',
           700: '#2a2f3e',
           600: '#3a3f4e',
           500: '#4a4f5e',
         }
       },
       fontFamily: {
-        sans: ['Inter', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        sans: ['Manrope', 'system-ui', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+        accent: ['Bai Jamjuree', 'sans-serif'],
         mono: ['Fira Code', 'SF Mono', 'Consolas', 'monospace'],
       },
       backdropBlur: {
@@ -50,8 +40,8 @@ export default {
         '3xl': '64px',
       },
       boxShadow: {
-        'glass': '0 8px 32px 0 rgba(0, 229, 191, 0.1)',
-        'glass-lg': '0 20px 60px 0 rgba(0, 229, 191, 0.15)',
+        'glass': '0 8px 32px 0 rgba(10, 253, 189, 0.1)',
+        'glass-lg': '0 20px 60px 0 rgba(10, 253, 189, 0.15)',
         'inner-glass': 'inset 0 1px 1px 0 rgba(255, 255, 255, 0.1)',
       },
       backgroundImage: {

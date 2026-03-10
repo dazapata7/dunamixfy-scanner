@@ -6,7 +6,6 @@
 
 import { useLocation } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
-import { ChevronLeft } from 'lucide-react';
 import {
   BarChart3, Monitor, History, ArrowLeftRight,
   Package, PackagePlus, TrendingDown,
@@ -54,25 +53,20 @@ export function TopBar() {
     : '?';
 
   return (
-    <header className="hidden lg:flex fixed top-0 left-48 right-0 h-14 z-30 items-center justify-between px-5 bg-dark-950 border-b border-white/[0.05]">
+    <header className="hidden lg:flex fixed top-0 left-48 right-0 h-16 z-30 items-center justify-between px-6 bg-dark-900/80 backdrop-blur-xl border-b border-white/[0.06]">
 
-      {/* ── Izquierda: collapse btn + icono + título/desc ── */}
-      <div className="flex items-center gap-3">
-        {/* Botón collapse — visual estilo Dunamixfy */}
-        <button className="w-7 h-7 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center hover:bg-white/[0.09] transition-all flex-shrink-0">
-          <ChevronLeft className="w-3.5 h-3.5 text-white/40" />
-        </button>
-
-        {/* Icono de sección en cuadro oscuro */}
-        <div className="w-8 h-8 rounded-lg bg-white/[0.05] border border-white/[0.07] flex items-center justify-center flex-shrink-0">
-          <Icon className="w-4 h-4 text-primary-400" />
+      {/* ── Izquierda: icono + título/desc ── */}
+      <div className="flex items-center gap-4">
+        {/* Icono de sección */}
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-white/[0.07] to-white/[0.03] backdrop-blur-sm border border-white/[0.10] flex items-center justify-center flex-shrink-0">
+          <Icon className="w-5 h-5 text-primary-400" />
         </div>
 
         {/* Título + descripción apilados */}
         <div>
-          <p className="text-white font-bold text-sm leading-none">{title}</p>
+          <p className="font-bold text-base leading-none bg-gradient-to-r from-white via-white/90 to-white/70 bg-clip-text text-transparent">{title}</p>
           {desc && (
-            <p className="text-white/30 text-xs mt-0.5 leading-none">{desc}</p>
+            <p className="text-white/40 text-sm font-medium mt-0.5 leading-none">{desc}</p>
           )}
         </div>
       </div>
