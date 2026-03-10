@@ -114,10 +114,10 @@ export function InventoryHistory() {
 
   // ── Badge de tipo ─────────────────────────────────
   const TypeBadge = ({ type }) => type === 'OUT'
-    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-semibold">
+    ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400/80 text-xs font-semibold">
         <TrendingDown className="w-3 h-3" /> Salida
       </span>
-    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-500/10 border border-primary-500/20 text-primary-400 text-[11px] font-semibold">
+    : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold">
         <TrendingUp className="w-3 h-3" /> Entrada
       </span>;
 
@@ -132,19 +132,19 @@ export function InventoryHistory() {
 
   return (
     <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
-      <div className="max-w-[1600px] mx-auto">
+      <div className="max-w-[1600px] mx-auto space-y-5">
 
         {/* Header – solo móvil */}
-        <div className="lg:hidden mb-4 flex items-center gap-3">
+        <div className="lg:hidden flex items-center gap-3">
           <button onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/[0.06] text-white/70 hover:bg-white/8 transition-all text-sm">
+            className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Volver
           </button>
           <h1 className="text-lg font-bold text-white">Movimientos</h1>
         </div>
 
         {/* ── Filtros ─────────────────────────────── */}
-        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4 mb-3">
+        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4">
           <div className="flex flex-wrap gap-2 items-center">
 
             {/* Búsqueda */}
@@ -152,13 +152,13 @@ export function InventoryHistory() {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
               <input type="text" placeholder="Buscar producto, guía, orden..."
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-4 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 transition-all"
+                className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full pl-9"
               />
             </div>
 
             {/* Tipo */}
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all px-3 py-2.5"
               style={{ colorScheme: 'dark' }}>
               <option value="all">Todos los tipos</option>
               <option value="in">Entradas (IN)</option>
@@ -167,25 +167,24 @@ export function InventoryHistory() {
 
             {/* Fecha desde */}
             <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all px-3 py-2.5"
               style={{ colorScheme: 'dark' }} />
 
             {/* Fecha hasta */}
             <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-              className="px-3 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
+              className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all px-3 py-2.5"
               style={{ colorScheme: 'dark' }} />
 
             {/* Actualizar */}
             <button onClick={loadMovements} disabled={isLoading}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/50 hover:text-white/80 hover:bg-white/[0.07] transition-all text-sm disabled:opacity-40">
+              className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all disabled:opacity-40">
               <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-              <span className="hidden sm:inline">Actualizar</span>
             </button>
 
             {/* Limpiar */}
             {hasFilters && (
               <button onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/15 text-red-400/80 hover:text-red-400 hover:bg-red-500/15 transition-all text-sm">
+                className="bg-red-500/[0.08] border border-red-500/[0.15] text-red-400/70 hover:bg-red-500/[0.15] hover:text-red-400 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 text-sm">
                 <X className="w-4 h-4" />
                 <span className="hidden sm:inline">Limpiar</span>
               </button>
@@ -193,7 +192,7 @@ export function InventoryHistory() {
 
             {/* CSV */}
             <button onClick={handleExportCSV} disabled={filteredMovements.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/8 border border-primary-500/20 text-primary-400/80 hover:text-primary-400 hover:bg-primary-500/15 transition-all text-sm disabled:opacity-30">
+              className="bg-primary-500/[0.08] border border-primary-500/20 text-primary-400/80 hover:text-primary-400 hover:bg-primary-500/15 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 text-sm disabled:opacity-30">
               <Download className="w-4 h-4" />
               CSV
             </button>
@@ -202,14 +201,14 @@ export function InventoryHistory() {
           {/* Contador */}
           <div className="mt-2.5 text-white/30 text-xs">
             {filteredMovements.length} de {movements.length} movimientos
-            {hasFilters && <span className="ml-1.5 text-primary-500/70">· filtros activos</span>}
+            {hasFilters && <span className="ml-1.5 text-primary-400/70">· filtros activos</span>}
           </div>
         </div>
 
         {/* ── Loading ───────────────────────────── */}
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-primary-500/60 animate-spin" />
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-white/10 border-t-primary-400 rounded-full animate-spin" />
           </div>
         )}
 
@@ -217,13 +216,17 @@ export function InventoryHistory() {
         {!isLoading && (
           <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl overflow-hidden">
             {filteredMovements.length === 0 ? (
-              <div className="p-16 text-center">
+              <div className="py-16 text-center">
                 <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
                 <p className="text-white/30 text-sm">No hay movimientos con los filtros aplicados</p>
-                {hasFilters && <button onClick={clearFilters} className="mt-3 text-primary-500/70 text-sm hover:text-primary-400 transition-colors">Limpiar filtros</button>}
+                {hasFilters && (
+                  <button onClick={clearFilters} className="mt-3 text-primary-400/70 text-sm hover:text-primary-400 transition-colors">
+                    Limpiar filtros
+                  </button>
+                )}
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.05] bg-black/20">
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Tipo</th>
@@ -246,10 +249,10 @@ export function InventoryHistory() {
                       </td>
                       <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.product?.sku || '—'}</td>
                       <td className="px-4 py-3 text-center"><QtyCell m={m} /></td>
-                      <td className="px-4 py-3 text-white/55 text-xs truncate">{m.carrier?.display_name || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/50 text-xs">{m.guide_code || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/35 text-xs">{m.external_order_id || '—'}</td>
-                      <td className="px-4 py-3 text-white/35 text-xs whitespace-nowrap">
+                      <td className="px-4 py-3 text-white/60 text-sm truncate">{m.carrier?.display_name || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/60 text-xs">{m.guide_code || '—'}</td>
+                      <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.external_order_id || '—'}</td>
+                      <td className="px-4 py-3 text-white/40 text-sm whitespace-nowrap">
                         {format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                       </td>
                     </tr>
@@ -264,18 +267,20 @@ export function InventoryHistory() {
         {!isLoading && (
           <div className="lg:hidden space-y-2">
             {filteredMovements.length === 0 ? (
-              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-8 text-center">
-                <Package className="w-10 h-10 text-white/10 mx-auto mb-2" />
-                <p className="text-white/30 text-sm">No hay movimientos</p>
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08]">
+                <div className="py-16 text-center">
+                  <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/30 text-sm">No hay movimientos</p>
+                </div>
               </div>
             ) : filteredMovements.map(m => (
-              <div key={m.id} className="bg-white/[0.04] backdrop-blur-md rounded-xl border border-white/[0.08] p-3">
+              <div key={m.id} className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-3">
                 <div className="flex items-center justify-between mb-2">
                   <TypeBadge type={m.movement_type} />
                   <span className="text-white/30 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                  <div><p className="text-white/30 mb-0.5">Producto</p><p className="text-white/75 font-medium truncate">{m.product?.name || 'N/A'}</p></div>
+                  <div><p className="text-white/30 mb-0.5">Producto</p><p className="text-white/70 font-medium truncate">{m.product?.name || 'N/A'}</p></div>
                   <div><p className="text-white/30 mb-0.5">Cantidad</p><QtyCell m={m} /></div>
                   <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/60 truncate">{m.carrier?.display_name || '—'}</p></div>
                   <div><p className="text-white/30 mb-0.5">Guía</p><p className="text-white/60 font-mono truncate">{m.guide_code || '—'}</p></div>

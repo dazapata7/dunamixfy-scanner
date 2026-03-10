@@ -63,10 +63,8 @@ export function BatchSummaryPage() {
         const guideCode = item.dispatch.guide_code;
 
         if (!dispatchesByGuide.has(guideCode)) {
-          // Primera vez que vemos esta guía - usar tal cual
           dispatchesByGuide.set(guideCode, item.dispatch);
         } else {
-          // Ya existe - combinar items
           const existing = dispatchesByGuide.get(guideCode);
           existing.items = [...existing.items, ...item.dispatch.items];
           console.log(`📦 Combinando items para guía ${guideCode}: ${existing.items.length} items totales`);
@@ -76,7 +74,6 @@ export function BatchSummaryPage() {
       const uniqueDispatches = Array.from(dispatchesByGuide.values());
       console.log(`📊 Dispatches únicos después de agrupar: ${uniqueDispatches.length} (de ${confirmableDispatches.length} escaneados)`);
 
-      // ⚡ OPTIMIZACIÓN: Crear y confirmar dispatches EN PARALELO con manejo de errores individuales
       toast.loading(`Confirmando ${uniqueDispatches.length} guías...`, { id: 'confirm-batch' });
 
       const confirmPromises = uniqueDispatches.map(dispatch =>
@@ -87,7 +84,6 @@ export function BatchSummaryPage() {
 
       const results = await Promise.allSettled(confirmPromises);
 
-      // Contar éxitos y errores
       const successful = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
       const failed = results.filter(r => r.status === 'rejected' || (r.status === 'fulfilled' && !r.value.success));
 
@@ -97,33 +93,28 @@ export function BatchSummaryPage() {
         console.error('❌ Guías con error:', failed.map(f => f.value?.guide || 'unknown'));
       }
 
-      // Limpiar sessionStorage SIEMPRE (incluso si hay errores)
       sessionStorage.removeItem('wms_batch');
 
       if (successful > 0) {
         if (failed.length > 0) {
-          toast.success(`✅ ${successful} confirmados, ⚠️ ${failed.length} con error`, { id: 'confirm-batch', duration: 5000 });
+          toast.success(`${successful} confirmados, ${failed.length} con error`, { id: 'confirm-batch', duration: 5000 });
         } else {
-          toast.success(`✅ ${successful} despachos confirmados`, { id: 'confirm-batch' });
+          toast.success(`${successful} despachos confirmados`, { id: 'confirm-batch' });
         }
       } else {
-        toast.error(`❌ Error al confirmar despachos`, { id: 'confirm-batch' });
+        toast.error('Error al confirmar despachos', { id: 'confirm-batch' });
       }
 
-      // Volver a WMS Home (siempre, incluso si hubo errores)
       navigate('/wms');
     } catch (error) {
       console.error('Error crítico al confirmar batch:', error);
       toast.error('Error crítico al confirmar despachos', { id: 'confirm-batch' });
-      // Limpiar sessionStorage incluso en error crítico
       sessionStorage.removeItem('wms_batch');
       navigate('/wms');
     }
   };
 
   const handleCancel = () => {
-    // TODO: Eliminar dispatches en DRAFT del batch
-    // Por ahora solo limpiamos sessionStorage y volvemos
     sessionStorage.removeItem('wms_batch');
     toast('Escaneo cancelado', { icon: '⚠️' });
     navigate('/wms');
@@ -132,9 +123,8 @@ export function BatchSummaryPage() {
   if (!batchData) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="w-16 h-16 border-4 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg font-medium">Cargando resumen...</p>
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-white/10 border-t-primary-400 rounded-full animate-spin" />
         </div>
       </div>
     );

@@ -27,13 +27,13 @@ import toast from 'react-hot-toast';
 
 // ── Badge de tipo ──────────────────────────────────
 const TypeBadge = ({ type }) => type === 'combo'
-  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-500/15 border border-violet-500/30 text-violet-400 text-xs font-semibold">Combo</span>
-  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-semibold">Simple</span>;
+  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400/80 text-xs font-semibold">Combo</span>
+  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold">Simple</span>;
 
 // ── Badge de estado ────────────────────────────────
 const StatusBadge = ({ active }) => active
-  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-green-500/15 border border-green-500/30 text-green-400 text-xs font-semibold">Activo</span>
-  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-500/15 border border-red-500/30 text-red-400 text-xs font-semibold">Inactivo</span>;
+  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold">Activo</span>
+  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400/80 text-xs font-semibold">Inactivo</span>;
 
 // ── Thumbnail de producto ──────────────────────────
 const ProductThumb = ({ src, name, size = 'md' }) => {
@@ -42,10 +42,10 @@ const ProductThumb = ({ src, name, size = 'md' }) => {
     ? 'w-10 h-10 rounded-lg flex-shrink-0'
     : 'w-14 h-14 rounded-xl flex-shrink-0';
   if (src && !err) {
-    return <img src={src} alt={name} className={`${cls} object-cover border border-white/10`} onError={() => setErr(true)} />;
+    return <img src={src} alt={name} className={`${cls} object-cover border border-white/[0.08]`} onError={() => setErr(true)} />;
   }
   return (
-    <div className={`${cls} bg-white/5 border border-white/10 flex items-center justify-center`}>
+    <div className={`${cls} bg-white/[0.04] border border-white/[0.08] flex items-center justify-center`}>
       <Package className={size === 'sm' ? 'w-4 h-4 text-white/20' : 'w-6 h-6 text-white/20'} />
     </div>
   );
@@ -53,10 +53,12 @@ const ProductThumb = ({ src, name, size = 'md' }) => {
 
 // ── Source Badge ───────────────────────────────────
 const SourceBadge = ({ source }) => {
-  if (source === 'dunamixfy') return <span className="px-2 py-0.5 rounded text-xs bg-orange-500/20 text-orange-300 border border-orange-500/30">Dunamixfy</span>;
-  if (source === 'interrapidisimo') return <span className="px-2 py-0.5 rounded text-xs bg-blue-500/20 text-blue-300 border border-blue-500/30">Interrápidisimo</span>;
-  return <span className="px-2 py-0.5 rounded text-xs bg-white/10 text-white/50 border border-white/20">{source}</span>;
+  if (source === 'dunamixfy') return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400/80 border border-orange-500/20 text-xs font-semibold">Dunamixfy</span>;
+  if (source === 'interrapidisimo') return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400/80 border border-blue-500/20 text-xs font-semibold">Interrápidisimo</span>;
+  return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.04] text-white/50 border border-white/[0.08] text-xs font-semibold">{source}</span>;
 };
+
+const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full";
 
 // ─────────────────────────────────────────────────
 export function ProductManagement() {
@@ -68,7 +70,7 @@ export function ProductManagement() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
-  const [editingProduct, setEditingProduct] = useState(null); // null = creating
+  const [editingProduct, setEditingProduct] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -96,7 +98,6 @@ export function ProductManagement() {
     finally { setIsLoading(false); }
   }
 
-  // ── Abrir modal (crear) ───────────────────────────
   async function openCreate() {
     setEditingProduct(null);
     setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'simple' });
@@ -110,7 +111,6 @@ export function ProductManagement() {
     setShowModal(true);
   }
 
-  // ── Abrir modal (editar) ──────────────────────────
   async function openEdit(product) {
     setEditingProduct(product);
     setFormData({
@@ -124,7 +124,6 @@ export function ProductManagement() {
     });
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
 
-    // Cargar mappings y componentes en paralelo
     setIsLoadingMappings(true);
     try {
       const [mappings, allProds] = await Promise.all([
@@ -154,7 +153,6 @@ export function ProductManagement() {
     setEditingProduct(null);
   }
 
-  // ── Guardar ───────────────────────────────────────
   async function handleSave() {
     if (!formData.sku || !formData.name) { toast.error('SKU y nombre son requeridos'); return; }
     if (formData.type === 'combo' && comboComponents.length === 0) { toast.error('Un combo debe tener al menos 1 componente'); return; }
@@ -200,7 +198,6 @@ export function ProductManagement() {
     }
   }
 
-  // ── Eliminar ──────────────────────────────────────
   async function handleDelete(product) {
     if (!confirm(`¿Eliminar "${product.name}"?\n\nSolo se puede eliminar si no tiene movimientos de inventario.`)) return;
     try {
@@ -212,7 +209,6 @@ export function ProductManagement() {
     }
   }
 
-  // ── SKU Mappings ──────────────────────────────────
   async function handleAddMapping() {
     if (!newMapping.external_sku.trim()) { toast.error('El SKU externo es requerido'); return; }
 
@@ -263,7 +259,6 @@ export function ProductManagement() {
     } catch (error) { toast.error(error.message || 'Error al eliminar'); }
   }
 
-  // ── Combo components ──────────────────────────────
   function addComponent() { setComboComponents([...comboComponents, { product_id: '', quantity: 1 }]); }
   function removeComponent(i) { setComboComponents(comboComponents.filter((_, idx) => idx !== i)); }
   function updateComponent(i, field, value) {
@@ -272,7 +267,6 @@ export function ProductManagement() {
     setComboComponents(updated);
   }
 
-  // ── Filtro ────────────────────────────────────────
   const filtered = products.filter(p => {
     const q = searchTerm.toLowerCase();
     return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
@@ -281,37 +275,35 @@ export function ProductManagement() {
   const simples = filtered.filter(p => !p.type || p.type === 'simple');
   const combos  = filtered.filter(p => p.type === 'combo');
 
-  // ── Row de producto (desktop tabla) ───────────────
   const ProductRow = ({ product }) => (
-    <tr className="border-b border-white/5 hover:bg-white/5 transition-colors group">
+    <tr className="hover:bg-primary-500/[0.03] transition-colors group">
       <td className="px-4 py-3">
         <ProductThumb src={product.photo_url} name={product.name} size="sm" />
       </td>
       <td className="px-4 py-3">
-        <p className="text-white/90 font-medium text-sm truncate max-w-[220px]">{product.name}</p>
+        <p className="text-white font-medium text-sm truncate max-w-[220px]">{product.name}</p>
         <p className="text-white/40 text-xs font-mono">{product.sku}</p>
       </td>
       <td className="px-4 py-3"><TypeBadge type={product.type} /></td>
-      <td className="px-4 py-3 font-mono text-white/50 text-xs">{product.barcode || '—'}</td>
+      <td className="px-4 py-3 font-mono text-white/40 text-xs">{product.barcode || '—'}</td>
       <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={() => openEdit(product)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-xs">
-            <Edit2 className="w-3.5 h-3.5" /> Editar
+            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all" title="Editar">
+            <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => handleDelete(product)}
-            className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-red-300 hover:bg-red-500/30 transition-all text-xs">
-            <Trash2 className="w-3.5 h-3.5" /> Eliminar
+            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/[0.15] transition-all" title="Eliminar">
+            <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </td>
     </tr>
   );
 
-  // ── Card de producto (móvil) ───────────────────────
   const ProductCard = ({ product }) => (
-    <div className="bg-white/5 rounded-xl border border-white/10 p-3 flex gap-3">
+    <div className="bg-dark-800 rounded-2xl border border-white/[0.08] p-3 flex gap-3">
       <ProductThumb src={product.photo_url} name={product.name} size="sm" />
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2">
@@ -325,11 +317,11 @@ export function ProductManagement() {
           <TypeBadge type={product.type} />
           <div className="flex-1" />
           <button onClick={() => openEdit(product)}
-            className="p-1.5 rounded-lg bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all">
+            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all">
             <Edit2 className="w-3.5 h-3.5" />
           </button>
           <button onClick={() => handleDelete(product)}
-            className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
             <Trash2 className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -337,7 +329,6 @@ export function ProductManagement() {
     </div>
   );
 
-  // ── Sección de tabla (desktop) ────────────────────
   const TableSection = ({ title, items, color }) => (
     items.length === 0 ? null : (
       <>
@@ -353,48 +344,43 @@ export function ProductManagement() {
 
   return (
     <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
-      <div className="max-w-[1400px] mx-auto">
+      <div className="max-w-[1400px] mx-auto space-y-5">
 
         {/* Volver – solo móvil */}
         <button onClick={() => navigate('/wms')}
-          className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white/80 hover:bg-white/10 transition-all">
+          className="lg:hidden bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm">
           <ArrowLeft className="w-4 h-4" /> Volver
         </button>
 
         {/* Barra superior */}
-        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-4 mb-4 flex flex-wrap items-center gap-3">
-          {/* Búsqueda */}
+        <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-4 flex flex-wrap items-center gap-3">
           <div className="relative flex-1 min-w-[220px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
             <input type="text" placeholder="Buscar por nombre, SKU, código de barras..."
               value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-4 py-2 bg-white/5 border border-white/10 rounded-xl text-sm text-white placeholder-white/40 focus:outline-none focus:border-primary-500/50 transition-all" />
+              className={`${inputCls} pl-9`} />
           </div>
 
-          {/* Actualizar */}
           <button onClick={loadProducts} disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-white/5 border border-white/10 text-white/60 hover:bg-white/10 transition-all text-sm disabled:opacity-50">
+            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all disabled:opacity-50">
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-            <span className="hidden sm:inline">Actualizar</span>
           </button>
 
-          {/* Nuevo producto */}
           <button onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm font-medium">
+            className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center gap-2 text-sm">
             <Plus className="w-4 h-4" /> Nuevo Producto
           </button>
 
-          {/* Contador */}
-          <div className="w-full mt-1 text-white/40 text-xs">
+          <div className="w-full mt-1 text-white/30 text-xs">
             {filtered.length} de {products.length} productos
-            {searchTerm && <span className="ml-1.5 text-primary-400">• búsqueda activa</span>}
+            {searchTerm && <span className="ml-1.5 text-primary-400/70">· búsqueda activa</span>}
           </div>
         </div>
 
         {/* Loading */}
         {isLoading && (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-10 h-10 text-primary-400 animate-spin" />
+          <div className="flex items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-white/10 border-t-primary-400 rounded-full animate-spin" />
           </div>
         )}
 
@@ -402,33 +388,33 @@ export function ProductManagement() {
         {!isLoading && (
           <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
             {filtered.length === 0 ? (
-              <div className="p-16 text-center">
-                <Package className="w-12 h-12 text-white/20 mx-auto mb-3" />
-                <p className="text-white/40 mb-4">
+              <div className="py-16 text-center">
+                <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                <p className="text-white/30 text-sm mb-4">
                   {searchTerm ? 'No hay productos con esa búsqueda' : 'No hay productos creados'}
                 </p>
                 {!searchTerm && (
                   <button onClick={openCreate}
-                    className="px-6 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm">
+                    className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 text-sm">
                     Crear primer producto
                   </button>
                 )}
               </div>
             ) : (
-              <table className="w-full text-sm">
+              <table className="w-full">
                 <thead>
-                  <tr className="border-b border-white/10 bg-white/3">
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-16">Foto</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider">Producto</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Tipo</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-36">Código de Barras</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-24">Estado</th>
-                    <th className="px-4 py-3 text-left text-white/40 font-medium text-xs uppercase tracking-wider w-40">Acciones</th>
+                  <tr className="border-b border-white/[0.05] bg-black/20">
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-16">Foto</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Tipo</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Cód. de Barras</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Estado</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Acciones</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-white/5">
-                  <TableSection title="Productos" items={simples} color="text-cyan-400/60" />
-                  <TableSection title="Combos" items={combos} color="text-violet-400/60" />
+                <tbody className="divide-y divide-white/[0.03]">
+                  <TableSection title="Productos" items={simples} color="text-primary-400/60" />
+                  <TableSection title="Combos" items={combos} color="text-blue-400/60" />
                 </tbody>
               </table>
             )}
@@ -439,21 +425,23 @@ export function ProductManagement() {
         {!isLoading && (
           <div className="lg:hidden space-y-4">
             {filtered.length === 0 ? (
-              <div className="bg-white/5 rounded-2xl border border-white/10 p-10 text-center">
-                <Package className="w-10 h-10 text-white/20 mx-auto mb-2" />
-                <p className="text-white/50 text-sm">No hay productos</p>
+              <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08]">
+                <div className="py-16 text-center">
+                  <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/30 text-sm">No hay productos</p>
+                </div>
               </div>
             ) : (
               <>
                 {simples.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-cyan-400/60 mb-2 px-1">Productos ({simples.length})</p>
+                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Productos ({simples.length})</p>
                     <div className="space-y-2">{simples.map(p => <ProductCard key={p.id} product={p} />)}</div>
                   </div>
                 )}
                 {combos.length > 0 && (
                   <div>
-                    <p className="text-xs font-semibold uppercase tracking-widest text-violet-400/60 mb-2 px-1">Combos ({combos.length})</p>
+                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Combos ({combos.length})</p>
                     <div className="space-y-2">{combos.map(p => <ProductCard key={p.id} product={p} />)}</div>
                   </div>
                 )}
@@ -467,86 +455,73 @@ export function ProductManagement() {
           MODAL - Crear / Editar Producto
       ══════════════════════════════════════════════ */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-          <div className="bg-dark-900 border border-white/10 rounded-2xl w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-800 rounded-2xl border border-white/[0.08] w-full max-w-3xl max-h-[90vh] flex flex-col shadow-2xl">
 
             {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-white/10 flex-shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-purple-500/20">
-                  <Package className="w-5 h-5 text-purple-400" />
-                </div>
-                <div>
-                  <h2 className="text-white font-semibold text-base">
-                    {editingProduct ? 'Editar Producto' : 'Nuevo Producto'}
-                  </h2>
-                  {editingProduct && <p className="text-white/40 text-xs font-mono">{editingProduct.sku}</p>}
-                </div>
-              </div>
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.06] flex-shrink-0">
+              <h2 className="text-white font-semibold text-base">
+                {editingProduct ? `Editar: ${editingProduct.sku}` : 'Nuevo Producto'}
+              </h2>
               <button onClick={closeModal}
-                className="p-2 rounded-xl text-white/40 hover:text-white/80 hover:bg-white/5 transition-all">
-                <X className="w-5 h-5" />
+                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-all">
+                <X className="w-4 h-4" />
               </button>
             </div>
 
             {/* Modal body – scrollable */}
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
 
               {/* ── Campos del producto ── */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* SKU */}
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">SKU *</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">SKU *</label>
                   <input type="text" value={formData.sku}
                     onChange={e => setFormData({ ...formData, sku: e.target.value.toUpperCase() })}
                     placeholder="PROD-001" disabled={!!editingProduct}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 disabled:opacity-50 transition-all" />
+                    className={`${inputCls} disabled:opacity-50`} />
                 </div>
 
-                {/* Nombre */}
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Nombre *</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Nombre *</label>
                   <input type="text" value={formData.name}
                     onChange={e => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Nombre del producto"
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                    className={inputCls} />
                 </div>
 
-                {/* Tipo */}
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Tipo</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Tipo</label>
                   <select value={formData.type}
                     onChange={e => setFormData({ ...formData, type: e.target.value })}
                     disabled={!!editingProduct}
                     style={{ colorScheme: 'dark' }}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50 disabled:opacity-50 transition-all">
+                    className={`${inputCls} disabled:opacity-50`}>
                     <option value="simple">Simple (Producto Individual)</option>
                     <option value="combo">Combo (Compuesto de otros)</option>
                   </select>
                 </div>
 
-                {/* Código de Barras */}
                 <div>
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Código de Barras</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Código de Barras</label>
                   <div className="relative">
-                    <BarcodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                    <BarcodeIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                     <input type="text" value={formData.barcode}
                       onChange={e => setFormData({ ...formData, barcode: e.target.value })}
                       placeholder="7891234567890"
-                      className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                      className={`${inputCls} pl-9`} />
                   </div>
                 </div>
 
-                {/* URL de Foto */}
                 <div className="md:col-span-2">
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">URL de Foto</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">URL de Foto</label>
                   <div className="flex gap-3">
                     <div className="relative flex-1">
-                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40" />
+                      <ImageIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
                       <input type="text" value={formData.photo_url}
                         onChange={e => setFormData({ ...formData, photo_url: e.target.value })}
                         placeholder="https://ejemplo.com/foto.jpg"
-                        className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 transition-all" />
+                        className={`${inputCls} pl-9`} />
                     </div>
                     {formData.photo_url && (
                       <ProductThumb src={formData.photo_url} name={formData.name} size="md" />
@@ -554,34 +529,32 @@ export function ProductManagement() {
                   </div>
                 </div>
 
-                {/* Descripción */}
                 <div className="md:col-span-2">
-                  <label className="block text-white/70 text-xs mb-1.5 uppercase tracking-wider">Descripción</label>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Descripción</label>
                   <textarea value={formData.description}
                     onChange={e => setFormData({ ...formData, description: e.target.value })}
                     placeholder="Descripción del producto" rows={2}
-                    className="w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-purple-500/50 resize-none transition-all" />
+                    className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full resize-none" />
                 </div>
 
-                {/* Activo */}
                 <div className="md:col-span-2 flex items-center gap-2">
                   <input type="checkbox" id="is_active" checked={formData.is_active}
                     onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
-                    className="w-4 h-4 rounded bg-white/10 border-white/20 text-purple-500 focus:ring-2 focus:ring-purple-500/50" />
-                  <label htmlFor="is_active" className="text-white/70 text-sm">Producto activo</label>
+                    className="w-4 h-4 rounded bg-white/[0.04] border-white/[0.08] text-primary-500 focus:ring-2 focus:ring-primary-500/30" />
+                  <label htmlFor="is_active" className="text-white/60 text-sm">Producto activo</label>
                 </div>
               </div>
 
               {/* ── Componentes del Combo ── */}
               {formData.type === 'combo' && (
-                <div className="border-t border-white/10 pt-6">
+                <div className="border-t border-white/[0.06] pt-5">
                   <div className="flex items-center justify-between mb-4">
                     <div>
                       <h3 className="text-white font-semibold text-sm">Componentes del Combo</h3>
                       <p className="text-white/40 text-xs mt-0.5">Productos que forman este combo</p>
                     </div>
                     <button onClick={addComponent}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-xs">
+                      className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs">
                       <Plus className="w-3.5 h-3.5" /> Agregar
                     </button>
                   </div>
@@ -598,7 +571,7 @@ export function ProductManagement() {
                               if (prod) updateComponent(i, 'product_name', prod.name);
                             }}
                             style={{ colorScheme: 'dark' }}
-                            className="flex-1 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50">
+                            className={`${inputCls} flex-1`}>
                             <option value="">Selecciona un producto...</option>
                             {availableProducts.map(p => (
                               <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
@@ -606,9 +579,9 @@ export function ProductManagement() {
                           </select>
                           <input type="number" min="1" value={c.quantity}
                             onChange={e => updateComponent(i, 'quantity', parseInt(e.target.value) || 1)}
-                            className="w-20 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-purple-500/50 text-center" />
+                            className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-20 text-center" />
                           <button onClick={() => removeComponent(i)}
-                            className="p-2 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+                            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
                             <X className="w-4 h-4" />
                           </button>
                         </div>
@@ -619,60 +592,62 @@ export function ProductManagement() {
               )}
 
               {/* ── SKU Externos ── */}
-              <div className="border-t border-white/10 pt-6">
+              <div className="border-t border-white/[0.06] pt-5">
                 <div className="flex items-center gap-2 mb-4">
-                  <LinkIcon className="w-4 h-4 text-blue-400" />
+                  <LinkIcon className="w-4 h-4 text-primary-400" />
                   <h3 className="text-white font-semibold text-sm">SKU Externos</h3>
                   <span className="text-white/30 text-xs">Mapeo de Dunamixfy e Interrápidisimo</span>
                 </div>
 
                 {/* Agregar mapping */}
-                <div className="bg-white/5 rounded-xl border border-white/10 p-4 mb-3">
+                <div className="bg-white/[0.04] rounded-xl border border-white/[0.08] p-4 mb-3">
                   <div className="flex flex-wrap gap-2 items-end">
                     <div className="min-w-[160px]">
-                      <label className="block text-white/50 text-xs mb-1">Fuente</label>
+                      <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Fuente</label>
                       <select value={newMapping.source}
                         onChange={e => setNewMapping({ ...newMapping, source: e.target.value })}
                         style={{ colorScheme: 'dark' }}
-                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-blue-500/50">
+                        className={inputCls}>
                         <option value="dunamixfy">Coordinadora (Dunamixfy)</option>
                         <option value="interrapidisimo">Interrápidisimo</option>
                       </select>
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                      <label className="block text-white/50 text-xs mb-1">SKU Externo *</label>
+                      <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">SKU Externo *</label>
                       <input type="text" value={newMapping.external_sku}
                         onChange={e => setNewMapping({ ...newMapping, external_sku: e.target.value })}
                         placeholder="Ej: 210"
-                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-blue-500/50" />
+                        className={inputCls} />
                     </div>
                     <div className="flex-1 min-w-[140px]">
-                      <label className="block text-white/50 text-xs mb-1">Notas</label>
+                      <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Notas</label>
                       <input type="text" value={newMapping.notes}
                         onChange={e => setNewMapping({ ...newMapping, notes: e.target.value })}
                         placeholder="Opcional"
-                        className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white placeholder-white/30 text-sm focus:outline-none focus:border-blue-500/50" />
+                        className={inputCls} />
                     </div>
                     <button onClick={handleAddMapping}
-                      className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-sm">
+                      className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 text-sm">
                       <Plus className="w-4 h-4" /> Agregar
                     </button>
                   </div>
                 </div>
 
                 {isLoadingMappings ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-white/40 animate-spin" /></div>
+                  <div className="flex justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-white/10 border-t-primary-400 rounded-full animate-spin" />
+                  </div>
                 ) : skuMappings.length === 0 ? (
                   <p className="text-center text-white/30 text-sm py-3">No hay SKU externos configurados</p>
                 ) : (
                   <div className="space-y-2">
                     {skuMappings.map(m => (
-                      <div key={m.id} className="flex items-center gap-3 bg-white/5 rounded-lg border border-white/10 px-3 py-2">
+                      <div key={m.id} className="flex items-center gap-3 bg-white/[0.04] rounded-xl border border-white/[0.08] px-3 py-2">
                         <SourceBadge source={m.source} />
                         <span className="font-mono text-white font-bold text-sm flex-1">{m.external_sku}</span>
                         {m.notes && <span className="text-white/40 text-xs">{m.notes}</span>}
                         <button onClick={() => handleDeleteMapping(m.id)}
-                          className="p-1.5 rounded-lg bg-red-500/20 text-red-300 hover:bg-red-500/30 transition-all">
+                          className="p-1.5 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
@@ -683,15 +658,17 @@ export function ProductManagement() {
             </div>
 
             {/* Modal footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-white/10 flex-shrink-0">
+            <div className="flex gap-3 p-5 border-t border-white/[0.06] flex-shrink-0">
               <button onClick={closeModal} disabled={isSaving}
-                className="px-5 py-2.5 rounded-xl bg-white/5 border border-white/10 text-white/70 hover:bg-white/10 transition-all text-sm">
+                className="flex-1 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all text-sm">
                 Cancelar
               </button>
               <button onClick={handleSave} disabled={isSaving}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-500/20 border border-purple-500/30 text-purple-300 hover:bg-purple-500/30 transition-all text-sm font-medium disabled:opacity-50">
-                {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                {isSaving ? 'Guardando...' : (editingProduct ? 'Guardar Cambios' : 'Crear Producto')}
+                className="flex-1 bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center justify-center gap-2 text-sm disabled:opacity-50">
+                {isSaving
+                  ? <><div className="w-4 h-4 border-2 border-dark-950/30 border-t-dark-950 rounded-full animate-spin" /> Guardando...</>
+                  : <><Save className="w-4 h-4" /> {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}</>
+                }
               </button>
             </div>
           </div>

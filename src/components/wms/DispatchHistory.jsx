@@ -196,26 +196,28 @@ export function DispatchHistory({ warehouseId = null }) {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-dark-950 flex items-center justify-center">
-        <Loader2 className="w-8 h-8 text-primary-500/60 animate-spin" />
+        <div className="flex items-center justify-center py-12">
+          <div className="w-8 h-8 border-2 border-white/10 border-t-primary-400 rounded-full animate-spin" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
-      <div className="max-w-[1600px] mx-auto">
+      <div className="max-w-[1600px] mx-auto space-y-5">
 
         {/* Header – solo móvil */}
-        <div className="lg:hidden mb-4 flex items-center gap-3">
+        <div className="lg:hidden flex items-center gap-3">
           <button onClick={() => navigate('/wms')}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 border border-white/[0.06] text-white/70 hover:bg-white/8 transition-all text-sm">
+            className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Volver
           </button>
           <h1 className="text-lg font-bold text-white">Historial de Pedidos</h1>
         </div>
 
         {/* ── Filtros ──────────────────────────── */}
-        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4 mb-3 space-y-2.5">
+        <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-4 space-y-2.5">
 
           <div className="flex flex-wrap gap-2 items-center">
             {/* Búsqueda */}
@@ -223,7 +225,7 @@ export function DispatchHistory({ warehouseId = null }) {
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
               <input type="text" placeholder="Buscar por guía, cliente, tienda..."
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-8 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 transition-all"
+                className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full pl-9 pr-8"
               />
               {searchTerm && (
                 <button onClick={() => setSearchTerm('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">
@@ -238,8 +240,8 @@ export function DispatchHistory({ warehouseId = null }) {
                 <button key={p.key} onClick={() => setDatePreset(p.key)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                     datePreset === p.key
-                      ? 'bg-primary-500/15 text-primary-400 border border-primary-500/25'
-                      : 'bg-white/[0.04] border border-white/[0.06] text-white/45 hover:text-white/70 hover:bg-white/[0.07]'
+                      ? 'bg-primary-500/10 text-primary-400/80 border border-primary-500/20'
+                      : 'bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/70 hover:bg-white/[0.07]'
                   }`}>
                   {p.label}
                 </button>
@@ -250,7 +252,7 @@ export function DispatchHistory({ warehouseId = null }) {
             {availableCarriers.length > 0 && (
               <div className="relative">
                 <select value={selectedCarrier} onChange={e => setSelectedCarrier(e.target.value)}
-                  className="appearance-none pl-3 pr-8 py-2 bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all"
+                  className="appearance-none bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/70 focus:outline-none focus:border-primary-500/40 transition-all pl-3 pr-8 py-2"
                   style={{ colorScheme: 'dark' }}>
                   <option value="all">Todas las transportadoras</option>
                   {availableCarriers.map(c => <option key={c} value={c}>{c}</option>)}
@@ -262,14 +264,14 @@ export function DispatchHistory({ warehouseId = null }) {
             {/* Limpiar */}
             {hasActiveFilters && (
               <button onClick={clearFilters}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-red-500/8 border border-red-500/15 text-red-400/70 hover:text-red-400 hover:bg-red-500/12 transition-all text-sm">
+                className="bg-red-500/[0.08] border border-red-500/[0.15] text-red-400/70 hover:bg-red-500/[0.15] hover:text-red-400 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 text-sm">
                 <X className="w-4 h-4" /> Limpiar
               </button>
             )}
 
             {/* CSV */}
             <button onClick={handleExportCSV} disabled={filteredDispatches.length === 0}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary-500/8 border border-primary-500/20 text-primary-400/80 hover:text-primary-400 hover:bg-primary-500/15 transition-all text-sm disabled:opacity-30">
+              className="bg-primary-500/[0.08] border border-primary-500/20 text-primary-400/80 hover:text-primary-400 hover:bg-primary-500/15 px-4 py-2 rounded-lg transition-all flex items-center gap-1.5 text-sm disabled:opacity-30">
               <Download className="w-4 h-4" /> CSV
             </button>
           </div>
@@ -279,11 +281,11 @@ export function DispatchHistory({ warehouseId = null }) {
             <div className="flex gap-2 items-center flex-wrap">
               <span className="text-white/30 text-xs">Desde:</span>
               <input type="date" value={customDateFrom} onChange={e => setCustomDateFrom(e.target.value)}
-                className="px-3 py-1.5 bg-white/[0.04] border border-white/[0.06] rounded-lg text-xs text-white/70 focus:outline-none focus:border-primary-500/40"
+                className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-xs text-white/70 focus:outline-none focus:border-primary-500/40 px-3 py-1.5"
                 style={{ colorScheme: 'dark' }} />
               <span className="text-white/30 text-xs">Hasta:</span>
               <input type="date" value={customDateTo} onChange={e => setCustomDateTo(e.target.value)}
-                className="px-3 py-1.5 bg-white/[0.04] border border-white/[0.06] rounded-lg text-xs text-white/70 focus:outline-none focus:border-primary-500/40"
+                className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-xs text-white/70 focus:outline-none focus:border-primary-500/40 px-3 py-1.5"
                 style={{ colorScheme: 'dark' }} />
             </div>
           )}
@@ -291,22 +293,28 @@ export function DispatchHistory({ warehouseId = null }) {
           {/* Contador */}
           <div className="text-white/30 text-xs">
             {filteredDispatches.length} de {dispatches.length} pedidos
-            {hasActiveFilters && <span className="ml-1.5 text-primary-500/70">· filtros activos</span>}
+            {hasActiveFilters && <span className="ml-1.5 text-primary-400/70">· filtros activos</span>}
           </div>
         </div>
 
         {/* ── Vacío ──────────────────────────────── */}
         {filteredDispatches.length === 0 ? (
-          <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl p-16 text-center">
-            <Package className="w-12 h-12 text-white/10 mx-auto mb-3" />
-            <p className="text-white/30 text-sm">{hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}</p>
-            {hasActiveFilters && <button onClick={clearFilters} className="mt-3 text-primary-500/70 text-sm hover:text-primary-400 transition-colors">Limpiar filtros</button>}
+          <div className="bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl">
+            <div className="py-16 text-center">
+              <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+              <p className="text-white/30 text-sm">{hasActiveFilters ? 'No hay pedidos con los filtros seleccionados' : 'No hay pedidos en el historial'}</p>
+              {hasActiveFilters && (
+                <button onClick={clearFilters} className="mt-3 text-primary-400/70 text-sm hover:text-primary-400 transition-colors">
+                  Limpiar filtros
+                </button>
+              )}
+            </div>
           </div>
         ) : (
           <>
             {/* ── DESKTOP: tabla ─────────────────────── */}
             <div className="hidden lg:block bg-white/[0.04] backdrop-blur-md border border-white/[0.08] rounded-2xl overflow-hidden">
-              <table className="w-full text-sm">
+              <table className="w-full">
                 <thead>
                   <tr className="border-b border-white/[0.05] bg-black/20">
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Guía</th>
@@ -329,7 +337,7 @@ export function DispatchHistory({ warehouseId = null }) {
                       <tr key={dispatch.id} className="hover:bg-primary-500/[0.03] transition-colors group">
                         <td className="px-4 py-3 font-mono text-white/80 text-xs font-medium">{dispatch.guide_code}</td>
                         <td className="px-4 py-3">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
                             isDraft
                               ? 'bg-orange-500/10 text-orange-400/80 border-orange-500/20'
                               : 'bg-primary-500/10 text-primary-400/80 border-primary-500/20'
@@ -337,10 +345,10 @@ export function DispatchHistory({ warehouseId = null }) {
                             {isDraft ? 'BORRADOR' : 'CONFIRMADO'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-white/50 text-xs truncate max-w-[130px]">{carrierName}</td>
-                        <td className="px-4 py-3 text-white/60 text-xs truncate max-w-[140px]" title={storeName}>{storeName}</td>
-                        <td className="px-4 py-3 text-white/60 text-xs truncate max-w-[160px]" title={customerName}>{customerName}</td>
-                        <td className="px-4 py-3 text-white/40 text-xs max-w-[220px]">
+                        <td className="px-4 py-3 text-white/60 text-sm truncate max-w-[130px]">{carrierName}</td>
+                        <td className="px-4 py-3 text-white/60 text-sm truncate max-w-[140px]" title={storeName}>{storeName}</td>
+                        <td className="px-4 py-3 text-white/60 text-sm truncate max-w-[160px]" title={customerName}>{customerName}</td>
+                        <td className="px-4 py-3 text-white/40 text-sm max-w-[220px]">
                           <div className="truncate">
                             {(dispatch.dispatch_items || []).map((item, i) => (
                               <span key={i}>
@@ -351,19 +359,19 @@ export function DispatchHistory({ warehouseId = null }) {
                             ))}
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-white/35 text-xs whitespace-nowrap">
+                        <td className="px-4 py-3 text-white/40 text-sm whitespace-nowrap">
                           {format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             {isDraft && (
                               <button onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
-                                className="p-1.5 rounded-lg bg-primary-500/10 hover:bg-primary-500/20 border border-primary-500/20 text-primary-400 transition-all" title="Confirmar">
+                                className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-primary-400 hover:bg-primary-500/10 hover:border-primary-500/20 transition-all" title="Confirmar">
                                 <CheckCircle className="w-3.5 h-3.5" />
                               </button>
                             )}
                             <button onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
-                              className="p-1.5 rounded-lg bg-red-500/8 hover:bg-red-500/18 border border-red-500/15 text-red-400/70 hover:text-red-400 transition-all" title="Eliminar">
+                              className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/[0.15] transition-all" title="Eliminar">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
@@ -383,11 +391,11 @@ export function DispatchHistory({ warehouseId = null }) {
                 const carrierName  = dispatch.shipment_record?.carriers?.display_name || '—';
                 const isDraft      = dispatch.status !== 'confirmed';
                 return (
-                  <div key={dispatch.id} className="bg-dark-900 rounded-xl border border-white/[0.06] p-3">
+                  <div key={dispatch.id} className="bg-dark-800 rounded-2xl border border-white/[0.08] p-3">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2 min-w-0">
-                        <span className="text-white/80 font-bold text-sm font-mono truncate">{dispatch.guide_code}</span>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-medium border ${
+                        <span className="text-white font-bold text-sm font-mono truncate">{dispatch.guide_code}</span>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${
                           isDraft
                             ? 'bg-orange-500/10 text-orange-400/80 border-orange-500/20'
                             : 'bg-primary-500/10 text-primary-400/80 border-primary-500/20'
@@ -396,21 +404,21 @@ export function DispatchHistory({ warehouseId = null }) {
                       <div className="flex gap-1">
                         {isDraft && (
                           <button onClick={() => handleConfirmDispatch(dispatch.id, dispatch.dispatch_number)}
-                            className="p-1.5 rounded-lg bg-primary-500/10 border border-primary-500/20 text-primary-400">
+                            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-primary-400 hover:bg-primary-500/10 transition-all">
                             <CheckCircle className="w-4 h-4" />
                           </button>
                         )}
                         <button onClick={() => handleDeleteDispatch(dispatch.id, dispatch.guide_code, dispatch.dispatch_number)}
-                          className="p-1.5 rounded-lg bg-red-500/8 border border-red-500/15 text-red-400/70">
+                          className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs mb-2">
-                      <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/65 truncate">{carrierName}</p></div>
-                      <div><p className="text-white/30 mb-0.5">Tienda</p><p className="text-white/65 truncate">{storeName}</p></div>
-                      <div><p className="text-white/30 mb-0.5">Cliente</p><p className="text-white/65 truncate">{customerName}</p></div>
-                      <div><p className="text-white/30 mb-0.5">Fecha</p><p className="text-white/65">{format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/60 truncate">{carrierName}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Tienda</p><p className="text-white/60 truncate">{storeName}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Cliente</p><p className="text-white/60 truncate">{customerName}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Fecha</p><p className="text-white/60">{format(new Date(dispatch.created_at), 'dd/MM/yy HH:mm', { locale: es })}</p></div>
                     </div>
                     <div className="pt-2 border-t border-white/[0.05] text-xs text-white/40">
                       {(dispatch.dispatch_items || []).map((item, i) => (

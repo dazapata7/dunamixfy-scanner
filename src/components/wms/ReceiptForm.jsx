@@ -12,6 +12,8 @@ import { productsService, receiptsService } from '../../services/wmsService';
 import { ArrowLeft, Package, Plus, Trash2, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full";
+
 export function ReceiptForm() {
   const navigate = useNavigate();
   const { selectedWarehouse, operatorId } = useStore();
@@ -22,7 +24,6 @@ export function ReceiptForm() {
   const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Verificar almacén seleccionado
   useEffect(() => {
     if (!selectedWarehouse) {
       toast.error('Debe seleccionar un almacén primero');
@@ -30,7 +31,6 @@ export function ReceiptForm() {
     }
   }, [selectedWarehouse, navigate]);
 
-  // Cargar productos
   useEffect(() => {
     loadProducts();
   }, []);
@@ -65,7 +65,6 @@ export function ReceiptForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Validaciones
     if (items.length === 0) {
       toast.error('Debe agregar al menos un producto');
       return;
@@ -80,7 +79,6 @@ export function ReceiptForm() {
     setIsProcessing(true);
 
     try {
-      // Crear recibo
       const receipt = await receiptsService.create({
         warehouse_id: selectedWarehouse.id,
         operator_id: operatorId,
@@ -88,15 +86,9 @@ export function ReceiptForm() {
       }, items);
 
       toast.success(`Recibo ${receipt.receipt_number} creado`);
-
-      // Confirmar automáticamente
       await receiptsService.confirm(receipt.id);
-
       toast.success('Inventario actualizado exitosamente');
-
-      // Redirigir a inventario
       navigate('/wms/inventory');
-
     } catch (error) {
       console.error('❌ Error al crear recibo:', error);
       toast.error(error.message || 'Error al procesar la entrada');
@@ -107,32 +99,31 @@ export function ReceiptForm() {
 
   return (
     <div className="min-h-screen bg-dark-950 p-4 lg:p-6">
-      <div className="max-w-[1100px] mx-auto">
+      <div className="max-w-[1100px] mx-auto space-y-5">
 
         {/* Volver – solo móvil */}
         <button
           onClick={() => navigate('/wms')}
-          className="lg:hidden mb-4 flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 text-white/80 hover:bg-white/10 transition-all"
+          className="lg:hidden bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm"
         >
           <ArrowLeft className="w-4 h-4" />
           Volver
         </button>
 
-        {/* Layout desktop: dos columnas | móvil: columna única */}
         <form onSubmit={handleSubmit}>
           <div className="lg:grid lg:grid-cols-[1fr,320px] lg:gap-6 space-y-4 lg:space-y-0">
 
             {/* ── Columna izquierda: tabla de ítems ── */}
             <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-white/10">
+              <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
                 <div>
-                  <h2 className="text-white font-semibold text-sm">Productos a ingresar</h2>
-                  <p className="text-white/30 text-xs mt-0.5">{items.length} ítem{items.length !== 1 ? 's' : ''}</p>
+                  <h2 className="text-white font-semibold text-base">Productos a ingresar</h2>
+                  <p className="text-white/40 text-sm mt-0.5">{items.length} ítem{items.length !== 1 ? 's' : ''}</p>
                 </div>
                 <button
                   type="button"
                   onClick={handleAddItem}
-                  className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/30 transition-all text-sm"
+                  className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center gap-2 text-sm"
                 >
                   <Plus className="w-4 h-4" />
                   Agregar
@@ -141,34 +132,34 @@ export function ReceiptForm() {
 
               {items.length === 0 ? (
                 <div className="py-16 text-center">
-                  <Package className="w-12 h-12 mx-auto mb-3 text-white/20" />
-                  <p className="text-white/40 text-sm">Sin productos todavía</p>
+                  <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
+                  <p className="text-white/30 text-sm">Sin productos todavía</p>
                   <button type="button" onClick={handleAddItem}
-                    className="mt-3 text-emerald-400 text-sm hover:underline">
+                    className="mt-3 text-primary-400/70 text-sm hover:text-primary-400 transition-colors">
                     Agregar el primero
                   </button>
                 </div>
               ) : (
                 <>
                   {/* DESKTOP: tabla */}
-                  <table className="hidden lg:table w-full text-sm">
+                  <table className="hidden lg:table w-full">
                     <thead>
-                      <tr className="border-b border-white/5 bg-white/3">
-                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">#</th>
-                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">Producto</th>
-                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs w-28">Cantidad</th>
-                        <th className="px-4 py-2.5 text-left text-white/40 font-medium text-xs">Notas</th>
-                        <th className="px-4 py-2.5 w-10"></th>
+                      <tr className="border-b border-white/[0.05] bg-black/20">
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-8">#</th>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">Cantidad</th>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Notas</th>
+                        <th className="px-4 py-3 w-10"></th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-white/5">
+                    <tbody className="divide-y divide-white/[0.03]">
                       {items.map((item, index) => (
-                        <tr key={index}>
-                          <td className="px-4 py-3 text-white/30 text-xs">{index + 1}</td>
+                        <tr key={index} className="hover:bg-primary-500/[0.03] transition-colors">
+                          <td className="px-4 py-3 text-white/30 text-sm">{index + 1}</td>
                           <td className="px-4 py-3">
                             <select value={item.product_id}
                               onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:border-green-500/50"
+                              className={inputCls}
                               style={{ colorScheme: 'dark' }} required>
                               <option value="">Seleccionar...</option>
                               {products.map(p => (
@@ -179,18 +170,18 @@ export function ReceiptForm() {
                           <td className="px-4 py-3">
                             <input type="number" min="1" value={item.qty}
                               onChange={e => handleItemChange(index, 'qty', parseInt(e.target.value))}
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm text-center focus:outline-none focus:border-green-500/50"
+                              className={`${inputCls} text-center`}
                               required />
                           </td>
                           <td className="px-4 py-3">
                             <input type="text" value={item.notes}
                               onChange={e => handleItemChange(index, 'notes', e.target.value)}
                               placeholder="Lote, proveedor..."
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none focus:border-green-500/50" />
+                              className={inputCls} />
                           </td>
                           <td className="px-4 py-3">
                             <button type="button" onClick={() => handleRemoveItem(index)}
-                              className="p-1.5 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-500/10 transition-all">
+                              className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/[0.15] transition-all">
                               <Trash2 className="w-4 h-4" />
                             </button>
                           </td>
@@ -200,19 +191,19 @@ export function ReceiptForm() {
                   </table>
 
                   {/* MÓVIL: cards */}
-                  <div className="lg:hidden divide-y divide-white/5">
+                  <div className="lg:hidden divide-y divide-white/[0.03]">
                     {items.map((item, index) => (
                       <div key={index} className="p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-white/30 text-xs">Ítem {index + 1}</span>
+                          <span className="text-white/25 text-[11px] uppercase tracking-[0.12em]">Ítem {index + 1}</span>
                           <button type="button" onClick={() => handleRemoveItem(index)}
-                            className="p-1.5 rounded-lg text-red-300 hover:bg-red-500/10 transition-all">
+                            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] transition-all">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
                         <select value={item.product_id}
                           onChange={e => handleItemChange(index, 'product_id', e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none"
+                          className={inputCls}
                           style={{ colorScheme: 'dark' }} required>
                           <option value="">Seleccionar producto...</option>
                           {products.map(p => (
@@ -221,17 +212,17 @@ export function ReceiptForm() {
                         </select>
                         <div className="grid grid-cols-2 gap-3">
                           <div>
-                            <label className="block text-white/50 text-xs mb-1">Cantidad</label>
+                            <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Cantidad</label>
                             <input type="number" min="1" value={item.qty}
                               onChange={e => handleItemChange(index, 'qty', parseInt(e.target.value))}
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm focus:outline-none" required />
+                              className={inputCls} required />
                           </div>
                           <div>
-                            <label className="block text-white/50 text-xs mb-1">Notas</label>
+                            <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Notas</label>
                             <input type="text" value={item.notes}
                               onChange={e => handleItemChange(index, 'notes', e.target.value)}
                               placeholder="Lote..."
-                              className="w-full px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm placeholder-white/20 focus:outline-none" />
+                              className={inputCls} />
                           </div>
                         </div>
                       </div>
@@ -247,21 +238,21 @@ export function ReceiptForm() {
               {/* Resumen */}
               {items.length > 0 && (
                 <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
-                  <p className="text-white/40 text-xs uppercase tracking-wider mb-3">Resumen</p>
+                  <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-3">Resumen</p>
                   <div className="space-y-2">
                     {items.filter(i => i.product_id).map((item, i) => {
                       const prod = products.find(p => p.id === item.product_id);
                       return (
                         <div key={i} className="flex items-center justify-between text-sm">
-                          <span className="text-white/70 truncate flex-1 mr-2">{prod?.name || 'Producto'}</span>
-                          <span className="text-green-400 font-bold tabular-nums">+{item.qty}</span>
+                          <span className="text-white/60 truncate flex-1 mr-2">{prod?.name || 'Producto'}</span>
+                          <span className="text-primary-400 font-bold tabular-nums">+{item.qty}</span>
                         </div>
                       );
                     })}
                   </div>
                   {items.filter(i => i.product_id).length > 0 && (
-                    <div className="border-t border-white/10 mt-3 pt-3 flex items-center justify-between text-sm">
-                      <span className="text-white/50">Total unidades</span>
+                    <div className="border-t border-white/[0.06] mt-3 pt-3 flex items-center justify-between text-sm">
+                      <span className="text-white/40">Total unidades</span>
                       <span className="text-white font-bold tabular-nums">
                         {items.filter(i => i.product_id).reduce((sum, i) => sum + (i.qty || 0), 0)}
                       </span>
@@ -272,13 +263,13 @@ export function ReceiptForm() {
 
               {/* Observaciones generales */}
               <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-5">
-                <label className="block text-white/70 text-xs uppercase tracking-wider mb-3">Observaciones</label>
+                <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-3">Observaciones</label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Ej: Recibido de proveedor XYZ, Factura #12345"
                   rows={4}
-                  className="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-green-500/50 resize-none text-sm"
+                  className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full resize-none"
                 />
               </div>
 
@@ -286,19 +277,11 @@ export function ReceiptForm() {
               <button
                 type="submit"
                 disabled={isProcessing || items.length === 0 || isLoadingProducts}
-                className="
-                  w-full px-6 py-4 rounded-xl
-                  bg-gradient-to-r from-green-500 to-emerald-500
-                  text-white font-medium
-                  hover:shadow-lg hover:shadow-green-500/20
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                  transition-all
-                  flex items-center justify-center gap-2
-                "
+                className="w-full bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-3 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isProcessing ? (
                   <>
-                    <div className="w-5 h-5 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+                    <div className="w-5 h-5 border-2 border-dark-950/30 border-t-dark-950 rounded-full animate-spin" />
                     Procesando...
                   </>
                 ) : (
