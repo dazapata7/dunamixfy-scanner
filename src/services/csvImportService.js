@@ -387,9 +387,14 @@ export const csvImportService = {
       storeName = match ? match[1].trim() : dropshipper;
     }
 
+    // Si SKU vacío, usar PRODUCTO ID como fallback (algunos productos en Dunamixfy no tienen SKU)
+    const rawSku = String(row['SKU'] || '').trim();
+    const productIdStr = String(row['PRODUCTO ID'] || '').trim();
+    const sku = rawSku || (productIdStr ? `EXT_${productIdStr}` : '');
+
     return {
       guide_code: row['NÚMERO GUIA'] || row['NUMERO GUIA'] || '',
-      sku: row['SKU'] || '',
+      sku,
       qty: row['CANTIDAD'] || '1',
       product_name: row['PRODUCTO'] || '',
       product_id_external: row['PRODUCTO ID'] || null,  // 🔥 NUEVO: ID del producto en Dunamix
