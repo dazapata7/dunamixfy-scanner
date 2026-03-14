@@ -111,8 +111,10 @@ export function DispatchHistory({ warehouseId = null }) {
 
       if (data?.[0]?.success) {
         setDispatches(prev => prev.filter(d => d.id !== dispatchId));
-        const dunamixfyResponse = await dunamixfyService.markOrderAsUnscanned(trackingCode);
-        if (!dunamixfyResponse.success) console.warn(`⚠️ No se pudo marcar como unscanned:`, dunamixfyResponse.message);
+        if (trackingCode) {
+          const dunamixfyResponse = await dunamixfyService.markOrderAsUnscanned(trackingCode);
+          if (!dunamixfyResponse.success) console.warn(`⚠️ No se pudo marcar como unscanned:`, dunamixfyResponse.message);
+        }
         toast.success('Dispatch eliminado exitosamente', { id: 'delete' });
         await new Promise(resolve => setTimeout(resolve, 500));
         await loadHistory();
