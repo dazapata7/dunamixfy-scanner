@@ -1066,15 +1066,11 @@ export const dispatchesService = {
       dispatch.dispatch_items.forEach(i => console.log(`  - product_id=${i.product_id}, qty=${i.qty}`));
 
       if (dispatch.dispatch_items.length === 0) {
-        // Draft sin items (dispatch roto): solo marcar como confirmado sin crear movimientos
-        console.warn(`⚠️ Dispatch ${dispatch.dispatch_number} sin items - confirmando sin movimientos de inventario`);
-        const { data: confirmed } = await supabase
-          .from('dispatches')
-          .update({ status: 'confirmed', confirmed_at: new Date().toISOString() })
-          .eq('id', dispatchId)
-          .select()
-          .single();
-        return confirmed;
+        console.error(`❌ Dispatch ${dispatch.dispatch_number} sin items - NO se puede confirmar`);
+        throw new Error(
+          `Este despacho no tiene productos asociados y no puede confirmarse. ` +
+          `Usa el botón 🗑️ Eliminar para borrarlo.`
+        );
       }
 
       const movements = dispatch.dispatch_items.map(item => ({
