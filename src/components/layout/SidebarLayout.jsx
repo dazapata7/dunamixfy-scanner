@@ -13,7 +13,7 @@ import {
   Package, PackagePlus, TrendingDown,
   Upload, Tag, Warehouse,
   Users, Shield, Settings,
-  LogOut, ChevronDown, Home
+  LogOut, ChevronDown, Factory, Layers, FolderOpen
 } from 'lucide-react';
 
 // ── Estructura de navegación ──────────────────────────
@@ -34,14 +34,23 @@ function buildNav(role) {
         { icon: ArrowLeftRight, label: 'Movimientos',  path: '/wms/inventory-history' },
       ],
     },
+    // Expandable — Producción
+    {
+      icon: Factory,
+      label: 'Producción',
+      children: [
+        { icon: Factory,    label: 'Órdenes de Prod.',  path: '/wms/production' },
+      ],
+    },
     // Expandable — Configuración
     {
       icon: Settings,
       label: 'Configuración',
       children: [
-        { icon: Upload,    label: 'Importar CSV', path: '/wms/import-csv' },
-        { icon: Tag,       label: 'Productos',    path: '/wms/manage-products' },
-        { icon: Warehouse, label: 'Bodegas',      path: '/wms/manage-warehouses' },
+        { icon: Upload,      label: 'Importar CSV',  path: '/wms/import-csv' },
+        { icon: Tag,         label: 'Productos',     path: '/wms/manage-products' },
+        { icon: FolderOpen,  label: 'Categorías',    path: '/wms/manage-categories' },
+        { icon: Warehouse,   label: 'Bodegas',       path: '/wms/manage-warehouses' },
       ],
     },
     // Expandable — Administración (admin+)

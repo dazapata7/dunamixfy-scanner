@@ -1652,6 +1652,293 @@ export const batchService = {
 };
 
 // =====================================================
+// CATEGORÍAS DE PRODUCTOS
+// =====================================================
+export const categoriesService = {
+  async getAll() {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .order('name');
+    if (error) throw error;
+    return data;
+  },
+
+  // Devuelve árbol: categorías raíz con sus children anidados
+  async getTree() {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order')
+      .order('name');
+    if (error) throw error;
+    const map = {};
+    data.forEach(c => { map[c.id] = { ...c, children: [] }; });
+    const roots = [];
+    data.forEach(c => {
+      if (c.parent_id && map[c.parent_id]) map[c.parent_id].children.push(map[c.id]);
+      else roots.push(map[c.id]);
+    });
+    return roots;
+  },
+
+  async create(category) {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .insert(category)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async update(id, updates) {
+    const { data, error } = await supabase
+      .from('product_categories')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(id) {
+    // Soft delete
+    const { error } = await supabase
+      .from('product_categories')
+      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// =====================================================
+// BOM — BILL OF MATERIALS
+// =====================================================
+export const bomService = {
+  // Obtener BOM activo de un producto
+  async getByProduct(productId) {
+    const { data: header, error: hErr } = await supabase
+      .from('bom_headers')
+      .select('*')
+      .eq('product_id', productId)
+      .eq('is_active', true)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (hErr) throw hErr;
+    if (!header) return null;
+
+    const { data: items, error: iErr } = await supabase
+      .from('bom_items')
+      .select('*, component:products(id, name, sku, type)')
+      .eq('bom_id', header.id)
+      .order('sort_order');
+    if (iErr) throw iErr;
+
+    return { ...header, items: items || [] };
+  },
+
+  // Crear o actualizar BOM completo
+  async save(productId, items) {
+    // Obtener o crear header
+    let { data: header } = await supabase
+      .from('bom_headers')
+      .select('id')
+      .eq('product_id', productId)
+      .eq('is_active', true)
+      .limit(1)
+      .maybeSingle();
+
+    if (!header) {
+      const { data: newHeader, error } = await supabase
+        .from('bom_headers')
+        .insert({ product_id: productId, version: 1 })
+        .select()
+        .single();
+      if (error) throw error;
+      header = newHeader;
+    }
+
+    // Reemplazar todos los items
+    await supabase.from('bom_items').delete().eq('bom_id', header.id);
+
+    if (items.length > 0) {
+      const { error } = await supabase
+        .from('bom_items')
+        .insert(items.map((it, idx) => ({
+          bom_id: header.id,
+          component_product_id: it.component_product_id,
+          qty_required: parseFloat(it.qty_required) || 1,
+          unit_of_measure: it.unit_of_measure || 'unidad',
+          waste_factor: parseFloat(it.waste_factor) || 1,
+          notes: it.notes || null,
+          sort_order: idx,
+        })));
+      if (error) throw error;
+    }
+
+    return header.id;
+  },
+
+  // Calcular materiales necesarios para N unidades (usa función SQL)
+  async calculateMaterials(productId, qty) {
+    const { data, error } = await supabase
+      .rpc('calculate_materials_required', { p_product_id: productId, p_qty: qty });
+    if (error) throw error;
+    return data;
+  },
+};
+
+// =====================================================
+// PRODUCCIÓN — ÓRDENES DE FABRICACIÓN
+// =====================================================
+export const productionService = {
+  async getAll(warehouseId = null) {
+    let q = supabase
+      .from('production_orders')
+      .select(`
+        *,
+        product:products(id, name, sku, type),
+        warehouse:warehouses(id, name),
+        operator:operators(id, name),
+        materials:production_order_materials(
+          *,
+          component:products(id, name, sku)
+        )
+      `)
+      .order('created_at', { ascending: false });
+    if (warehouseId) q = q.eq('warehouse_id', warehouseId);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  },
+
+  async getById(id) {
+    const { data, error } = await supabase
+      .from('production_orders')
+      .select(`
+        *,
+        product:products(id, name, sku, type, category:product_categories(name, icon)),
+        warehouse:warehouses(id, name),
+        operator:operators(id, name),
+        materials:production_order_materials(
+          *,
+          component:products(id, name, sku, type)
+        )
+      `)
+      .eq('id', id)
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async create({ productId, bomId, warehouseId, operatorId, qtyPlanned, plannedDate, notes }) {
+    // Generar número de orden
+    const { data: numData, error: numError } = await supabase
+      .rpc('generate_production_order_number');
+    if (numError) throw numError;
+
+    const { data, error } = await supabase
+      .from('production_orders')
+      .insert({
+        order_number: numData,
+        product_id:   productId,
+        bom_id:       bomId || null,
+        warehouse_id: warehouseId,
+        operator_id:  operatorId || null,
+        qty_planned:  qtyPlanned,
+        planned_date: plannedDate || null,
+        notes:        notes || null,
+      })
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Poblar materiales desde BOM si existe
+    if (bomId) {
+      const { data: bomItems } = await supabase
+        .from('bom_items')
+        .select('*')
+        .eq('bom_id', bomId);
+
+      if (bomItems?.length > 0) {
+        await supabase.from('production_order_materials').insert(
+          bomItems.map(bi => ({
+            production_order_id:  data.id,
+            component_product_id: bi.component_product_id,
+            qty_required: Math.round(bi.qty_required * bi.waste_factor * qtyPlanned * 10000) / 10000,
+          }))
+        );
+      }
+    }
+
+    return data;
+  },
+
+  async start(orderId) {
+    const { data, error } = await supabase
+      .rpc('start_production_order', { p_order_id: orderId });
+    if (error) throw error;
+    return data?.[0];
+  },
+
+  async complete(orderId, qtyProduced, operatorId = null) {
+    const { data, error } = await supabase
+      .rpc('complete_production_order', {
+        p_order_id:     orderId,
+        p_qty_produced: qtyProduced,
+        p_operator_id:  operatorId,
+      });
+    if (error) throw error;
+    return data?.[0];
+  },
+
+  async pause(orderId) {
+    const { data, error } = await supabase
+      .from('production_orders')
+      .update({ status: 'paused', updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async cancel(orderId) {
+    const { data, error } = await supabase
+      .from('production_orders')
+      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+      .select()
+      .single();
+    if (error) throw error;
+    return data;
+  },
+
+  async delete(orderId) {
+    // Solo se pueden borrar órdenes en draft o cancelled
+    const { data: order } = await supabase
+      .from('production_orders')
+      .select('status')
+      .eq('id', orderId)
+      .single();
+    if (!['draft', 'cancelled'].includes(order?.status)) {
+      throw new Error('Solo se pueden eliminar órdenes en borrador o canceladas.');
+    }
+    const { error } = await supabase
+      .from('production_orders')
+      .delete()
+      .eq('id', orderId);
+    if (error) throw error;
+  },
+};
+
+// =====================================================
 
 export default {
   warehouses: warehousesService,
@@ -1661,5 +1948,8 @@ export default {
   dispatches: dispatchesService,
   skuMappings: skuMappingsService,
   comboProducts: comboProductsService,
-  batch: batchService
+  batch: batchService,
+  categories: categoriesService,
+  bom: bomService,
+  production: productionService,
 };

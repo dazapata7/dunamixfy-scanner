@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productsService, skuMappingsService, comboProductsService } from '../../services/wmsService';
+import { productsService, skuMappingsService, comboProductsService, categoriesService, bomService } from '../../services/wmsService';
 import {
   ArrowLeft,
   Package,
@@ -26,9 +26,18 @@ import {
 import toast from 'react-hot-toast';
 
 // ── Badge de tipo ──────────────────────────────────
-const TypeBadge = ({ type }) => type === 'combo'
-  ? <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400/80 text-xs font-semibold">Combo</span>
-  : <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold">Simple</span>;
+const TYPE_META = {
+  simple:       { label: 'Simple',      color: 'bg-primary-500/10 border-primary-500/20 text-primary-400/80' },
+  combo:        { label: 'Combo',       color: 'bg-blue-500/10 border-blue-500/20 text-blue-400/80' },
+  raw_material: { label: 'Insumo',      color: 'bg-amber-500/10 border-amber-500/20 text-amber-400/80' },
+  finished_good:{ label: 'Terminado',   color: 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400/80' },
+  semi_finished:{ label: 'Semitermin.', color: 'bg-purple-500/10 border-purple-500/20 text-purple-400/80' },
+  consumable:   { label: 'Consumible',  color: 'bg-slate-500/10 border-slate-500/20 text-slate-400/80' },
+};
+const TypeBadge = ({ type }) => {
+  const meta = TYPE_META[type] || TYPE_META.simple;
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${meta.color}`}>{meta.label}</span>;
+};
 
 // ── Badge de estado ────────────────────────────────
 const StatusBadge = ({ active }) => active
@@ -83,9 +92,13 @@ export function ProductManagement() {
   const [isLoadingMappings, setIsLoadingMappings] = useState(false);
   const [newMapping, setNewMapping] = useState({ source: 'dunamixfy', external_sku: '', notes: '' });
 
-  // Combo components
+  // Combo components (legacy)
   const [comboComponents, setComboComponents] = useState([]);
   const [availableProducts, setAvailableProducts] = useState([]);
+
+  // BOM (nuevo)
+  const [bomItems, setBomItems] = useState([]);
+  const [categories, setCategories] = useState([]);
 
   useEffect(() => { loadProducts(); }, []);
 
@@ -100,13 +113,18 @@ export function ProductManagement() {
 
   async function openCreate() {
     setEditingProduct(null);
-    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'simple' });
+    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'finished_good', category_id: '' });
     setSkuMappings([]);
     setComboComponents([]);
+    setBomItems([]);
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
     try {
-      const all = await productsService.getAll();
-      setAvailableProducts(all.filter(p => p.type === 'simple' || !p.type));
+      const [all, cats] = await Promise.all([
+        productsService.getAll(),
+        categoriesService.getAll(),
+      ]);
+      setAvailableProducts(all);
+      setCategories(cats);
     } catch { /* ignore */ }
     setShowModal(true);
   }
@@ -114,33 +132,50 @@ export function ProductManagement() {
   async function openEdit(product) {
     setEditingProduct(product);
     setFormData({
-      sku: product.sku,
-      name: product.name,
-      barcode: product.barcode || '',
-      photo_url: product.photo_url || '',
+      sku:         product.sku,
+      name:        product.name,
+      barcode:     product.barcode     || '',
+      photo_url:   product.photo_url   || '',
       description: product.description || '',
-      is_active: product.is_active,
-      type: product.type || 'simple'
+      is_active:   product.is_active,
+      type:        product.type        || 'simple',
+      category_id: product.category_id || '',
     });
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
+    setBomItems([]);
+    setComboComponents([]);
 
     setIsLoadingMappings(true);
     try {
-      const [mappings, allProds] = await Promise.all([
+      const [mappings, allProds, cats] = await Promise.all([
         skuMappingsService.getByProductId(product.id),
-        productsService.getAll()
+        productsService.getAll(),
+        categoriesService.getAll(),
       ]);
       setSkuMappings(mappings);
-      setAvailableProducts(allProds.filter(p => p.type === 'simple' && p.id !== product.id));
+      setAvailableProducts(allProds.filter(p => p.id !== product.id));
+      setCategories(cats);
 
-      if (product.type === 'combo') {
+      const bomTypes = ['finished_good', 'semi_finished', 'combo'];
+      if (bomTypes.includes(product.type)) {
+        const bom = await bomService.getByProduct(product.id);
+        if (bom?.items) {
+          setBomItems(bom.items.map(i => ({
+            component_product_id: i.component_product_id,
+            product_name:         i.component?.name || '',
+            product_sku:          i.component?.sku  || '',
+            qty_required:         i.qty_required,
+            unit_of_measure:      i.unit_of_measure || 'unidad',
+            waste_factor:         i.waste_factor    || 1,
+            notes:                i.notes           || '',
+          })));
+        }
+      } else if (product.type === 'combo') {
         const components = await comboProductsService.getComponents(product.id);
         setComboComponents(components.map(c => ({
           id: c.id, product_id: c.component.id,
           product_name: c.component.name, quantity: c.quantity
         })));
-      } else {
-        setComboComponents([]);
       }
     } catch { toast.error('Error al cargar datos del producto'); }
     finally { setIsLoadingMappings(false); }
@@ -155,9 +190,9 @@ export function ProductManagement() {
 
   async function handleSave() {
     if (!formData.sku || !formData.name) { toast.error('SKU y nombre son requeridos'); return; }
-    if (formData.type === 'combo' && comboComponents.length === 0) { toast.error('Un combo debe tener al menos 1 componente'); return; }
-    if (formData.type === 'combo' && comboComponents.some(c => !c.product_id || c.quantity < 1)) {
-      toast.error('Todos los componentes deben tener producto y cantidad válida'); return;
+    const bomTypes = ['finished_good', 'semi_finished', 'combo'];
+    if (bomTypes.includes(formData.type) && bomItems.some(b => !b.component_product_id)) {
+      toast.error('Todos los componentes del BOM deben tener un producto seleccionado'); return;
     }
 
     setIsSaving(true);
@@ -165,15 +200,18 @@ export function ProductManagement() {
       let productId = editingProduct?.id;
       const isCreating = !productId;
 
+      const payload = { ...formData, category_id: formData.category_id || null };
+
       if (isCreating) {
-        const newProd = await productsService.create(formData);
+        const newProd = await productsService.create(payload);
         productId = newProd.id;
       } else {
-        await productsService.update(productId, formData);
+        await productsService.update(productId, payload);
       }
 
-      if (formData.type === 'combo') {
-        await comboProductsService.setComponents(productId, comboComponents);
+      // Guardar BOM si aplica
+      if (bomTypes.includes(formData.type)) {
+        await bomService.save(productId, bomItems);
       }
 
       if (isCreating && skuMappings.length > 0) {
@@ -267,13 +305,36 @@ export function ProductManagement() {
     setComboComponents(updated);
   }
 
+  // BOM helpers
+  function addBomItem() {
+    setBomItems([...bomItems, { component_product_id: '', product_name: '', qty_required: 1, unit_of_measure: 'unidad', waste_factor: 1, notes: '' }]);
+  }
+  function removeBomItem(i) { setBomItems(bomItems.filter((_, idx) => idx !== i)); }
+  function updateBomItem(i, field, value) {
+    const updated = [...bomItems];
+    updated[i] = { ...updated[i], [field]: value };
+    setBomItems(updated);
+  }
+  function selectBomProduct(i, productId) {
+    const prod = availableProducts.find(p => p.id === productId);
+    updateBomItem(i, 'component_product_id', productId);
+    if (prod) {
+      updateBomItem(i, 'product_name', prod.name);
+      updateBomItem(i, 'product_sku', prod.sku);
+    }
+  }
+
   const filtered = products.filter(p => {
     const q = searchTerm.toLowerCase();
     return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
   });
 
-  const simples = filtered.filter(p => !p.type || p.type === 'simple');
-  const combos  = filtered.filter(p => p.type === 'combo');
+  const finished   = filtered.filter(p => p.type === 'finished_good');
+  const rawMat     = filtered.filter(p => p.type === 'raw_material');
+  const consumable = filtered.filter(p => p.type === 'consumable');
+  const semiFin    = filtered.filter(p => p.type === 'semi_finished');
+  const simples    = filtered.filter(p => !p.type || p.type === 'simple');
+  const combos     = filtered.filter(p => p.type === 'combo');
 
   const ProductRow = ({ product }) => (
     <tr className="hover:bg-primary-500/[0.03] transition-colors group">
@@ -413,8 +474,12 @@ export function ProductManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
-                  <TableSection title="Productos" items={simples} color="text-primary-400/60" />
-                  <TableSection title="Combos" items={combos} color="text-blue-400/60" />
+                  <TableSection title="Productos Terminados" items={finished}   color="text-emerald-400/60" />
+                  <TableSection title="Insumos de Fabricación" items={rawMat}   color="text-amber-400/60" />
+                  <TableSection title="Consumibles"           items={consumable} color="text-slate-400/60" />
+                  <TableSection title="Semiterminados"        items={semiFin}    color="text-purple-400/60" />
+                  <TableSection title="Simples (legacy)"      items={simples}    color="text-primary-400/60" />
+                  <TableSection title="Combos (legacy)"       items={combos}     color="text-blue-400/60" />
                 </tbody>
               </table>
             )}
@@ -494,11 +559,36 @@ export function ProductManagement() {
                   <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Tipo</label>
                   <select value={formData.type}
                     onChange={e => setFormData({ ...formData, type: e.target.value })}
-                    disabled={!!editingProduct}
                     style={{ colorScheme: 'dark' }}
-                    className={`${inputCls} disabled:opacity-50`}>
-                    <option value="simple">Simple (Producto Individual)</option>
-                    <option value="combo">Combo (Compuesto de otros)</option>
+                    className={inputCls}>
+                    <optgroup label="Producción">
+                      <option value="finished_good">✅ Producto Terminado</option>
+                      <option value="raw_material">🧪 Insumo de Fabricación</option>
+                      <option value="semi_finished">⚙️ Semiterminado</option>
+                      <option value="consumable">🔧 Consumible Interno</option>
+                    </optgroup>
+                    <optgroup label="Legacy">
+                      <option value="simple">Simple</option>
+                      <option value="combo">Combo</option>
+                    </optgroup>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Categoría</label>
+                  <select value={formData.category_id}
+                    onChange={e => setFormData({ ...formData, category_id: e.target.value })}
+                    style={{ colorScheme: 'dark' }}
+                    className={inputCls}>
+                    <option value="">Sin categoría</option>
+                    {categories.filter(c => !c.parent_id).map(cat => (
+                      <optgroup key={cat.id} label={`${cat.icon || ''} ${cat.name}`}>
+                        <option value={cat.id}>{cat.icon} {cat.name}</option>
+                        {categories.filter(c => c.parent_id === cat.id).map(sub => (
+                          <option key={sub.id} value={sub.id}>  └ {sub.icon} {sub.name}</option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
 
@@ -586,6 +676,76 @@ export function ProductManagement() {
                           </button>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ── BOM / Fórmula de Fabricación ── */}
+              {['finished_good', 'semi_finished', 'combo'].includes(formData.type) && (
+                <div className="border-t border-white/[0.06] pt-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <h3 className="text-white font-semibold text-sm flex items-center gap-2">
+                        🧪 Fórmula de Fabricación (BOM)
+                      </h3>
+                      <p className="text-white/40 text-xs mt-0.5">Insumos necesarios para fabricar 1 unidad de este producto</p>
+                    </div>
+                    <button onClick={addBomItem}
+                      className="bg-amber-500/10 border border-amber-500/20 text-amber-400 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 text-xs font-semibold">
+                      <Plus className="w-3.5 h-3.5" /> Agregar insumo
+                    </button>
+                  </div>
+
+                  {bomItems.length === 0 ? (
+                    <div className="text-center py-6 border border-dashed border-white/[0.08] rounded-xl">
+                      <p className="text-white/25 text-sm">Sin insumos definidos</p>
+                      <p className="text-white/15 text-xs mt-1">Agrega los materiales necesarios para fabricar este producto</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {/* Header */}
+                      <div className="hidden md:grid grid-cols-[1fr_80px_90px_80px_32px] gap-2 px-1">
+                        {['Insumo / Componente','Cantidad','Unidad','% Merma',''].map(h => (
+                          <span key={h} className="text-white/25 text-[10px] uppercase tracking-widest">{h}</span>
+                        ))}
+                      </div>
+                      {bomItems.map((b, i) => (
+                        <div key={i} className="grid grid-cols-1 md:grid-cols-[1fr_80px_90px_80px_32px] gap-2 items-center bg-white/[0.02] border border-white/[0.05] rounded-xl p-2">
+                          <select
+                            value={b.component_product_id}
+                            onChange={e => selectBomProduct(i, e.target.value)}
+                            style={{ colorScheme: 'dark' }}
+                            className={inputCls}>
+                            <option value="">Selecciona insumo...</option>
+                            {availableProducts.map(p => (
+                              <option key={p.id} value={p.id}>{p.name} ({p.sku})</option>
+                            ))}
+                          </select>
+                          <input type="number" min="0.0001" step="0.01"
+                            value={b.qty_required}
+                            onChange={e => updateBomItem(i, 'qty_required', parseFloat(e.target.value) || 1)}
+                            className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full text-center" />
+                          <input type="text"
+                            value={b.unit_of_measure}
+                            onChange={e => updateBomItem(i, 'unit_of_measure', e.target.value)}
+                            placeholder="unidad"
+                            className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full" />
+                          <div className="relative">
+                            <input type="number" min="1" max="2" step="0.01"
+                              value={b.waste_factor}
+                              onChange={e => updateBomItem(i, 'waste_factor', parseFloat(e.target.value) || 1)}
+                              className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full text-center" />
+                          </div>
+                          <button onClick={() => removeBomItem(i)}
+                            className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/30 hover:text-red-400 hover:bg-red-500/[0.08] transition-all flex-shrink-0">
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      <p className="text-white/20 text-xs px-1">
+                        Merma: 1.00 = sin merma · 1.05 = 5% merma · 1.10 = 10% merma
+                      </p>
                     </div>
                   )}
                 </div>
