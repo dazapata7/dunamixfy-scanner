@@ -67,7 +67,7 @@ CREATE POLICY "company_returns" ON returns FOR ALL USING (
   warehouse_id IN (
     SELECT w.id FROM warehouses w
     INNER JOIN operators op ON op.company_id = w.company_id
-    WHERE op.user_id = auth.uid()
+    WHERE op.id = auth.uid()
   )
 );
 
