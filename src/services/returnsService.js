@@ -44,11 +44,10 @@ async function findOriginalDispatch(guideCode) {
       shipment_record:shipment_records(*, carriers(*))
     `)
     .eq('guide_code', guideCode)
-    .single();
+    .maybeSingle();
 
-  if (error?.code === 'PGRST116') return null; // not found
   if (error) throw error;
-  return data;
+  return data; // null si no existe, sin 406
 }
 
 // ── CRUD ──────────────────────────────────────────────
@@ -88,7 +87,7 @@ export const returnsService = {
 
     const { data: ret, error } = await supabase
       .from('returns')
-      .insert({
+      .insert([{
         return_number:        returnNumber,
         return_guide_code:    returnGuideCode,
         original_guide_code:  originalGuideCode ?? null,
@@ -97,7 +96,7 @@ export const returnsService = {
         operator_id:          operatorId ?? null,
         carrier_id:           carrierId ?? null,
         notes:                notes ?? null,
-      })
+      }])
       .select()
       .single();
 
