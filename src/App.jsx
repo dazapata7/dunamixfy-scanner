@@ -34,6 +34,7 @@ const ProductManagement     = lazy(() => import("./components/wms/ProductManagem
 const CategoryManagement    = lazy(() => import("./components/wms/CategoryManagement"));
 const ProductionOrders      = lazy(() => import("./components/wms/ProductionOrders"));
 const ProductionOrderDetail = lazy(() => import("./components/wms/ProductionOrderDetail"));
+const Returns               = lazy(() => import("./components/wms/Returns"));
 
 // Remote Scanner Components
 const RemoteScannerHost = lazy(() => import("./components/wms/RemoteScannerHost"));
@@ -135,6 +136,7 @@ function AppContent() {
                   <Route path="/wms/manage-categories" element={<CategoryManagement />} />
                   <Route path="/wms/production"        element={<ProductionOrders />} />
                   <Route path="/wms/production/:id"    element={<ProductionOrderDetail />} />
+                  <Route path="/wms/returns"           element={<Returns />} />
 
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>

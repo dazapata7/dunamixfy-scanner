@@ -10,7 +10,7 @@ import {
   BarChart3, Monitor, History, ArrowLeftRight,
   Package, PackagePlus, TrendingDown,
   Upload, Tag, Warehouse,
-  Users, Shield, User, MapPin, QrCode, Layers, Factory, FolderOpen
+  Users, Shield, User, MapPin, QrCode, Layers, Factory, FolderOpen, RotateCcw
 } from 'lucide-react';
 
 const ROUTE_META = {
@@ -34,6 +34,7 @@ const ROUTE_META = {
   '/profile':                 { title: 'Mi Perfil',              desc: 'Datos de usuario',                 icon: User          },
   '/wms/production':          { title: 'Órdenes de Producción',  desc: 'Fabricación y manufactura',        icon: Factory       },
   '/wms/manage-categories':   { title: 'Categorías',             desc: 'Clasificación de productos',       icon: FolderOpen    },
+  '/wms/returns':             { title: 'Devoluciones',           desc: 'Reposición de stock por retorno',  icon: RotateCcw     },
 };
 
 function resolveMeta(pathname) {

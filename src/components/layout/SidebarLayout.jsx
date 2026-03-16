@@ -13,7 +13,7 @@ import {
   Package, PackagePlus, TrendingDown,
   Upload, Tag, Warehouse,
   Users, Shield, Settings,
-  LogOut, ChevronDown, Factory, Layers, FolderOpen
+  LogOut, ChevronDown, Factory, FolderOpen, RotateCcw
 } from 'lucide-react';
 
 // ── Estructura de navegación ──────────────────────────
@@ -34,23 +34,32 @@ function buildNav(role) {
         { icon: ArrowLeftRight, label: 'Movimientos',  path: '/wms/inventory-history' },
       ],
     },
+    // Expandable — Productos
+    {
+      icon: Tag,
+      label: 'Productos',
+      children: [
+        { icon: Tag,        label: 'Lista de Productos', path: '/wms/manage-products' },
+        { icon: FolderOpen, label: 'Categorías',         path: '/wms/manage-categories' },
+      ],
+    },
     // Expandable — Producción
     {
       icon: Factory,
       label: 'Producción',
       children: [
-        { icon: Factory,    label: 'Órdenes de Prod.',  path: '/wms/production' },
+        { icon: Factory, label: 'Órdenes de Prod.', path: '/wms/production' },
       ],
     },
+    // Standalone — Devoluciones
+    { icon: RotateCcw, label: 'Devoluciones', path: '/wms/returns' },
     // Expandable — Configuración
     {
       icon: Settings,
       label: 'Configuración',
       children: [
-        { icon: Upload,      label: 'Importar CSV',  path: '/wms/import-csv' },
-        { icon: Tag,         label: 'Productos',     path: '/wms/manage-products' },
-        { icon: FolderOpen,  label: 'Categorías',    path: '/wms/manage-categories' },
-        { icon: Warehouse,   label: 'Bodegas',       path: '/wms/manage-warehouses' },
+        { icon: Upload,    label: 'Importar CSV', path: '/wms/import-csv' },
+        { icon: Warehouse, label: 'Bodegas',      path: '/wms/manage-warehouses' },
       ],
     },
     // Expandable — Administración (admin+)
@@ -165,7 +174,6 @@ export function SidebarLayout() {
   const { signOut } = useAuth();
 
   const role              = useStore((s) => s.role);
-  const companyName       = useStore((s) => s.companyName);
   const selectedWarehouse = useStore((s) => s.selectedWarehouse);
 
   const pathname = location.pathname;
@@ -198,7 +206,7 @@ export function SidebarLayout() {
 
       {/* ── Nav ───────────────────────────────────────── */}
       <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 scrollbar-thin">
-        {nav.map((item, i) => {
+        {nav.map((item) => {
           const isStandaloneActive = !item.children && (pathname === item.path || pathname.startsWith(item.path + '/'));
           const activeChild = item.children
             ? item.children.find(c => pathname === c.path || pathname.startsWith(c.path + '/'))
