@@ -9,11 +9,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useStore } from '../../store/useStore';
 import { returnsService } from '../../services/returnsService';
+import { supabase } from '../../services/supabase';
 import toast from 'react-hot-toast';
 import {
-  RotateCcw, Search, Package, CheckCircle, XCircle,
+  RotateCcw, Search, Package, CheckCircle,
   AlertTriangle, ChevronRight, ExternalLink, RefreshCw,
-  Clock, ArrowUpCircle, Trash2, Plus, Minus
+  ArrowUpCircle, Plus, Minus
 } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────
@@ -52,6 +53,10 @@ function NewReturn({ onCreated }) {
   // Resultado del lookup
   const [coordinadoraData, setCoordinadoraData] = useState(null);
   const [dispatch, setDispatch]                 = useState(null);
+
+  // Entrada manual de guía original cuando el scraping falla
+  const [manualGuide, setManualGuide]           = useState('');
+  const [manualLoading, setManualLoading]       = useState(false);
 
   // Ítems a devolver (editables)
   const [items, setItems] = useState([]);
@@ -339,31 +344,100 @@ function NewReturn({ onCreated }) {
     </div>
   );
 
+  const handleManualLookup = async () => {
+    const trimmed = manualGuide.trim();
+    if (!trimmed) return;
+    setManualLoading(true);
+    try {
+      const { data: d, error } = await supabase
+        .from('dispatches')
+        .select('*, dispatch_items(*, products(*)), shipment_record:shipment_records(*, carriers(*))')
+        .eq('guide_code', trimmed)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (d?.dispatch_items?.length > 0) {
+        setDispatch(d);
+        setCoordinadoraData(prev => ({ ...prev, associatedGuide: trimmed }));
+        setItems(d.dispatch_items.map(di => ({
+          product_id: di.product_id,
+          name:       di.products?.name ?? 'Producto',
+          sku:        di.products?.sku  ?? '-',
+          qty:        di.qty,
+          condition:  'good',
+        })));
+        setStep('found');
+      } else {
+        toast.error(`No se encontró despacho con guía ${trimmed} en la base de datos`);
+      }
+    } catch (err) {
+      toast.error(err.message || 'Error al buscar despacho');
+    } finally {
+      setManualLoading(false);
+    }
+  };
+
   const renderManual = () => (
     <div className="space-y-4">
+      {/* Aviso */}
       <Card className="p-4">
         <div className="flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
           <div>
-            <p className="text-amber-400 font-semibold text-sm">Despacho original no encontrado</p>
+            <p className="text-amber-400 font-semibold text-sm">Rastreo automático no disponible</p>
             <p className="text-white/45 text-xs mt-1 leading-relaxed">
-              {coordinadoraData?.associatedGuide
-                ? `Se encontró la guía asociada (${coordinadoraData.associatedGuide}) en Coordinadora, pero no hay un despacho con ese código en nuestra base de datos.`
-                : 'No se encontró guía asociada en Coordinadora. La guía ingresada puede no ser una devolución o no estar registrada aún.'}
+              No se pudo extraer la guía asociada automáticamente (Coordinadora carga su tracking
+              con JavaScript). Consulta el sitio directamente y copia el número de la
+              <strong className="text-white/60"> Guía Asociada</strong>.
             </p>
-            {coordinadoraData?.associatedGuide && (
-              <p className="text-white/35 text-xs mt-2">
-                Guía original: <span className="font-mono text-white/55">{coordinadoraData.associatedGuide}</span>
-              </p>
-            )}
           </div>
         </div>
+
+        {/* Link directo al tracking */}
+        <a
+          href={`https://coordinadora.com/rastreo/rastreo-de-guia/detalle-de-rastreo-de-guia/?guia=${guide.trim()}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.05] border border-white/[0.08] text-xs text-primary-400/80 hover:text-primary-400 hover:bg-white/[0.08] transition-all"
+        >
+          <ExternalLink className="w-3.5 h-3.5" />
+          Ver tracking de guía {guide.trim()} en Coordinadora.com
+        </a>
       </Card>
+
+      {/* Ingreso manual de guía original */}
+      <Card className="p-4 space-y-3">
+        <p className="text-white/60 text-sm font-semibold">Ingresa la guía original manualmente</p>
+        <p className="text-white/35 text-xs">
+          En el historial de Coordinadora busca la línea que dice <span className="font-mono bg-white/[0.06] px-1 rounded">Guía Asociada: XXXXXXXXXX</span> y copia ese número.
+        </p>
+        <div className="flex gap-2">
+          <input
+            type="text"
+            value={manualGuide}
+            onChange={e => setManualGuide(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleManualLookup()}
+            placeholder="Ej: 56813981708"
+            className="flex-1 bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-2.5 text-white placeholder-white/25 text-sm focus:outline-none focus:border-primary-500/50 focus:ring-1 focus:ring-primary-500/20 font-mono"
+            autoFocus
+          />
+          <button
+            onClick={handleManualLookup}
+            disabled={!manualGuide.trim() || manualLoading}
+            className="px-4 py-2.5 rounded-xl bg-primary-500 text-dark-950 font-bold text-sm hover:bg-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center gap-2"
+          >
+            {manualLoading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            Buscar
+          </button>
+        </div>
+      </Card>
+
       <button
-        onClick={() => setStep('input')}
-        className="w-full py-2.5 rounded-xl border border-white/[0.10] text-white/45 hover:text-white/70 hover:bg-white/[0.05] text-sm font-medium transition-all"
+        onClick={() => { setStep('input'); setGuide(''); setManualGuide(''); }}
+        className="w-full py-2.5 rounded-xl border border-white/[0.10] text-white/40 hover:text-white/65 hover:bg-white/[0.04] text-sm font-medium transition-all"
       >
-        Intentar con otro número
+        Intentar con otra guía de devolución
       </button>
     </div>
   );
