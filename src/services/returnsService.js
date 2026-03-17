@@ -6,6 +6,55 @@
 // =====================================================
 
 import { supabase } from './supabase';
+import { getOrderInfo } from './dunamixfyService';
+
+// ── Parsea order_items de Dunamixfy (puede ser string JSON o array) ──
+function parseDunamixfyItems(raw) {
+  if (!raw) return [];
+  let items = raw;
+  if (typeof raw === 'string') {
+    try {
+      let cleaned = raw.trim();
+      if (!cleaned.startsWith('[')) cleaned = '[' + cleaned + ']';
+      items = JSON.parse(cleaned);
+    } catch { return []; }
+  }
+  if (!Array.isArray(items)) return [];
+  return items.map(item => ({
+    external_sku: String(item.sku || item.id || item.product_id || '').trim(),
+    name:         String(item.name || item.Name || item.Description || '').trim(),
+    qty:          parseInt(item.qty || item.quantity || 1, 10),
+  })).filter(i => i.qty > 0 && (i.external_sku || i.name));
+}
+
+// ── Intenta obtener items de la orden en Dunamixfy ──────────────────
+async function findFromDunamixfy(associatedGuide) {
+  try {
+    const data = await getOrderInfo(associatedGuide);
+    if (!data?.response) return null;
+    const rawItems = parseDunamixfyItems(data.response.order_items);
+    if (!rawItems.length) return null;
+
+    // Intentar mapear external_sku → product_id en nuestra BD
+    const mapped = await Promise.all(rawItems.map(async (item) => {
+      if (!item.external_sku) return { ...item, product_id: null };
+      const { data: mapping } = await supabase
+        .from('product_sku_mappings')
+        .select('product_id, products(id, name, sku)')
+        .eq('external_sku', item.external_sku)
+        .eq('source', 'dunamixfy')
+        .maybeSingle();
+      return {
+        ...item,
+        product_id:   mapping?.product_id ?? null,
+        product_name: mapping?.products?.name ?? item.name,
+        product_sku:  mapping?.products?.sku  ?? item.external_sku,
+      };
+    }));
+
+    return { items: mapped, orderId: data.response._id };
+  } catch { return null; }
+}
 
 const SUPABASE_URL     = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -63,17 +112,24 @@ export const returnsService = {
 
     let dispatch = null;
 
+    let dunamixfy = null;
+
     if (coordinadora.associatedGuide) {
-      // Busca en nuestra BD el despacho con esa guía original
+      // 1. Busca en nuestra BD el despacho con la guía original
       dispatch = await findOriginalDispatch(coordinadora.associatedGuide);
+
+      // 2. Si no está en BD, busca en Dunamixfy
+      if (!dispatch) {
+        dunamixfy = await findFromDunamixfy(coordinadora.associatedGuide);
+      }
     }
 
-    // También intenta con la propia guía de devolución (por si acaso)
-    if (!dispatch) {
+    // Fallback: intenta con la propia guía de devolución
+    if (!dispatch && !dunamixfy) {
       dispatch = await findOriginalDispatch(returnGuideCode);
     }
 
-    return { coordinadora, dispatch };
+    return { coordinadora, dispatch, dunamixfy };
   },
 
   /**
