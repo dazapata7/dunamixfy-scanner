@@ -73,17 +73,22 @@ function NewReturn({ onCreated }) {
       setCoordinadoraData(result.coordinadora);
       setDispatch(result.dispatch);
 
-      if (result.dispatch?.dispatch_items?.length > 0) {
-        // Pre-poblar ítems desde el despacho original
-        setItems(result.dispatch.dispatch_items.map(di => ({
-          product_id: di.product_id,
-          name:       di.products?.name ?? 'Producto',
-          sku:        di.products?.sku  ?? '-',
-          qty:        di.qty,
-          condition:  'good',
-        })));
+      if (result.coordinadora?.associatedGuide) {
+        // Coordinadora encontró la guía original → mostrar pantalla found
+        if (result.dispatch?.dispatch_items?.length > 0) {
+          // Despacho en BD → pre-cargar ítems
+          setItems(result.dispatch.dispatch_items.map(di => ({
+            product_id: di.product_id,
+            name:       di.products?.name ?? 'Producto',
+            sku:        di.products?.sku  ?? '-',
+            qty:        di.qty,
+            condition:  'good',
+          })));
+        }
+        // Mostrar found aunque no haya dispatch en BD
         setStep('found');
       } else {
+        // Coordinadora no encontró guía asociada → ingreso manual
         setStep('manual');
       }
     } catch (err) {
@@ -260,6 +265,14 @@ function NewReturn({ onCreated }) {
           </h3>
           <span className="text-white/35 text-xs">{items.filter(i=>i.qty>0).length} / {items.length} productos</span>
         </div>
+        {items.length === 0 && (
+          <div className="px-4 py-5 text-center">
+            <p className="text-white/40 text-xs">
+              El despacho original no está en la base de datos de esta bodega.<br/>
+              La guía original es <span className="font-mono text-primary-400">{coordinadoraData?.associatedGuide}</span> — puedes confirmar la devolución sin productos asociados o añadirlos manualmente más adelante.
+            </p>
+          </div>
+        )}
         <div className="divide-y divide-white/[0.04]">
           {items.map((item, idx) => (
             <div key={item.product_id} className={`px-4 py-3 flex items-center gap-3 ${item.qty === 0 ? 'opacity-40' : ''}`}>
