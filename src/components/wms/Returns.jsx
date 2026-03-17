@@ -193,11 +193,12 @@ function NewReturn({ onCreated }) {
       const channel = remoteScannerService.subscribeToSession(
         newSession.id,
         (event) => {
-          if (event.type === 'client_connected')    setRemoteConnected(true);
-          if (event.type === 'client_disconnected') setRemoteConnected(false);
-          if (event.type === 'scan' && event.code) {
-            const code = cleanScannedCode(event.code);
-            remoteScannerService.sendFeedback(remoteChannelRef.current, true, `Buscando ${code}...`);
+          console.log('📩 Returns remote event:', event);
+          if (event.event_type === 'client_connected')    setRemoteConnected(true);
+          if (event.event_type === 'client_disconnected') setRemoteConnected(false);
+          if (event.event_type === 'scan' && event.payload?.code) {
+            const code = cleanScannedCode(event.payload.code);
+            remoteScannerService.sendFeedback(remoteChannelRef.current, event.client_id, true, `Buscando ${code}...`);
             closeRemote();
             handleLookupWithGuide(code);
           }
