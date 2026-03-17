@@ -30,21 +30,27 @@ const STATUS_MAP = {
   cancelled: { label: 'Cancelada',  color: 'bg-red-500/15     text-red-400    border-red-500/20'    },
 };
 
-// Limpia barcode de devolución usando config de la transportadora
-// Si no hay config, aplica el patrón hardcoded de Coordinadora (15 dígitos, prefijo 1, guía 11)
+// Limpia barcode/QR de devolución usando config de la transportadora.
+// Extracción desde el FINAL: el prefijo varía (barcode vs QR), el sufijo es fijo.
+//
+//   Barcode: 739725853690001          → slice(-14, -3) = "39725853690"
+//   QR:      70020010200040630339725853690001 → slice(-14, -3) = "39725853690"
+//
+// Config: guide_length=11, suffix_length=3 → offset = -(11+3)=-14
 function cleanReturnCode(raw, carrierConfig = null) {
   let code = String(raw).trim();
-  // Sufijo .X del QR: "39725853690.1" → "39725853690"
+  // Sufijo .X del QR legacy: "39725853690.1" → "39725853690"
   code = code.replace(/\.[\d]+$/, '');
 
-  if (carrierConfig?.return_barcode_total_length && carrierConfig?.return_barcode_guide_length) {
-    const { return_barcode_total_length: total, return_barcode_prefix: prefix = 0, return_barcode_guide_length: guideLen } = carrierConfig;
-    if (code.length === total) {
-      code = code.slice(prefix, prefix + guideLen);
-    }
-  } else if (/^7\d{14}$/.test(code)) {
-    // Fallback hardcoded Coordinadora: 7 + 11 dígitos guía + 001
-    code = code.slice(1, 12);
+  const guideLen   = carrierConfig?.return_barcode_guide_length  ?? 11; // default Coordinadora
+  const suffixLen  = carrierConfig?.return_barcode_suffix_length ?? 3;  // default "001"
+  const offset     = guideLen + suffixLen; // chars desde el final donde empieza la guía
+
+  // Solo aplicar si el código es suficientemente largo y contiene dígitos
+  if (/^\d+$/.test(code) && code.length >= offset) {
+    code = suffixLen > 0
+      ? code.slice(-offset, -suffixLen)
+      : code.slice(-offset);
   }
   return code;
 }
