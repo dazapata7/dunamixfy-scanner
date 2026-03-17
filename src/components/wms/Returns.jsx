@@ -27,9 +27,19 @@ const STATUS_MAP = {
   cancelled: { label: 'Cancelada',  color: 'bg-red-500/15     text-red-400    border-red-500/20'    },
 };
 
-// Limpia el código escaneado: "39725853690.1" → "39725853690"
+// Limpia el código escaneado de Coordinadora devoluciones:
+//   "739725853690001" → "39725853690"  (barcode: 7 + guía11 + 001)
+//   "39725853690.1"   → "39725853690"  (QR con sufijo .X)
+//   "39725853690"     → "39725853690"  (ya limpio)
 function cleanScannedCode(raw) {
-  return String(raw).replace(/\.[\d]+$/, '').trim();
+  let code = String(raw).trim();
+  // Barcode Coordinadora retorno: 15 dígitos que empiezan con 7
+  if (/^7\d{14}$/.test(code)) {
+    code = code.slice(1, 12); // extrae los 11 dígitos de la guía
+  }
+  // Sufijo .X del QR: "39725853690.1" → "39725853690"
+  code = code.replace(/\.[\d]+$/, '');
+  return code;
 }
 
 function StatusBadge({ status }) {
