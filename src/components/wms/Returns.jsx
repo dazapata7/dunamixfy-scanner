@@ -12,6 +12,7 @@ import { returnsService } from '../../services/returnsService';
 import { remoteScannerService } from '../../services/remoteScannerService';
 import { supabase } from '../../services/supabase';
 import toast from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import {
   RotateCcw, Search, Package, CheckCircle,
   AlertTriangle, ChevronRight, ExternalLink, RefreshCw,
@@ -72,7 +73,7 @@ function NewReturn({ onCreated }) {
   // Scanner remoto
   const [remoteOpen, setRemoteOpen] = useState(false);
   const [remoteSession, setRemoteSession] = useState(null);
-  const [remoteQR, setRemoteQR] = useState(null);
+  const [remoteClientUrl, setRemoteClientUrl] = useState(null);
   const [remoteConnected, setRemoteConnected] = useState(false);
   const remoteChannelRef = useRef(null);
 
@@ -186,9 +187,7 @@ function NewReturn({ onCreated }) {
       const newSession = await remoteScannerService.createSession(warehouseId, operatorId, {});
       setRemoteSession(newSession);
       const clientUrl = `${window.location.origin}/wms/remote-scanner/client/${newSession.session_code}`;
-      const QRCode = (await import('qrcode')).default;
-      const qr = await QRCode.toDataURL(clientUrl, { width: 220, margin: 1 });
-      setRemoteQR(qr);
+      setRemoteClientUrl(clientUrl);
       setRemoteOpen(true);
 
       const channel = remoteScannerService.subscribeToSession(
@@ -220,7 +219,7 @@ function NewReturn({ onCreated }) {
       remoteScannerService.updateStatus(remoteSession.id, 'completed').catch(() => {});
     }
     setRemoteSession(null);
-    setRemoteQR(null);
+    setRemoteClientUrl(null);
     setRemoteConnected(false);
     setRemoteOpen(false);
   };
@@ -607,10 +606,10 @@ function NewReturn({ onCreated }) {
               {remoteConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
               {remoteConnected ? 'Teléfono conectado — escanea la guía' : 'Esperando conexión del teléfono...'}
             </div>
-            {remoteQR ? (
+            {remoteClientUrl ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="p-3 rounded-2xl bg-white">
-                  <img src={remoteQR} alt="QR sesión" className="w-48 h-48" />
+                  <QRCodeSVG value={remoteClientUrl} size={192} />
                 </div>
                 <p className="text-white/30 text-xs text-center">
                   Abre la app en tu teléfono y escanea el QR.<br />
