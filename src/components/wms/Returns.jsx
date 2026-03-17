@@ -1,9 +1,12 @@
 // =====================================================
 // RETURNS - Módulo de Devoluciones (Coordinadora)
 // =====================================================
-// Flujo: escanear guía retorno → Coordinadora API →
-// guía original → BD o Dunamixfy → productos →
-// confirmar → reponer stock (IN movements)
+// Flujo BATCH (igual al despacho):
+//   1. Abrir cámara o teléfono remoto
+//   2. Escanear múltiples guías de devolución
+//   3. Cada guía se resuelve automáticamente
+//   4. Lista acumulada: ✅ encontradas / ⚠️ error
+//   5. Revisar y aprobar → repone stock
 // =====================================================
 
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -17,7 +20,7 @@ import {
   RotateCcw, Search, Package, CheckCircle,
   AlertTriangle, ChevronRight, ExternalLink, RefreshCw,
   ArrowUpCircle, Plus, Minus, Camera, Smartphone, X,
-  Wifi, WifiOff
+  Wifi, WifiOff, CheckCircle2, XCircle, Loader2, Trash2
 } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────
@@ -27,148 +30,160 @@ const STATUS_MAP = {
   cancelled: { label: 'Cancelada',  color: 'bg-red-500/15     text-red-400    border-red-500/20'    },
 };
 
-// Limpia el código escaneado de Coordinadora devoluciones:
-//   "739725853690001" → "39725853690"  (barcode: 7 + guía11 + 001)
-//   "39725853690.1"   → "39725853690"  (QR con sufijo .X)
-//   "39725853690"     → "39725853690"  (ya limpio)
-function cleanScannedCode(raw) {
+// Limpia barcode de devolución usando config de la transportadora
+// Si no hay config, aplica el patrón hardcoded de Coordinadora (15 dígitos, prefijo 1, guía 11)
+function cleanReturnCode(raw, carrierConfig = null) {
   let code = String(raw).trim();
-  // Barcode Coordinadora retorno: 15 dígitos que empiezan con 7
-  if (/^7\d{14}$/.test(code)) {
-    code = code.slice(1, 12); // extrae los 11 dígitos de la guía
-  }
   // Sufijo .X del QR: "39725853690.1" → "39725853690"
   code = code.replace(/\.[\d]+$/, '');
+
+  if (carrierConfig?.return_barcode_total_length && carrierConfig?.return_barcode_guide_length) {
+    const { return_barcode_total_length: total, return_barcode_prefix: prefix = 0, return_barcode_guide_length: guideLen } = carrierConfig;
+    if (code.length === total) {
+      code = code.slice(prefix, prefix + guideLen);
+    }
+  } else if (/^7\d{14}$/.test(code)) {
+    // Fallback hardcoded Coordinadora: 7 + 11 dígitos guía + 001
+    code = code.slice(1, 12);
+  }
   return code;
 }
 
 function StatusBadge({ status }) {
   const { label, color } = STATUS_MAP[status] ?? STATUS_MAP.draft;
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}>
-      {label}
-    </span>
-  );
+  return <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${color}`}>{label}</span>;
 }
 
 function Card({ children, className = '' }) {
-  return (
-    <div className={`rounded-2xl bg-white/[0.04] border border-white/[0.07] backdrop-blur-sm ${className}`}>
-      {children}
-    </div>
-  );
+  return <div className={`rounded-2xl bg-white/[0.04] border border-white/[0.07] backdrop-blur-sm ${className}`}>{children}</div>;
 }
 
-// ── Vista: Nueva Devolución ───────────────────────────
+// ── Scanner de cámara compartido ──────────────────────
+const CAMERA_ID = 'return-camera-scanner';
+
+async function startCameraScanner(onScan, onError) {
+  const el = document.getElementById(CAMERA_ID);
+  if (el) el.innerHTML = '';
+  const { Html5Qrcode } = await import('html5-qrcode');
+  const scanner = new Html5Qrcode(CAMERA_ID);
+  await scanner.start(
+    { facingMode: 'environment' },
+    {
+      fps: 30,
+      qrbox: (w, h) => ({ width: Math.floor(w * 0.92), height: Math.floor(h * 0.45) }),
+      rememberLastUsedCamera: true,
+      formatsToSupport: [0, 8, 15, 9, 13, 14, 17, 18],
+      aspectRatio: 1.777,
+      experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+      videoConstraints: { facingMode: 'environment', focusMode: 'continuous' },
+    },
+    onScan,
+    () => {}
+  );
+  return scanner;
+}
+
+// ── Vista: Nueva Devolución (BATCH) ──────────────────
 function NewReturn({ onCreated }) {
   const warehouseId = useStore(s => s.selectedWarehouse?.id);
   const operatorId  = useStore(s => s.operatorId);
 
-  const [step, setStep]   = useState('input');
-  const [guide, setGuide] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  const [coordinadoraData, setCoordinadoraData] = useState(null);
-  const [dispatch, setDispatch]                 = useState(null);
-  const [dunamixfyData, setDunamixfyData]       = useState(null);
-
-  const [items, setItems] = useState([]);
-  const [notes, setNotes] = useState('');
-
-  // Scanner de cámara
-  const CAMERA_ID = 'return-camera-scanner';
-  const [cameraOpen, setCameraOpen] = useState(false);
-  const html5QrcodeRef = useRef(null);
-
-  // Scanner remoto
-  const [remoteOpen, setRemoteOpen] = useState(false);
-  const [remoteSession, setRemoteSession] = useState(null);
-  const [remoteClientUrl, setRemoteClientUrl] = useState(null);
-  const [remoteConnected, setRemoteConnected] = useState(false);
-  const remoteChannelRef = useRef(null);
-
-  // Selector de producto manual
-  const [showAddProduct, setShowAddProduct] = useState(false);
-  const [productSearch, setProductSearch]   = useState('');
-  const [productResults, setProductResults] = useState([]);
-
-  // ── handleLookup con guía específica ──────────────
-  const handleLookupWithGuide = useCallback(async (guideCode) => {
-    if (!guideCode) return;
-    setGuide(guideCode);
-    setLoading(true);
-    setStep('looking');
-    try {
-      const result = await returnsService.resolve(guideCode);
-      setCoordinadoraData(result.coordinadora);
-      setDispatch(result.dispatch);
-      setDunamixfyData(result.dunamixfy ?? null);
-
-      if (result.coordinadora?.associatedGuide) {
-        // Pre-cargar ítems según la fuente disponible
-        if (result.dispatch?.dispatch_items?.length > 0) {
-          setItems(result.dispatch.dispatch_items.map(di => ({
-            product_id: di.product_id,
-            name:       di.products?.name ?? 'Producto',
-            sku:        di.products?.sku  ?? '-',
-            qty:        di.qty,
-            condition:  'good',
-          })));
-        } else if (result.dunamixfy?.items?.length > 0) {
-          setItems(result.dunamixfy.items
-            .filter(i => i.product_id) // Solo los que tenemos en BD
-            .map(i => ({
-              product_id: i.product_id,
-              name:       i.product_name ?? i.name,
-              sku:        i.product_sku  ?? i.external_sku,
-              qty:        i.qty,
-              condition:  'good',
-            }))
-          );
-        }
-        setStep('found');
-      } else {
-        setStep('manual');
-      }
-    } catch (err) {
-      toast.error(err.message || 'Error al consultar Coordinadora');
-      setStep('input');
-    } finally {
-      setLoading(false);
-    }
+  // Configuración de transportadoras (para patrones de barcode)
+  const [carriers, setCarriers] = useState([]);
+  useEffect(() => {
+    supabase.from('carriers').select('id,name,code,return_barcode_total_length,return_barcode_prefix,return_barcode_guide_length,return_tracking_url')
+      .then(({ data }) => setCarriers(data ?? []));
   }, []);
 
-  const handleLookup = useCallback(() => {
-    const trimmed = guide.trim();
-    if (trimmed) handleLookupWithGuide(trimmed);
-  }, [guide, handleLookupWithGuide]);
+  // ── Batch state ───────────────────────────────────
+  // item: { id, guideCode, status: 'resolving'|'found'|'error', coordinadoraData, dispatch, dunamixfy, items, error, condition }
+  const [batch, setBatch] = useState([]);
+  const scanningRef = useRef(false); // evita doble proceso del mismo código
+  const lastScannedRef = useRef(null);
+  const cooldownRef = useRef(false);
+
+  // ── Scanner modes ─────────────────────────────────
+  const [cameraOpen, setCameraOpen]     = useState(false);
+  const [remoteOpen, setRemoteOpen]     = useState(false);
+  const [remoteSession, setRemoteSession]     = useState(null);
+  const [remoteClientUrl, setRemoteClientUrl] = useState(null);
+  const [remoteConnected, setRemoteConnected] = useState(false);
+  const html5QrcodeRef   = useRef(null);
+  const remoteChannelRef = useRef(null);
+
+  // ── Resolve: procesa una guía y la agrega al batch ─
+  const resolveGuide = useCallback(async (rawCode) => {
+    if (cooldownRef.current) return;
+    const code = cleanReturnCode(rawCode, carriers.find(c => c.code === 'coordinadora' || c.name?.toLowerCase().includes('coordinadora')));
+
+    if (!code || code.length < 6) return;
+    if (lastScannedRef.current === code) return; // mismo código repetido
+    lastScannedRef.current = code;
+    cooldownRef.current = true;
+    setTimeout(() => { cooldownRef.current = false; }, 2500);
+
+    // Verificar si ya está en el batch
+    if (batch.some(b => b.guideCode === code)) {
+      toast('⚠️ Guía ya escaneada en este lote', { icon: '⚠️' });
+      return;
+    }
+
+    const itemId = crypto.randomUUID();
+    // Agregar en estado "resolving"
+    setBatch(prev => [...prev, { id: itemId, guideCode: code, status: 'resolving', items: [] }]);
+
+    try {
+      const result = await returnsService.resolve(code);
+      const { coordinadora, dispatch, dunamixfy } = result;
+
+      let items = [];
+      if (dispatch?.dispatch_items?.length > 0) {
+        items = dispatch.dispatch_items.map(di => ({
+          product_id: di.product_id,
+          name:       di.products?.name ?? 'Producto',
+          sku:        di.products?.sku  ?? '-',
+          qty:        di.qty,
+          condition:  'good',
+        }));
+      } else if (dunamixfy?.items?.length > 0) {
+        items = dunamixfy.items.filter(i => i.product_id).map(i => ({
+          product_id: i.product_id,
+          name:       i.product_name ?? i.name,
+          sku:        i.product_sku  ?? i.external_sku,
+          qty:        i.qty,
+          condition:  'good',
+        }));
+      }
+
+      if (!coordinadora?.associatedGuide) {
+        setBatch(prev => prev.map(b => b.id === itemId ? {
+          ...b, status: 'error',
+          error: 'No se encontró guía asociada en Coordinadora',
+          coordinadoraData: coordinadora,
+        } : b));
+      } else {
+        setBatch(prev => prev.map(b => b.id === itemId ? {
+          ...b, status: 'found',
+          coordinadoraData: coordinadora,
+          dispatch, dunamixfy,
+          items,
+          itemSource: dispatch ? 'dispatch' : dunamixfy ? 'dunamixfy' : 'none',
+        } : b));
+      }
+    } catch (err) {
+      setBatch(prev => prev.map(b => b.id === itemId ? {
+        ...b, status: 'error', error: err.message || 'Error al consultar Coordinadora',
+      } : b));
+    }
+  }, [carriers, batch]);
 
   // ── Cámara ────────────────────────────────────────
   const startCamera = async () => {
     setCameraOpen(true);
-    // Esperar a que el DOM monte el div
     await new Promise(r => setTimeout(r, 150));
-    const el = document.getElementById(CAMERA_ID);
-    if (el) el.innerHTML = '';
     try {
-      const { Html5Qrcode } = await import('html5-qrcode');
-      html5QrcodeRef.current = new Html5Qrcode(CAMERA_ID);
-      await html5QrcodeRef.current.start(
-        { facingMode: 'environment' },
-        {
-          fps: 30,
-          qrbox: (w, h) => ({ width: Math.floor(w * 0.9), height: Math.floor(h * 0.5) }),
-          rememberLastUsedCamera: true,
-          formatsToSupport: [0, 8, 15, 9, 13, 14, 17, 18],
-          aspectRatio: 1.777,
-          experimentalFeatures: { useBarCodeDetectorIfSupported: true },
-          videoConstraints: { facingMode: 'environment', focusMode: 'continuous' },
-        },
-        (decoded) => {
-          const code = cleanScannedCode(decoded);
-          stopCamera();
-          handleLookupWithGuide(code);
-        },
+      html5QrcodeRef.current = await startCameraScanner(
+        (decoded) => resolveGuide(decoded),
         () => {}
       );
     } catch (err) {
@@ -196,391 +211,108 @@ function NewReturn({ onCreated }) {
     try {
       const newSession = await remoteScannerService.createSession(warehouseId, operatorId, {});
       setRemoteSession(newSession);
-      const clientUrl = `${window.location.origin}/wms/remote-scanner/client/${newSession.session_code}`;
-      setRemoteClientUrl(clientUrl);
+      setRemoteClientUrl(`${window.location.origin}/wms/remote-scanner/client/${newSession.session_code}`);
       setRemoteOpen(true);
 
       const channel = remoteScannerService.subscribeToSession(
         newSession.id,
         (event) => {
-          console.log('📩 Returns remote event:', event);
           if (event.event_type === 'client_connected')    setRemoteConnected(true);
           if (event.event_type === 'client_disconnected') setRemoteConnected(false);
           if (event.event_type === 'scan' && event.payload?.code) {
-            const code = cleanScannedCode(event.payload.code);
-            remoteScannerService.sendFeedback(remoteChannelRef.current, event.client_id, true, `Buscando ${code}...`);
-            closeRemote();
-            handleLookupWithGuide(code);
+            const rawCode = event.payload.code;
+            remoteScannerService.sendFeedback(remoteChannelRef.current, event.client_id, true, `Procesando...`);
+            resolveGuide(rawCode);
           }
         },
         () => {}
       );
       remoteChannelRef.current = channel;
-    } catch (err) {
-      toast.error('Error al crear sesión remota');
-    }
+    } catch { toast.error('Error al crear sesión remota'); }
   };
 
   const closeRemote = async () => {
-    if (remoteChannelRef.current) {
-      await remoteScannerService.unsubscribe(remoteChannelRef.current);
-      remoteChannelRef.current = null;
-    }
-    if (remoteSession?.id) {
-      remoteScannerService.updateStatus(remoteSession.id, 'completed').catch(() => {});
-    }
-    setRemoteSession(null);
-    setRemoteClientUrl(null);
-    setRemoteConnected(false);
-    setRemoteOpen(false);
+    if (remoteChannelRef.current) { await remoteScannerService.unsubscribe(remoteChannelRef.current); remoteChannelRef.current = null; }
+    if (remoteSession?.id) remoteScannerService.updateStatus(remoteSession.id, 'completed').catch(() => {});
+    setRemoteSession(null); setRemoteClientUrl(null); setRemoteConnected(false); setRemoteOpen(false);
   };
 
   useEffect(() => () => { closeRemote(); }, []);
 
-  // ── Ajuste de ítems ───────────────────────────────
-  const adjustQty    = (idx, delta) => setItems(prev => prev.map((it, i) => i !== idx ? it : { ...it, qty: Math.max(0, it.qty + delta) }));
-  const setCondition = (idx, cond) =>  setItems(prev => prev.map((it, i) => i !== idx ? it : { ...it, condition: cond }));
-
-  // ── Búsqueda de productos para agregar manualmente ─
-  useEffect(() => {
-    if (!productSearch.trim() || productSearch.length < 2) { setProductResults([]); return; }
-    const t = setTimeout(async () => {
-      const { data } = await supabase.from('products')
-        .select('id, name, sku')
-        .or(`name.ilike.%${productSearch}%,sku.ilike.%${productSearch}%`)
-        .eq('is_active', true).limit(8);
-      setProductResults(data ?? []);
-    }, 300);
-    return () => clearTimeout(t);
-  }, [productSearch]);
-
-  const addProductManually = (product) => {
-    if (items.some(i => i.product_id === product.id)) {
-      toast.error('Producto ya en la lista');
-      return;
-    }
-    setItems(prev => [...prev, { product_id: product.id, name: product.name, sku: product.sku, qty: 1, condition: 'good' }]);
-    setProductSearch('');
-    setProductResults([]);
-    setShowAddProduct(false);
+  // ── Editar ítems de un batch item ─────────────────
+  const adjustQty = (batchId, idx, delta) => {
+    setBatch(prev => prev.map(b => b.id !== batchId ? b : {
+      ...b, items: b.items.map((it, i) => i !== idx ? it : { ...it, qty: Math.max(0, it.qty + delta) })
+    }));
   };
+  const setCondition = (batchId, idx, cond) => {
+    setBatch(prev => prev.map(b => b.id !== batchId ? b : {
+      ...b, items: b.items.map((it, i) => i !== idx ? it : { ...it, condition: cond })
+    }));
+  };
+  const removeFromBatch = (batchId) => setBatch(prev => prev.filter(b => b.id !== batchId));
 
-  // ── Confirmar devolución ──────────────────────────
-  const handleConfirm = async () => {
+  // ── Confirmar batch completo ──────────────────────
+  const [confirming, setConfirming] = useState(false);
+
+  const handleConfirmBatch = async () => {
     if (!warehouseId) { toast.error('Selecciona una bodega primero'); return; }
-    const validItems = items.filter(i => i.qty > 0);
-    if (validItems.length === 0) { toast.error('Agrega al menos un producto con cantidad > 0'); return; }
-    setLoading(true);
-    try {
-      const carrierId = dispatch?.shipment_record?.carriers?.id ?? null;
-      const ret = await returnsService.create({
-        returnGuideCode:    guide.trim(),
-        originalGuideCode:  coordinadoraData?.associatedGuide ?? null,
-        originalDispatchId: dispatch?.id ?? null,
-        warehouseId,
-        operatorId: operatorId ?? null,
-        carrierId,
-        notes: notes || null,
-      }, validItems.map(i => ({ product_id: i.product_id, qty: i.qty, condition: i.condition })));
+    const toConfirm = batch.filter(b => b.status === 'found' && b.items.some(i => i.qty > 0));
+    if (!toConfirm.length) { toast.error('No hay devoluciones válidas con productos para aprobar'); return; }
 
-      await returnsService.confirm(ret.id, operatorId);
-      toast.success(`✅ Devolución ${ret.return_number} confirmada — stock repuesto`);
-      onCreated?.();
-      reset();
-    } catch (err) {
-      toast.error(err.message || 'Error al confirmar devolución');
-    } finally {
-      setLoading(false);
+    setConfirming(true);
+    let confirmed = 0, errors = 0;
+
+    for (const item of toConfirm) {
+      try {
+        const carrierId = item.dispatch?.shipment_record?.carriers?.id ?? null;
+        const ret = await returnsService.create({
+          returnGuideCode:    item.guideCode,
+          originalGuideCode:  item.coordinadoraData?.associatedGuide ?? null,
+          originalDispatchId: item.dispatch?.id ?? null,
+          warehouseId,
+          operatorId: operatorId ?? null,
+          carrierId,
+          notes: null,
+        }, item.items.filter(i => i.qty > 0).map(i => ({
+          product_id: i.product_id, qty: i.qty, condition: i.condition,
+        })));
+        await returnsService.confirm(ret.id, operatorId);
+        confirmed++;
+        setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'confirmed', returnNumber: ret.return_number } : b));
+      } catch (err) {
+        errors++;
+        setBatch(prev => prev.map(b => b.id === item.id ? { ...b, status: 'error', error: err.message } : b));
+      }
     }
+
+    setConfirming(false);
+    if (confirmed > 0) {
+      toast.success(`✅ ${confirmed} devolución${confirmed > 1 ? 'es' : ''} confirmada${confirmed > 1 ? 's' : ''} — stock repuesto`);
+      onCreated?.();
+    }
+    if (errors > 0) toast.error(`❌ ${errors} devolución${errors > 1 ? 'es' : ''} con error`);
   };
 
-  const reset = () => {
-    setStep('input'); setGuide(''); setItems([]);
-    setCoordinadoraData(null); setDispatch(null); setDunamixfyData(null); setNotes('');
-  };
+  // ── Stats del batch ───────────────────────────────
+  const foundCount     = batch.filter(b => b.status === 'found').length;
+  const errorCount     = batch.filter(b => b.status === 'error').length;
+  const resolvingCount = batch.filter(b => b.status === 'resolving').length;
+  const confirmedCount = batch.filter(b => b.status === 'confirmed').length;
 
-  // ── RENDERS ───────────────────────────────────────
-  const renderInput = () => (
-    <Card className="p-6 space-y-4">
-      <div>
-        <h2 className="text-white/80 font-semibold text-sm flex items-center gap-2 mb-1">
-          <Search className="w-4 h-4 text-primary-400" />
-          Guía de devolución
-        </h2>
-        <p className="text-white/35 text-xs leading-relaxed">
-          Ingresa o escanea el número de guía de devolución (empieza por <span className="font-mono text-white/55">300...</span> o <span className="font-mono text-white/55">397...</span>).
-          Buscamos automáticamente la guía original en Coordinadora.
-        </p>
-      </div>
-
-      {/* Input + buscar */}
-      <div className="flex gap-2">
-        <input
-          type="text"
-          value={guide}
-          onChange={e => setGuide(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLookup()}
-          placeholder="Ej: 39725853690"
-          className="flex-1 bg-white/[0.05] border border-white/[0.10] rounded-xl px-4 py-3 text-white placeholder-white/25 text-sm focus:outline-none focus:border-primary-500/50 font-mono"
-          autoFocus
-        />
-        <button
-          onClick={handleLookup}
-          disabled={!guide.trim() || loading}
-          className="px-4 py-3 rounded-xl bg-primary-500 text-dark-950 font-bold text-sm hover:bg-primary-400 disabled:opacity-40 transition-all flex items-center gap-2"
-        >
-          <Search className="w-4 h-4" />
-          Buscar
-        </button>
-      </div>
-
-      {/* Botones de scanner */}
-      <div className="flex gap-2">
-        <button
-          onClick={startCamera}
-          className="flex-1 py-2.5 rounded-xl border border-white/[0.10] text-white/50 hover:text-white/80 hover:bg-white/[0.05] text-sm font-medium transition-all flex items-center justify-center gap-2"
-        >
-          <Camera className="w-4 h-4 text-primary-400/70" />
-          Cámara (este dispositivo)
-        </button>
-        <button
-          onClick={openRemote}
-          className="flex-1 py-2.5 rounded-xl border border-white/[0.10] text-white/50 hover:text-white/80 hover:bg-white/[0.05] text-sm font-medium transition-all flex items-center justify-center gap-2"
-        >
-          <Smartphone className="w-4 h-4 text-primary-400/70" />
-          Escanear con teléfono
-        </button>
-      </div>
-
-      <a
-        href={`https://coordinadora.com/rastreo/rastreo-de-guia/detalle-de-rastreo-de-guia/?guia=${guide.trim() || '0'}`}
-        target="_blank" rel="noopener noreferrer"
-        className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-primary-400/60 transition-colors"
-      >
-        <ExternalLink className="w-3 h-3" />
-        Ver tracking en Coordinadora.com
-      </a>
-    </Card>
-  );
-
-  const renderLooking = () => (
-    <Card className="p-8 flex flex-col items-center gap-4">
-      <div className="w-12 h-12 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-      <div className="text-center">
-        <p className="text-white/70 font-semibold text-sm">Consultando Coordinadora...</p>
-        <p className="text-white/35 text-xs mt-1">Guía: <span className="font-mono text-white/50">{guide}</span></p>
-      </div>
-    </Card>
-  );
-
-  // Determina la fuente de los ítems
-  const itemSource = dispatch ? 'dispatch' : dunamixfyData ? 'dunamixfy' : 'none';
-
-  const renderFound = () => (
-    <div className="space-y-4">
-      {/* Info guías */}
-      <Card className="p-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <span className="text-white/40 text-xs">Guía retorno:</span>
-              <span className="font-mono text-white/80 text-sm">{guide}</span>
-            </div>
-            {coordinadoraData?.associatedGuide && (
-              <div className="flex items-center gap-2">
-                <ChevronRight className="w-3.5 h-3.5 text-primary-400" />
-                <span className="text-white/40 text-xs">Guía original:</span>
-                <span className="font-mono text-primary-400 font-bold text-sm">{coordinadoraData.associatedGuide}</span>
-              </div>
-            )}
-            {coordinadoraData?.guideStatus && (
-              <div className="flex items-center gap-2">
-                <span className="text-white/40 text-xs">Estado:</span>
-                <span className="text-white/55 text-xs">{coordinadoraData.guideStatus}</span>
-              </div>
-            )}
-          </div>
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-            <CheckCircle className="w-3.5 h-3.5 text-emerald-400" />
-            <span className="text-emerald-400 text-xs font-semibold">Encontrada</span>
-          </div>
-        </div>
-
-        {dispatch && (
-          <div className="mt-3 pt-3 border-t border-white/[0.06] flex items-center gap-4">
-            <div>
-              <p className="text-white/35 text-[10px] uppercase tracking-widest">Despacho original</p>
-              <p className="text-white/70 font-mono text-xs mt-0.5">{dispatch.dispatch_number}</p>
-            </div>
-            {dispatch.shipment_record?.carriers && (
-              <div>
-                <p className="text-white/35 text-[10px] uppercase tracking-widest">Transportadora</p>
-                <p className="text-white/70 text-xs mt-0.5">{dispatch.shipment_record.carriers.name}</p>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Fuente de ítems */}
-        {itemSource === 'dunamixfy' && (
-          <div className="mt-2 pt-2 border-t border-white/[0.06]">
-            <p className="text-white/35 text-xs">Productos obtenidos de Dunamixfy (el despacho no está en esta bodega)</p>
-          </div>
-        )}
-        {itemSource === 'none' && (
-          <div className="mt-2 pt-2 border-t border-white/[0.06] flex items-center gap-2">
-            <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0" />
-            <p className="text-amber-400/80 text-xs">No encontramos información de productos. Agrégalos manualmente abajo.</p>
-          </div>
-        )}
-      </Card>
-
-      {/* Productos */}
-      <Card className="overflow-hidden">
-        <div className="px-4 py-3 border-b border-white/[0.06] flex items-center justify-between">
-          <h3 className="text-white/70 font-semibold text-sm flex items-center gap-2">
-            <Package className="w-4 h-4 text-primary-400" />
-            Productos a devolver
-          </h3>
-          <button
-            onClick={() => setShowAddProduct(p => !p)}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/[0.05] border border-white/[0.08] text-xs text-white/50 hover:text-white/75 transition-all"
-          >
-            <Plus className="w-3 h-3" /> Agregar
-          </button>
-        </div>
-
-        {/* Buscador de producto manual */}
-        {showAddProduct && (
-          <div className="px-4 py-3 border-b border-white/[0.06] space-y-2">
-            <input
-              type="text"
-              value={productSearch}
-              onChange={e => setProductSearch(e.target.value)}
-              placeholder="Buscar por nombre o SKU..."
-              className="w-full bg-white/[0.05] border border-white/[0.10] rounded-xl px-3 py-2 text-white placeholder-white/25 text-sm focus:outline-none focus:border-primary-500/50"
-              autoFocus
-            />
-            {productResults.length > 0 && (
-              <div className="rounded-xl border border-white/[0.08] overflow-hidden">
-                {productResults.map(p => (
-                  <button
-                    key={p.id}
-                    onClick={() => addProductManually(p)}
-                    className="w-full px-3 py-2.5 text-left hover:bg-white/[0.06] border-b border-white/[0.04] last:border-0 transition-colors"
-                  >
-                    <p className="text-white/80 text-sm">{p.name}</p>
-                    <p className="text-white/35 text-xs font-mono">{p.sku}</p>
-                  </button>
-                ))}
-              </div>
-            )}
-            {productSearch.length >= 2 && productResults.length === 0 && (
-              <p className="text-white/30 text-xs px-1">Sin resultados para "{productSearch}"</p>
-            )}
-          </div>
-        )}
-
-        {items.length === 0 ? (
-          <div className="px-4 py-6 text-center">
-            <p className="text-white/35 text-sm">Sin productos — usa "Agregar" para añadirlos manualmente</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-white/[0.04]">
-            {items.map((item, idx) => (
-              <div key={`${item.product_id}-${idx}`} className={`px-4 py-3 flex items-center gap-3 ${item.qty === 0 ? 'opacity-40' : ''}`}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white/80 text-sm font-medium truncate">{item.name}</p>
-                  <p className="text-white/35 text-xs font-mono">{item.sku}</p>
-                </div>
-                <div className="flex gap-1">
-                  {['good', 'damaged'].map(cond => (
-                    <button key={cond} onClick={() => setCondition(idx, cond)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-semibold border transition-all ${
-                        item.condition === cond
-                          ? cond === 'good' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
-                          : 'bg-white/[0.04] border-white/[0.08] text-white/35 hover:text-white/60'
-                      }`}>
-                      {cond === 'good' ? 'Buen estado' : 'Dañado'}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <button onClick={() => adjustQty(idx, -1)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.08] flex items-center justify-center">
-                    <Minus className="w-3 h-3 text-white/50" />
-                  </button>
-                  <span className="w-8 text-center text-white/80 font-mono font-bold text-sm">{item.qty}</span>
-                  <button onClick={() => adjustQty(idx, +1)} className="w-7 h-7 rounded-lg bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.08] flex items-center justify-center">
-                    <Plus className="w-3 h-3 text-white/50" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
-
-      {/* Notas */}
-      <Card className="p-4">
-        <label className="block text-white/45 text-xs mb-2">Notas (opcional)</label>
-        <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
-          placeholder="Motivo de la devolución, observaciones..."
-          className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-white/70 placeholder-white/20 text-sm resize-none focus:outline-none focus:border-primary-500/40"
-        />
-      </Card>
-
-      {/* Acciones */}
-      <div className="flex gap-3">
-        <button onClick={reset}
-          className="px-4 py-2.5 rounded-xl border border-white/[0.10] text-white/45 hover:text-white/70 hover:bg-white/[0.05] text-sm font-medium transition-all flex items-center gap-2">
-          <RotateCcw className="w-3.5 h-3.5" /> Nueva búsqueda
-        </button>
-        <button onClick={handleConfirm}
-          disabled={loading || items.filter(i => i.qty > 0).length === 0}
-          className="flex-1 py-2.5 rounded-xl bg-primary-500 text-dark-950 font-bold text-sm hover:bg-primary-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
-          {loading ? <RefreshCw className="w-4 h-4 animate-spin" /> : <ArrowUpCircle className="w-4 h-4" />}
-          Confirmar Devolución — Reponer Stock
-        </button>
-      </div>
-    </div>
-  );
-
-  const renderManual = () => (
-    <div className="space-y-4">
-      <Card className="p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-          <div>
-            <p className="text-amber-400 font-semibold text-sm">Guía asociada no encontrada</p>
-            <p className="text-white/40 text-xs mt-1 leading-relaxed">
-              Coordinadora no tiene una guía anterior asociada a este número. Puede que no sea
-              una devolución o que aún no esté registrada.
-            </p>
-          </div>
-        </div>
-        <a href={`https://coordinadora.com/rastreo/rastreo-de-guia/detalle-de-rastreo-de-guia/?guia=${guide.trim()}`}
-          target="_blank" rel="noopener noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/[0.05] border border-white/[0.08] text-xs text-primary-400/80 hover:text-primary-400 transition-all">
-          <ExternalLink className="w-3.5 h-3.5" />
-          Ver tracking de {guide.trim()} en Coordinadora.com
-        </a>
-      </Card>
-      <button onClick={reset}
-        className="w-full py-2.5 rounded-xl border border-white/[0.10] text-white/40 hover:text-white/65 hover:bg-white/[0.04] text-sm font-medium transition-all">
-        Intentar con otra guía de devolución
-      </button>
-    </div>
-  );
-
+  // ── RENDER ────────────────────────────────────────
   return (
-    <div>
-      {/* Modales */}
+    <div className="space-y-4">
+      {/* Modal cámara full-screen */}
       {cameraOpen && (
-        <div className="fixed inset-0 z-50 bg-black/90 flex flex-col">
+        <div className="fixed inset-0 z-50 bg-black/95 flex flex-col">
           <div className="flex items-center justify-between px-4 py-3 bg-dark-950/80 backdrop-blur-xl border-b border-white/[0.08]">
             <div>
-              <p className="text-white font-bold text-sm">Escanear Guía de Devolución</p>
-              <p className="text-white/40 text-xs mt-0.5">Apunta al QR o barcode de la guía de devolución</p>
+              <p className="text-white font-bold text-sm">Escaneando Devoluciones</p>
+              <p className="text-white/40 text-xs mt-0.5">
+                Escanea el QR o barcode de la guía de devolución
+                {batch.length > 0 && <span className="ml-2 text-primary-400">{batch.length} en lote</span>}
+              </p>
             </div>
             <button onClick={stopCamera} className="p-2 rounded-xl bg-white/[0.08] hover:bg-white/[0.15] transition-colors">
               <X className="w-5 h-5 text-white/70" />
@@ -588,10 +320,25 @@ function NewReturn({ onCreated }) {
           </div>
           <div className="flex-1 relative">
             <div id={CAMERA_ID} className="w-full h-full" />
+            {/* Stats overlay */}
+            <div className="absolute top-3 left-0 right-0 flex justify-center gap-2 pointer-events-none">
+              {foundCount > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/20 border border-emerald-500/30 backdrop-blur-sm">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400 text-xs font-bold">{foundCount} encontradas</span>
+                </div>
+              )}
+              {errorCount > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-500/20 border border-red-500/30 backdrop-blur-sm">
+                  <XCircle className="w-3.5 h-3.5 text-red-400" />
+                  <span className="text-red-400 text-xs font-bold">{errorCount} errores</span>
+                </div>
+              )}
+            </div>
             <div className="absolute bottom-6 left-0 right-0 flex justify-center">
               <div className="px-4 py-2 rounded-full bg-dark-950/70 backdrop-blur-sm border border-white/[0.10]">
                 <p className="text-white/55 text-xs text-center">
-                  Busca la guía de retorno — código <span className="text-primary-400 font-mono">300...</span> o <span className="text-primary-400 font-mono">397...</span>
+                  Busca el barcode de retorno — código <span className="text-primary-400 font-mono">397...</span> o <span className="text-primary-400 font-mono">300...</span>
                 </p>
               </div>
             </div>
@@ -599,36 +346,54 @@ function NewReturn({ onCreated }) {
         </div>
       )}
 
+      {/* Modal remoto */}
       {remoteOpen && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <Card className="w-full max-w-sm p-6 space-y-5">
+          <Card className="w-full max-w-sm p-6 space-y-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-white font-bold text-sm">Scanner Remoto</p>
-                <p className="text-white/40 text-xs">Escanea desde tu teléfono</p>
+                <p className="text-white font-bold text-sm">Scanner Remoto — Devoluciones</p>
+                <p className="text-white/40 text-xs">Escanea varias guías desde el teléfono</p>
               </div>
               <button onClick={closeRemote} className="p-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] transition-colors">
                 <X className="w-4 h-4 text-white/60" />
               </button>
             </div>
+
             <div className={`flex items-center gap-2 px-3 py-2 rounded-xl border text-xs font-semibold ${
               remoteConnected ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-white/[0.04] border-white/[0.08] text-white/40'
             }`}>
               {remoteConnected ? <Wifi className="w-3.5 h-3.5" /> : <WifiOff className="w-3.5 h-3.5" />}
-              {remoteConnected ? 'Teléfono conectado — escanea la guía' : 'Esperando conexión del teléfono...'}
+              {remoteConnected ? 'Teléfono conectado — escanea las guías de devolución' : 'Esperando conexión...'}
             </div>
+
+            {/* Stats del batch mientras escanea */}
+            {batch.length > 0 && (
+              <div className="flex gap-2">
+                {foundCount > 0 && <div className="flex-1 text-center py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/20"><p className="text-emerald-400 font-bold text-lg">{foundCount}</p><p className="text-emerald-400/70 text-[10px]">encontradas</p></div>}
+                {resolvingCount > 0 && <div className="flex-1 text-center py-2 rounded-xl bg-white/[0.05] border border-white/[0.08]"><p className="text-white/60 font-bold text-lg">{resolvingCount}</p><p className="text-white/35 text-[10px]">buscando</p></div>}
+                {errorCount > 0 && <div className="flex-1 text-center py-2 rounded-xl bg-red-500/10 border border-red-500/20"><p className="text-red-400 font-bold text-lg">{errorCount}</p><p className="text-red-400/70 text-[10px]">errores</p></div>}
+              </div>
+            )}
+
             {remoteClientUrl ? (
               <div className="flex flex-col items-center gap-3">
                 <div className="p-3 rounded-2xl bg-white">
-                  <QRCodeSVG value={remoteClientUrl} size={192} />
+                  <QRCodeSVG value={remoteClientUrl} size={180} />
                 </div>
                 <p className="text-white/30 text-xs text-center">
-                  Abre la app en tu teléfono y escanea el QR.<br />
-                  Código: <span className="font-mono text-white/55">{remoteSession?.session_code}</span>
+                  Abre la app en tu teléfono, escanea el QR y luego escanea los paquetes de devolución.<br/>
+                  Código: <span className="font-mono text-white/50">{remoteSession?.session_code}</span>
                 </p>
+                {batch.length > 0 && (
+                  <button onClick={closeRemote}
+                    className="w-full py-2.5 rounded-xl bg-primary-500/20 border border-primary-500/30 text-primary-400 text-sm font-semibold hover:bg-primary-500/30 transition-all">
+                    Terminar escaneo y revisar ({batch.length})
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-6">
                 <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
               </div>
             )}
@@ -636,15 +401,178 @@ function NewReturn({ onCreated }) {
         </div>
       )}
 
-      {step === 'input'   && renderInput()}
-      {step === 'looking' && renderLooking()}
-      {step === 'found'   && renderFound()}
-      {step === 'manual'  && renderManual()}
+      {/* Cabecera con botones de scanner */}
+      <Card className="p-4 space-y-3">
+        <div className="flex gap-2">
+          <button onClick={startCamera}
+            className="flex-1 py-3 rounded-xl border border-white/[0.10] text-white/55 hover:text-white/85 hover:bg-white/[0.05] text-sm font-medium transition-all flex items-center justify-center gap-2">
+            <Camera className="w-4 h-4 text-primary-400/70" />
+            Cámara
+          </button>
+          <button onClick={openRemote}
+            className="flex-1 py-3 rounded-xl border border-white/[0.10] text-white/55 hover:text-white/85 hover:bg-white/[0.05] text-sm font-medium transition-all flex items-center justify-center gap-2">
+            <Smartphone className="w-4 h-4 text-primary-400/70" />
+            Escanear con teléfono
+          </button>
+        </div>
+        <p className="text-white/25 text-xs text-center">Escanea una o varias guías de devolución — se acumulan en el lote</p>
+      </Card>
+
+      {/* Lista del batch */}
+      {batch.length > 0 && (
+        <div className="space-y-2">
+          {batch.map((item) => (
+            <BatchItem
+              key={item.id}
+              item={item}
+              onRemove={() => removeFromBatch(item.id)}
+              onAdjustQty={(idx, delta) => adjustQty(item.id, idx, delta)}
+              onSetCondition={(idx, cond) => setCondition(item.id, idx, cond)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* Botón aprobar */}
+      {batch.length > 0 && (
+        <div className="space-y-2">
+          {foundCount > 0 && (
+            <button onClick={handleConfirmBatch} disabled={confirming}
+              className="w-full py-3.5 rounded-xl bg-primary-500 text-dark-950 font-bold text-sm hover:bg-primary-400 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2">
+              {confirming
+                ? <><Loader2 className="w-4 h-4 animate-spin" /> Confirmando...</>
+                : <><ArrowUpCircle className="w-4 h-4" /> Aprobar {foundCount} devolución{foundCount > 1 ? 'es' : ''} — Reponer Stock</>
+              }
+            </button>
+          )}
+          {(confirmedCount > 0 || errorCount > 0) && (
+            <button onClick={() => setBatch([])}
+              className="w-full py-2.5 rounded-xl border border-white/[0.10] text-white/40 hover:text-white/65 hover:bg-white/[0.04] text-sm font-medium transition-all">
+              Limpiar lote y empezar de nuevo
+            </button>
+          )}
+        </div>
+      )}
+
+      {batch.length === 0 && (
+        <div className="flex flex-col items-center gap-3 py-10 text-center">
+          <RotateCcw className="w-10 h-10 text-white/10" />
+          <p className="text-white/30 text-sm">Escanea las guías de devolución para comenzar</p>
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Vista: Historial de Devoluciones ─────────────────
+// ── BatchItem: card de cada guía en el lote ───────────
+function BatchItem({ item, onRemove, onAdjustQty, onSetCondition }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const statusIcon = {
+    resolving: <Loader2 className="w-4 h-4 text-white/40 animate-spin" />,
+    found:     <CheckCircle2 className="w-4 h-4 text-emerald-400" />,
+    error:     <XCircle className="w-4 h-4 text-red-400" />,
+    confirmed: <CheckCircle className="w-4 h-4 text-primary-400" />,
+  }[item.status];
+
+  const bgClass = {
+    resolving: 'border-white/[0.07]',
+    found:     'border-emerald-500/20',
+    error:     'border-red-500/20',
+    confirmed: 'border-primary-500/20',
+  }[item.status] ?? 'border-white/[0.07]';
+
+  return (
+    <div className={`rounded-2xl bg-white/[0.03] border ${bgClass} overflow-hidden`}>
+      {/* Header */}
+      <div
+        className="px-4 py-3 flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] transition-colors"
+        onClick={() => item.status === 'found' && setExpanded(p => !p)}
+      >
+        {statusIcon}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-white/75 text-sm">{item.guideCode}</span>
+            {item.status === 'confirmed' && (
+              <span className="text-primary-400/70 text-[10px] font-mono">{item.returnNumber}</span>
+            )}
+          </div>
+          {item.coordinadoraData?.associatedGuide && (
+            <div className="flex items-center gap-1 mt-0.5">
+              <ChevronRight className="w-3 h-3 text-white/25" />
+              <span className="font-mono text-primary-400/70 text-xs">{item.coordinadoraData.associatedGuide}</span>
+              {item.coordinadoraData.guideStatus && (
+                <span className="text-white/30 text-[10px]">· {item.coordinadoraData.guideStatus}</span>
+              )}
+            </div>
+          )}
+          {item.status === 'error' && (
+            <p className="text-red-400/70 text-xs mt-0.5 truncate">{item.error}</p>
+          )}
+          {item.status === 'found' && (
+            <p className="text-white/30 text-xs mt-0.5">
+              {item.items.length > 0
+                ? `${item.items.filter(i => i.qty > 0).length} producto${item.items.length !== 1 ? 's' : ''} · ${item.itemSource === 'dispatch' ? 'BD' : item.itemSource === 'dunamixfy' ? 'Dunamixfy' : 'Sin info'}`
+                : 'Sin productos — agrega manualmente'
+              }
+            </p>
+          )}
+        </div>
+        {item.status !== 'confirmed' && (
+          <button onClick={e => { e.stopPropagation(); onRemove(); }}
+            className="p-1.5 rounded-lg text-white/20 hover:text-red-400/70 hover:bg-red-500/10 transition-all flex-shrink-0">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+
+      {/* Detalle de productos (expandible) */}
+      {expanded && item.status === 'found' && (
+        <div className="border-t border-white/[0.06]">
+          {item.items.length === 0 ? (
+            <div className="px-4 py-3 text-center">
+              <p className="text-white/35 text-xs">Sin productos identificados — se registrará sin ítems</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-white/[0.04]">
+              {item.items.map((it, idx) => (
+                <div key={`${it.product_id}-${idx}`} className={`px-4 py-2.5 flex items-center gap-2 ${it.qty === 0 ? 'opacity-40' : ''}`}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white/70 text-xs font-medium truncate">{it.name}</p>
+                    <p className="text-white/30 text-[10px] font-mono">{it.sku}</p>
+                  </div>
+                  <div className="flex gap-1">
+                    {['good', 'damaged'].map(cond => (
+                      <button key={cond} onClick={() => onSetCondition(idx, cond)}
+                        className={`px-1.5 py-0.5 rounded text-[9px] font-semibold border transition-all ${
+                          it.condition === cond
+                            ? cond === 'good' ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' : 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+                            : 'bg-white/[0.03] border-white/[0.06] text-white/30 hover:text-white/55'
+                        }`}>
+                        {cond === 'good' ? '✓' : '⚠'}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    <button onClick={() => onAdjustQty(idx, -1)} className="w-6 h-6 rounded bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.08] flex items-center justify-center">
+                      <Minus className="w-2.5 h-2.5 text-white/50" />
+                    </button>
+                    <span className="w-7 text-center text-white/75 font-mono font-bold text-xs">{it.qty}</span>
+                    <button onClick={() => onAdjustQty(idx, +1)} className="w-6 h-6 rounded bg-white/[0.05] hover:bg-white/[0.10] border border-white/[0.08] flex items-center justify-center">
+                      <Plus className="w-2.5 h-2.5 text-white/50" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Vista: Historial ──────────────────────────────────
 function ReturnsList({ refreshKey }) {
   const warehouseId = useStore(s => s.selectedWarehouse?.id);
   const [returns, setReturns] = useState([]);
@@ -654,26 +582,20 @@ function ReturnsList({ refreshKey }) {
     if (!warehouseId) return;
     setLoading(true);
     returnsService.getAll(warehouseId)
-      .then(setReturns)
-      .catch(err => toast.error(err.message))
-      .finally(() => setLoading(false));
+      .then(setReturns).catch(err => toast.error(err.message)).finally(() => setLoading(false));
   }, [warehouseId, refreshKey]);
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-16">
-      <div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+  if (loading) return <div className="flex items-center justify-center py-16"><div className="w-8 h-8 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" /></div>;
+
+  if (!returns.length) return (
+    <div className="flex flex-col items-center gap-3 py-10 text-center">
+      <RotateCcw className="w-10 h-10 text-white/10" />
+      <p className="text-white/35 text-sm">No hay devoluciones registradas</p>
     </div>
   );
 
-  if (returns.length === 0) return (
-    <Card className="p-10 flex flex-col items-center gap-3 text-center">
-      <RotateCcw className="w-10 h-10 text-white/15" />
-      <p className="text-white/40 text-sm">No hay devoluciones registradas</p>
-    </Card>
-  );
-
   return (
-    <Card className="overflow-hidden">
+    <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] overflow-hidden">
       <div className="px-4 py-3 border-b border-white/[0.06]">
         <h3 className="text-white/70 font-semibold text-sm">Historial de Devoluciones</h3>
       </div>
@@ -687,45 +609,37 @@ function ReturnsList({ refreshKey }) {
                   <p className="text-white/80 font-mono font-semibold text-sm">{ret.return_number}</p>
                   <StatusBadge status={ret.status} />
                 </div>
-                <div className="flex items-center gap-3 mt-1">
-                  <span className="text-white/35 text-xs font-mono">{ret.return_guide_code}</span>
-                  {ret.original_guide_code && (
-                    <>
-                      <ChevronRight className="w-3 h-3 text-white/20" />
-                      <span className="text-primary-400/60 text-xs font-mono">{ret.original_guide_code}</span>
-                    </>
-                  )}
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-white/30 text-xs font-mono">{ret.return_guide_code}</span>
+                  {ret.original_guide_code && (<><ChevronRight className="w-3 h-3 text-white/15" /><span className="text-primary-400/55 text-xs font-mono">{ret.original_guide_code}</span></>)}
                 </div>
               </div>
               <div className="text-right flex-shrink-0">
-                <p className="text-white/50 text-xs">{itemCount} producto{itemCount !== 1 ? 's' : ''}</p>
-                <p className="text-white/25 text-[10px] mt-0.5">
-                  {new Date(ret.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}
-                </p>
+                <p className="text-white/45 text-xs">{itemCount} producto{itemCount !== 1 ? 's' : ''}</p>
+                <p className="text-white/20 text-[10px] mt-0.5">{new Date(ret.created_at).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</p>
               </div>
             </div>
           );
         })}
       </div>
-    </Card>
+    </div>
   );
 }
 
 // ── Componente principal ──────────────────────────────
 export default function Returns() {
   const warehouseId = useStore(s => s.selectedWarehouse?.id);
-  const [tab, setTab]           = useState('new');
+  const [tab, setTab] = useState('new');
   const [refreshKey, setRefreshKey] = useState(0);
-
-  const handleCreated = () => { setRefreshKey(k => k + 1); setTab('history'); };
+  const handleCreated = () => { setRefreshKey(k => k + 1); };
 
   if (!warehouseId) return (
     <div className="p-6 max-w-xl mx-auto">
-      <Card className="p-8 flex flex-col items-center gap-3 text-center">
+      <div className="rounded-2xl bg-white/[0.04] border border-white/[0.07] p-8 flex flex-col items-center gap-3 text-center">
         <AlertTriangle className="w-10 h-10 text-amber-400/60" />
         <p className="text-white/60 font-semibold text-sm">Selecciona una bodega</p>
         <p className="text-white/35 text-xs">Necesitas tener una bodega activa para gestionar devoluciones.</p>
-      </Card>
+      </div>
     </div>
   );
 
@@ -736,7 +650,7 @@ export default function Returns() {
           <RotateCcw className="w-5 h-5 text-primary-400" />
           Devoluciones
         </h1>
-        <p className="text-white/40 text-sm mt-1">Coordinadora — Rastreo automático de guía asociada</p>
+        <p className="text-white/40 text-sm mt-1">Coordinadora — Escaneo en lote de guías de retorno</p>
       </div>
 
       <div className="flex gap-1 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] w-fit">
