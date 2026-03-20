@@ -61,7 +61,7 @@ export const companiesService = {
     const { data, error } = await supabase
       .from('operators')
       .select(`
-        id, name, email, role, is_active, created_at,
+        id, name, email, role, is_active, permissions, created_at,
         operator_warehouses(warehouse_id, warehouses(id, name, code))
       `)
       .eq('company_id', companyId)
@@ -173,13 +173,24 @@ export const companiesService = {
 
   // ─── SUPERADMIN ───────────────────────────────────
 
-  /** Cambiar rol de un operador (solo SuperAdmin) */
+  /** Cambiar rol de un operador — usa RPC con validaciones de seguridad (migration 040) */
   async setOperatorRole(operatorId, role) {
-    const { error } = await supabase
-      .from('operators')
-      .update({ role })
-      .eq('id', operatorId);
+    const { data, error } = await supabase.rpc('update_operator_role', {
+      p_operator_id: operatorId,
+      p_new_role: role
+    });
     if (error) throw error;
+    return data;
+  },
+
+  /** Actualizar permisos granulares de un operador — usa RPC (migration 040) */
+  async updateOperatorPermissions(operatorId, permissions) {
+    const { data, error } = await supabase.rpc('update_operator_permissions', {
+      p_operator_id: operatorId,
+      p_permissions: permissions
+    });
+    if (error) throw error;
+    return data;
   },
 
   /** Obtener todos los operadores (SuperAdmin) */
