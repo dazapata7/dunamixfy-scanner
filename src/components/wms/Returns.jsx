@@ -20,7 +20,8 @@ import {
   RotateCcw, Search, Package, CheckCircle,
   AlertTriangle, ChevronRight, ExternalLink, RefreshCw,
   ArrowUpCircle, Plus, Minus, Camera, Smartphone, X,
-  Wifi, WifiOff, CheckCircle2, XCircle, Loader2, Trash2
+  Wifi, WifiOff, CheckCircle2, XCircle, Loader2, Trash2,
+  Keyboard
 } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────
@@ -114,6 +115,8 @@ function NewReturn({ onCreated }) {
   const [remoteSession, setRemoteSession]     = useState(null);
   const [remoteClientUrl, setRemoteClientUrl] = useState(null);
   const [remoteConnected, setRemoteConnected] = useState(false);
+  const [manualGuide,     setManualGuide]     = useState('');
+  const [isManualLoading, setIsManualLoading] = useState(false);
   const html5QrcodeRef   = useRef(null);
   const remoteChannelRef = useRef(null);
 
@@ -211,6 +214,16 @@ function NewReturn({ onCreated }) {
   };
 
   useEffect(() => () => { stopCamera(); }, []);
+
+  // ── Ingreso manual de guía ────────────────────────
+  const handleManualSubmit = async () => {
+    const raw = manualGuide.trim();
+    if (!raw) return;
+    setIsManualLoading(true);
+    await resolveGuide(raw);
+    setManualGuide('');
+    setIsManualLoading(false);
+  };
 
   // ── Scanner remoto ────────────────────────────────
   const openRemote = async () => {
@@ -421,7 +434,32 @@ function NewReturn({ onCreated }) {
             Escanear con teléfono
           </button>
         </div>
-        <p className="text-white/25 text-xs text-center">Escanea una o varias guías de devolución — se acumulan en el lote</p>
+        {/* Ingreso manual */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Keyboard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25 pointer-events-none" />
+            <input
+              type="text"
+              inputMode="numeric"
+              value={manualGuide}
+              onChange={e => setManualGuide(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleManualSubmit()}
+              placeholder="Ingresar guía manualmente…"
+              className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-white text-sm placeholder-white/20 focus:outline-none focus:border-primary-500/40 transition-all"
+            />
+          </div>
+          <button
+            onClick={handleManualSubmit}
+            disabled={!manualGuide.trim() || isManualLoading}
+            className="px-4 py-2.5 rounded-xl bg-primary-500/15 border border-primary-500/25 text-primary-400 hover:bg-primary-500/25 transition-all disabled:opacity-30 flex items-center gap-1.5 text-sm font-medium flex-shrink-0"
+          >
+            {isManualLoading
+              ? <div className="w-4 h-4 border-2 border-primary-400/30 border-t-primary-400 rounded-full animate-spin" />
+              : <Search className="w-4 h-4" />}
+            Buscar
+          </button>
+        </div>
+        <p className="text-white/20 text-xs text-center">Escanea o ingresa manualmente — las guías se acumulan en el lote</p>
       </Card>
 
       {/* Lista del batch */}
