@@ -12,7 +12,7 @@ import { useStore } from '../../store/useStore';
 import {
   Plus, Factory, ChevronRight, Clock, CheckCircle,
   PlayCircle, PauseCircle, XCircle, X, AlertTriangle,
-  Package, Beaker, ArrowLeft, RefreshCw
+  Beaker, ArrowLeft, RefreshCw, Calculator
 } from 'lucide-react';
 
 // ── Status config ─────────────────────────────────────────────────────────
@@ -37,7 +37,6 @@ const StatusBadge = ({ status }) => {
 
 // ── Modal crear orden ─────────────────────────────────────────────────────
 function CreateOrderModal({ warehouses, onCreated, onClose }) {
-  const operator    = useStore(s => s.operator);
   const operatorId  = useStore(s => s.operatorId);
   const selectedWH  = useStore(s => s.selectedWarehouse);
 
@@ -51,6 +50,7 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
   const [products, setProducts]     = useState([]);
   const [bom, setBom]               = useState(null);
   const [materials, setMaterials]   = useState([]);
+  const [maxProducible, setMaxProducible] = useState(null);
   const [loading, setLoading]       = useState(false);
   const [saving, setSaving]         = useState(false);
 
@@ -60,10 +60,20 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
     ).catch(() => {});
   }, []);
 
+  // Calcula cuántas unidades se pueden producir con el stock actual
+  function calcMaxProducible(mats) {
+    if (!mats?.length) return null;
+    const limits = mats.map(m =>
+      m.qty_required > 0 ? Math.floor(m.qty_available / m.qty_required) : Infinity
+    );
+    return Math.max(0, Math.min(...limits));
+  }
+
   async function handleProductChange(productId) {
     setForm(f => ({ ...f, productId }));
     setBom(null);
     setMaterials([]);
+    setMaxProducible(null);
     if (!productId) return;
     setLoading(true);
     try {
@@ -72,6 +82,7 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
       if (b && form.qtyPlanned > 0) {
         const mats = await bomService.calculateMaterials(productId, form.qtyPlanned);
         setMaterials(mats);
+        setMaxProducible(calcMaxProducible(mats));
       }
     } catch { /* ignore */ }
     finally { setLoading(false); }
@@ -83,6 +94,7 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
       try {
         const mats = await bomService.calculateMaterials(form.productId, qty);
         setMaterials(mats);
+        setMaxProducible(calcMaxProducible(mats));
       } catch { /* ignore */ }
     }
   }
@@ -136,11 +148,38 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
               ))}
             </select>
             {form.productId && !bom && !loading && (
-              <p className="text-amber-400/70 text-xs mt-1 flex items-center gap-1">
-                <AlertTriangle className="w-3 h-3" /> Sin BOM definido — no se gestionarán insumos automáticamente
+              <p className="text-amber-400/60 text-xs mt-1.5 flex items-start gap-1.5 bg-amber-500/[0.07] border border-amber-500/15 rounded-lg px-3 py-2">
+                <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
+                <span>Este producto no tiene insumos (BOM) configurados. La orden se crea igual — puedes definir el BOM en <strong>Productos → editar → Insumos</strong> antes o después.</span>
               </p>
             )}
           </div>
+
+          {/* Capacidad máxima (cuando hay BOM y materiales) */}
+          {maxProducible !== null && (
+            <div className={`flex items-center justify-between px-4 py-3 rounded-xl border ${
+              maxProducible === 0
+                ? 'bg-red-500/[0.08] border-red-500/20'
+                : 'bg-primary-500/[0.08] border-primary-500/20'
+            }`}>
+              <div className="flex items-center gap-2">
+                <Calculator className={`w-4 h-4 ${maxProducible === 0 ? 'text-red-400' : 'text-primary-400'}`} />
+                <div>
+                  <p className="text-white/50 text-[10px] uppercase tracking-widest">Stock disponible para producir</p>
+                  <p className={`font-bold text-lg leading-none mt-0.5 ${maxProducible === 0 ? 'text-red-400' : 'text-primary-400'}`}>
+                    {maxProducible === 0 ? 'Sin stock de insumos' : `${maxProducible} unidades`}
+                  </p>
+                </div>
+              </div>
+              {maxProducible > 0 && (
+                <button type="button"
+                  onClick={() => handleQtyChange(maxProducible)}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-primary-500/15 text-primary-400 border border-primary-500/20 hover:bg-primary-500/25 transition-all font-medium">
+                  Usar máximo
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Qty + Bodega */}
           <div className="grid grid-cols-2 gap-3">
