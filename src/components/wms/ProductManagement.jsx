@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productsService, skuMappingsService, comboProductsService, categoriesService, bomService } from '../../services/wmsService';
+import useStore from '../../store/useStore';
 import {
   ArrowLeft,
   Package,
@@ -72,6 +73,7 @@ const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm 
 // ─────────────────────────────────────────────────
 export function ProductManagement() {
   const navigate = useNavigate();
+  const companyId = useStore(s => s.companyId);
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -203,7 +205,7 @@ export function ProductManagement() {
       const payload = { ...formData, category_id: formData.category_id || null };
 
       if (isCreating) {
-        const newProd = await productsService.create(payload);
+        const newProd = await productsService.create({ ...payload, company_id: companyId });
         productId = newProd.id;
       } else {
         await productsService.update(productId, payload);
