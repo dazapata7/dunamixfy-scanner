@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { productsService, skuMappingsService, comboProductsService, categoriesService, bomService } from '../../services/wmsService';
-import useStore from '../../store/useStore';
+import { useStore } from '../../store/useStore';
 import {
   ArrowLeft,
   Package,
