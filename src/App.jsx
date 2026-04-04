@@ -31,6 +31,7 @@ const InventoryHistory = lazy(() => import("./components/wms/InventoryHistory"))
 const ScanHistory = lazy(() => import("./components/wms/ScanHistory"));
 const WarehouseManagement = lazy(() => import("./components/wms/WarehouseManagement"));
 const ProductManagement     = lazy(() => import("./components/wms/ProductManagement"));
+const RawMaterialsManagement = lazy(() => import("./components/wms/RawMaterialsManagement"));
 const CategoryManagement    = lazy(() => import("./components/wms/CategoryManagement"));
 const ProductionOrders      = lazy(() => import("./components/wms/ProductionOrders"));
 const ProductionOrderDetail = lazy(() => import("./components/wms/ProductionOrderDetail"));
@@ -133,6 +134,7 @@ function AppContent() {
                   <Route path="/wms/scan-history" element={<ScanHistory />} />
                   <Route path="/wms/manage-warehouses"  element={<WarehouseManagement />} />
                   <Route path="/wms/manage-products"   element={<ProductManagement />} />
+                  <Route path="/wms/manage-materials"  element={<RawMaterialsManagement />} />
                   <Route path="/wms/manage-categories" element={<CategoryManagement />} />
                   <Route path="/wms/production"        element={<ProductionOrders />} />
                   <Route path="/wms/production/:id"    element={<ProductionOrderDetail />} />
@@ -180,6 +182,7 @@ function AppContent() {
             <Route path="/wms/history" element={<ScanHistory />} />
             <Route path="/wms/manage-warehouses" element={<WarehouseManagement />} />
             <Route path="/wms/manage-products" element={<ProductManagement />} />
+            <Route path="/wms/manage-materials" element={<RawMaterialsManagement />} />
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>

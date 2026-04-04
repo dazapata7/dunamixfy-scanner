@@ -39,8 +39,9 @@ function buildNav(role) {
       icon: Tag,
       label: 'Productos',
       children: [
-        { icon: Tag,        label: 'Lista de Productos', path: '/wms/manage-products' },
-        { icon: FolderOpen, label: 'Categorías',         path: '/wms/manage-categories' },
+        { icon: Tag,        label: 'Productos Terminados',      path: '/wms/manage-products' },
+        { icon: Package,    label: 'Insumos de Producción',     path: '/wms/manage-materials' },
+        { icon: FolderOpen, label: 'Categorías',                path: '/wms/manage-categories' },
       ],
     },
     // Expandable — Producción

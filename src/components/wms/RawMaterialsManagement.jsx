@@ -1,7 +1,8 @@
 // =====================================================
-// PRODUCT MANAGEMENT - Dunamix WMS
+// RAW MATERIALS MANAGEMENT - Dunamix WMS
 // =====================================================
-// Desktop: lista tipo tabla con fotos en fila + modal para crear/editar
+// Gestión de insumos: etiquetas, cajas, envases, consumibles
+// Desktop: lista tipo tabla + modal para crear/editar
 // Móvil: cards compactas
 // =====================================================
 
@@ -71,7 +72,7 @@ const SourceBadge = ({ source }) => {
 const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full";
 
 // ─────────────────────────────────────────────────
-export function ProductManagement() {
+export function RawMaterialsManagement() {
   const navigate = useNavigate();
   const companyId = useStore(s => s.companyId);
 
@@ -86,7 +87,7 @@ export function ProductManagement() {
 
   const [formData, setFormData] = useState({
     sku: '', name: '', barcode: '', photo_url: '',
-    description: '', is_active: true, type: 'simple'
+    description: '', is_active: true, type: 'raw_material'
   });
 
   // SKU Mappings
@@ -108,16 +109,16 @@ export function ProductManagement() {
     setIsLoading(true);
     try {
       const data = await productsService.getAll();
-      // Filtrar solo productos terminados: simple, combo, finished_good
-      const finished = data.filter(p => ['simple', 'combo', 'finished_good'].includes(p.type));
-      setProducts(finished);
-    } catch { toast.error('Error al cargar productos'); }
+      // Filtrar solo insumos: raw_material, consumable, semi_finished
+      const materials = data.filter(p => ['raw_material', 'consumable', 'semi_finished'].includes(p.type));
+      setProducts(materials);
+    } catch { toast.error('Error al cargar insumos'); }
     finally { setIsLoading(false); }
   }
 
   async function openCreate() {
     setEditingProduct(null);
-    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'finished_good', category_id: '' });
+    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'raw_material', category_id: '' });
     setSkuMappings([]);
     setComboComponents([]);
     setBomItems([]);
@@ -432,13 +433,13 @@ export function ProductManagement() {
           </button>
 
           <button onClick={openCreate}
-            className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center gap-2 text-sm">
-            <Plus className="w-4 h-4" /> Nuevo Producto
+            className="bg-amber-500 hover:bg-amber-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-amber-500/30 flex items-center gap-2 text-sm">
+            <Plus className="w-4 h-4" /> Nuevo Insumo
           </button>
 
           <div className="w-full mt-1 text-white/30 text-xs">
-            {filtered.length} de {products.length} productos
-            {searchTerm && <span className="ml-1.5 text-primary-400/70">· búsqueda activa</span>}
+            {filtered.length} de {products.length} insumos
+            {searchTerm && <span className="ml-1.5 text-amber-400/70">· búsqueda activa</span>}
           </div>
         </div>
 
@@ -456,12 +457,12 @@ export function ProductManagement() {
               <div className="py-16 text-center">
                 <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
                 <p className="text-white/30 text-sm mb-4">
-                  {searchTerm ? 'No hay productos con esa búsqueda' : 'No hay productos creados'}
+                  {searchTerm ? 'No hay insumos con esa búsqueda' : 'No hay insumos creados'}
                 </p>
                 {!searchTerm && (
                   <button onClick={openCreate}
-                    className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 text-sm">
-                    Crear primer producto
+                    className="bg-amber-500 hover:bg-amber-600 text-dark-950 font-semibold px-4 py-2 rounded-lg transition-all shadow-lg shadow-amber-500/30 text-sm">
+                    Crear primer insumo
                   </button>
                 )}
               </div>
@@ -842,4 +843,4 @@ export function ProductManagement() {
   );
 }
 
-export default ProductManagement;
+export default RawMaterialsManagement;
