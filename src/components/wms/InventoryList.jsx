@@ -5,7 +5,7 @@
 // Stats superiores + búsqueda/filtros + productos agrupados
 // =====================================================
 
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useInventory } from '../../hooks/useInventory';
 import { useStore } from '../../store/useStore';
@@ -38,6 +38,77 @@ function downloadCSV(rows, filename) {
   const a = document.createElement('a'); a.href = url; a.download = filename; a.click();
   URL.revokeObjectURL(url);
 }
+
+// ── Estado de stock ───────────────────────────────
+function getStockStatus(qty, isCombo = false, estimated = 0) {
+  const q = isCombo ? estimated : qty;
+  if (isCombo) {
+    if (q === 0) return { label: 'Sin capacidad', color: 'bg-red-500/10 text-red-400/80 border-red-500/20' };
+    if (q < 5)  return { label: 'Capacidad baja', color: 'bg-orange-500/10 text-orange-400/80 border-orange-500/20' };
+    return { label: 'Armable', color: 'bg-primary-500/10 text-primary-400/80 border-primary-500/20' };
+  }
+  if (q === 0)  return { label: 'Sin stock',   color: 'bg-red-500/10 text-red-400/80 border-red-500/20' };
+  if (q < 10)   return { label: 'Stock bajo',  color: 'bg-orange-500/10 text-orange-400/80 border-orange-500/20' };
+  return { label: 'Disponible', color: 'bg-primary-500/10 text-primary-400/80 border-primary-500/20' };
+}
+
+// ── Fila de producto ──────────────────────────────
+const ProductRow = memo(function ProductRow({ item }) {
+  const isCombo = item.type === 'combo' || item.is_combo;
+  const estimated = item.estimated_capacity ?? 0;
+  const status = getStockStatus(item.qty_on_hand, isCombo, estimated);
+  const displayQty = isCombo ? estimated : item.qty_on_hand;
+  const qtyColor = displayQty === 0 ? 'text-red-400' : displayQty < (isCombo ? 5 : 10) ? 'text-orange-400' : 'text-white';
+
+  return (
+    <div className={`backdrop-blur-md rounded-2xl border px-4 py-3 flex items-center gap-4 hover:bg-white/[0.08] transition-all ${
+      isCombo
+        ? 'bg-white/[0.04] border-purple-500/20 hover:border-purple-500/30'
+        : 'bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15]'
+    }`}>
+      {item.photo_url ? (
+        <img src={item.photo_url} alt={item.product_name}
+          className="w-10 h-10 object-cover rounded-lg border border-white/[0.08] shrink-0"
+          onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }}
+        />
+      ) : null}
+      <div className={`w-10 h-10 rounded-lg border items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'} ${isCombo ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/[0.04] border-white/[0.08]'}`}
+        style={{ display: item.photo_url ? 'none' : 'flex' }}>
+        <Package className={`w-5 h-5 ${isCombo ? 'text-purple-400/50' : 'text-white/30'}`} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-white font-medium text-sm truncate" title={item.product_name}>{item.product_name}</p>
+        <p className="text-white/40 text-xs font-mono mt-0.5">{item.sku}</p>
+      </div>
+      <div className="text-right shrink-0">
+        <span className={`text-2xl font-bold ${qtyColor}`}>{displayQty}</span>
+        <p className="text-white/40 text-[10px]">{isCombo ? 'estimados' : 'unidades'}</p>
+      </div>
+      <div className="shrink-0 w-32 flex justify-center">
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}>{status.label}</span>
+      </div>
+    </div>
+  );
+});
+
+// ── Sección agrupada ──────────────────────────────
+const ProductSection = memo(function ProductSection({ title, items, color, icon: Icon }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="mb-6">
+      <div className={`flex items-center gap-3 mb-3 pb-2 border-b ${color.border}`}>
+        <div className={`p-1.5 rounded-lg ${color.bg}`}>
+          <Icon className={`w-4 h-4 ${color.icon}`} />
+        </div>
+        <h2 className="text-white font-semibold text-sm">{title}</h2>
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${color.badge}`}>{items.length}</span>
+      </div>
+      <div className="space-y-2">
+        {items.map((item, i) => <ProductRow key={item.id || i} item={item} />)}
+      </div>
+    </div>
+  );
+});
 
 export function InventoryList() {
   const navigate = useNavigate();
@@ -79,19 +150,6 @@ export function InventoryList() {
   const filteredRegular = filtered(regularStock);
   const filteredCombos  = filtered(comboStock);
 
-  // ── Estado de stock ───────────────────────────────
-  const getStockStatus = (qty, isCombo = false, estimated = 0) => {
-    const q = isCombo ? estimated : qty;
-    if (isCombo) {
-      if (q === 0) return { label: 'Sin capacidad', color: 'bg-red-500/10 text-red-400/80 border-red-500/20' };
-      if (q < 5)  return { label: 'Capacidad baja', color: 'bg-orange-500/10 text-orange-400/80 border-orange-500/20' };
-      return { label: 'Armable', color: 'bg-primary-500/10 text-primary-400/80 border-primary-500/20' };
-    }
-    if (q === 0)  return { label: 'Sin stock',   color: 'bg-red-500/10 text-red-400/80 border-red-500/20' };
-    if (q < 10)   return { label: 'Stock bajo',  color: 'bg-orange-500/10 text-orange-400/80 border-orange-500/20' };
-    return { label: 'Disponible', color: 'bg-primary-500/10 text-primary-400/80 border-primary-500/20' };
-  };
-
   // ── CSV export ────────────────────────────────────
   const handleExportCSV = () => {
     const all = [...filteredRegular, ...filteredCombos];
@@ -111,64 +169,6 @@ export function InventoryList() {
     const date = new Date().toISOString().split('T')[0];
     downloadCSV(rows, `inventario_${selectedWarehouse.code || 'bodega'}_${date}.csv`);
     toast.success(`${rows.length} referencias exportadas`);
-  };
-
-  // ── Fila de producto ──────────────────────────────
-  const ProductRow = ({ item }) => {
-    const isCombo = item.type === 'combo' || item.is_combo;
-    const estimated = item.estimated_capacity ?? 0;
-    const status = getStockStatus(item.qty_on_hand, isCombo, estimated);
-    const displayQty = isCombo ? estimated : item.qty_on_hand;
-    const qtyColor = displayQty === 0 ? 'text-red-400' : displayQty < (isCombo ? 5 : 10) ? 'text-orange-400' : 'text-white';
-
-    return (
-      <div className={`backdrop-blur-md rounded-2xl border px-4 py-3 flex items-center gap-4 hover:bg-white/[0.08] transition-all ${
-        isCombo
-          ? 'bg-white/[0.04] border-purple-500/20 hover:border-purple-500/30'
-          : 'bg-white/[0.04] border-white/[0.08] hover:border-white/[0.15]'
-      }`}>
-        {item.photo_url ? (
-          <img src={item.photo_url} alt={item.product_name}
-            className="w-10 h-10 object-cover rounded-lg border border-white/[0.08] shrink-0"
-            onError={(e) => { e.target.style.display = 'none'; e.target.nextElementSibling.style.display = 'flex'; }}
-          />
-        ) : null}
-        <div className={`w-10 h-10 rounded-lg border items-center justify-center shrink-0 ${item.photo_url ? 'hidden' : 'flex'} ${isCombo ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/[0.04] border-white/[0.08]'}`}
-          style={{ display: item.photo_url ? 'none' : 'flex' }}>
-          <Package className={`w-5 h-5 ${isCombo ? 'text-purple-400/50' : 'text-white/30'}`} />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-white font-medium text-sm truncate" title={item.product_name}>{item.product_name}</p>
-          <p className="text-white/40 text-xs font-mono mt-0.5">{item.sku}</p>
-        </div>
-        <div className="text-right shrink-0">
-          <span className={`text-2xl font-bold ${qtyColor}`}>{displayQty}</span>
-          <p className="text-white/40 text-[10px]">{isCombo ? 'estimados' : 'unidades'}</p>
-        </div>
-        <div className="shrink-0 w-32 flex justify-center">
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${status.color}`}>{status.label}</span>
-        </div>
-      </div>
-    );
-  };
-
-  // ── Sección agrupada ──────────────────────────────
-  const ProductSection = ({ title, items, color, icon: Icon }) => {
-    if (items.length === 0) return null;
-    return (
-      <div className="mb-6">
-        <div className={`flex items-center gap-3 mb-3 pb-2 border-b ${color.border}`}>
-          <div className={`p-1.5 rounded-lg ${color.bg}`}>
-            <Icon className={`w-4 h-4 ${color.icon}`} />
-          </div>
-          <h2 className="text-white font-semibold text-sm">{title}</h2>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${color.badge}`}>{items.length}</span>
-        </div>
-        <div className="space-y-2">
-          {items.map((item, i) => <ProductRow key={item.id || i} item={item} />)}
-        </div>
-      </div>
-    );
   };
 
   return (

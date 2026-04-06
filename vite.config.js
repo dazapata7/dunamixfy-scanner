@@ -4,7 +4,10 @@ import { VitePWA } from 'vite-plugin-pwa'
 import mkcert from 'vite-plugin-mkcert'
 
 // https://vitejs.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  esbuild: {
+    drop: mode === 'production' ? ['console', 'debugger'] : [],
+  },
   plugins: [
     react(),
     mkcert(), // V2: Plugin para generar certificados SSL válidos automáticamente
@@ -72,4 +75,4 @@ export default defineConfig({
     // V2: HTTPS habilitado automáticamente por vite-plugin-mkcert
     // Genera certificados confiables que no requieren aceptar advertencias
   }
-})
+}))

@@ -34,22 +34,16 @@ function buildNav(role) {
         { icon: ArrowLeftRight, label: 'Movimientos',  path: '/wms/inventory-history' },
       ],
     },
-    // Expandable — Productos
-    {
-      icon: Tag,
-      label: 'Productos',
-      children: [
-        { icon: Tag,        label: 'Productos Terminados',      path: '/wms/manage-products' },
-        { icon: Package,    label: 'Insumos de Producción',     path: '/wms/manage-materials' },
-        { icon: FolderOpen, label: 'Categorías',                path: '/wms/manage-categories' },
-      ],
-    },
+    // Standalone — Productos
+    { icon: Tag, label: 'Productos', path: '/wms/manage-products' },
     // Expandable — Producción
     {
       icon: Factory,
       label: 'Producción',
       children: [
-        { icon: Factory, label: 'Órdenes de Prod.', path: '/wms/production' },
+        { icon: Factory,    label: 'Órdenes',     path: '/wms/production' },
+        { icon: Tag,        label: 'Productos',    path: '/wms/production/products' },
+        { icon: FolderOpen, label: 'Categorías',   path: '/wms/production/categories' },
       ],
     },
     // Standalone — Devoluciones

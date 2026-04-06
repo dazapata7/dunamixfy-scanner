@@ -2,6 +2,7 @@ import { useState, lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { useStore } from "./store/useStore";
+import { useShallow } from "zustand/react/shallow";
 import { useDeviceType } from "./hooks/useDeviceType";
 import { Toaster } from "react-hot-toast";
 import { SidebarLayout } from "./components/layout/SidebarLayout";
@@ -35,6 +36,7 @@ const RawMaterialsManagement = lazy(() => import("./components/wms/RawMaterialsM
 const CategoryManagement    = lazy(() => import("./components/wms/CategoryManagement"));
 const ProductionOrders      = lazy(() => import("./components/wms/ProductionOrders"));
 const ProductionOrderDetail = lazy(() => import("./components/wms/ProductionOrderDetail"));
+const ProductionProducts    = lazy(() => import("./components/wms/ProductionProducts"));
 const Returns               = lazy(() => import("./components/wms/Returns"));
 
 // Remote Scanner Components
@@ -53,9 +55,9 @@ const MobileWMS = lazy(() => import("./components/mobile/MobileWMS"));
 // Componente interno que usa el hook useAuth
 function AppContent() {
   const { user, loading } = useAuth();
-  const operator = useStore((state) => state.operator);
-  const role = useStore((state) => state.role);
-  const companyId = useStore((state) => state.companyId);
+  const { operator, role, companyId } = useStore(
+    useShallow((state) => ({ operator: state.operator, role: state.role, companyId: state.companyId }))
+  );
   const { isMobile } = useDeviceType();
   const [useRealAuth, setUseRealAuth] = useState(true); // Toggle para activar auth real
 
@@ -134,11 +136,15 @@ function AppContent() {
                   <Route path="/wms/scan-history" element={<ScanHistory />} />
                   <Route path="/wms/manage-warehouses"  element={<WarehouseManagement />} />
                   <Route path="/wms/manage-products"   element={<ProductManagement />} />
-                  <Route path="/wms/manage-materials"  element={<RawMaterialsManagement />} />
-                  <Route path="/wms/manage-categories" element={<CategoryManagement />} />
-                  <Route path="/wms/production"        element={<ProductionOrders />} />
-                  <Route path="/wms/production/:id"    element={<ProductionOrderDetail />} />
-                  <Route path="/wms/returns"           element={<Returns />} />
+                  {/* Production module routes (specific paths before :id) */}
+                  <Route path="/wms/production/products"    element={<ProductionProducts />} />
+                  <Route path="/wms/production/categories"  element={<CategoryManagement />} />
+                  <Route path="/wms/production/:id"         element={<ProductionOrderDetail />} />
+                  <Route path="/wms/production"             element={<ProductionOrders />} />
+                  <Route path="/wms/returns"                element={<Returns />} />
+                  {/* Legacy redirects */}
+                  <Route path="/wms/manage-materials"  element={<Navigate to="/wms/production/products" replace />} />
+                  <Route path="/wms/manage-categories" element={<Navigate to="/wms/production/categories" replace />} />
 
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />
                 </Routes>

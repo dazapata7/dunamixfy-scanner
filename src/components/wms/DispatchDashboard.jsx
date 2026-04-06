@@ -4,7 +4,7 @@
 // Dashboard con KPIs, filtros de fecha/tienda/transportadora
 // =====================================================
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useStore } from '../../store/useStore';
 import { dispatchesService } from '../../services/wmsService';
@@ -50,7 +50,7 @@ function formatDateLabel(iso) {
 }
 
 // ─── Barra de progreso ──────────────────────────────
-function ProgressBar({ value, max, color = 'bg-primary-500' }) {
+const ProgressBar = memo(function ProgressBar({ value, max, color = 'bg-primary-500' }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="flex items-center gap-2">
@@ -63,10 +63,10 @@ function ProgressBar({ value, max, color = 'bg-primary-500' }) {
       <span className="text-xs font-medium text-white/60 w-8 text-right">{pct}%</span>
     </div>
   );
-}
+});
 
 // ─── KPI Card ───────────────────────────────────────
-function KpiCard({ label, value, sub, icon: Icon, iconColor, valueColor = 'text-white' }) {
+const KpiCard = memo(function KpiCard({ label, value, sub, icon: Icon, iconColor, valueColor = 'text-white' }) {
   return (
     <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] px-4 py-3 flex flex-col gap-1">
       <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ function KpiCard({ label, value, sub, icon: Icon, iconColor, valueColor = 'text-
       {sub && <p className="text-white/40 text-[11px]">{sub}</p>}
     </div>
   );
-}
+});
 
 export function DispatchDashboard() {
   const navigate = useNavigate();
@@ -123,7 +123,7 @@ export function DispatchDashboard() {
   }
 
   // ─── Eliminar dispatch ────────────────────────────
-  async function handleDeleteDispatch(dispatchId, guideCode, dispatchNumber) {
+  const handleDeleteDispatch = useCallback(async function handleDeleteDispatch(dispatchId, guideCode, dispatchNumber) {
     if (!confirm(`¿Eliminar guía ${guideCode}?\n\nSe revertirán los movimientos de inventario.`)) return;
 
     try {
@@ -150,7 +150,7 @@ export function DispatchDashboard() {
       console.error('❌ Error al eliminar dispatch:', error);
       toast.error(error.message || 'Error al eliminar dispatch', { id: 'delete' });
     }
-  }
+  }, [selectedDate, selectedWarehouse]);
 
   // ─── Stats calculadas con useMemo ─────────────────
   const stats = useMemo(() => {
@@ -213,7 +213,16 @@ export function DispatchDashboard() {
   // KPIs derivados
   const confirmRate = stats.total > 0 ? Math.round((stats.confirmed / stats.total) * 100) : 0;
   const avgProductsPerGuide = stats.total > 0 ? (stats.totalProducts / stats.total).toFixed(1) : '0';
-  const topProduct = Object.entries(stats.byProduct).sort((a, b) => b[1].qty - a[1].qty)[0];
+
+  const sortedCarriers = useMemo(() =>
+    Object.entries(stats.byCarrier).sort(([, a], [, b]) => b.total - a.total),
+    [stats.byCarrier]
+  );
+  const sortedProducts = useMemo(() =>
+    Object.entries(stats.byProduct).sort((a, b) => b[1].qty - a[1].qty),
+    [stats.byProduct]
+  );
+  const topProduct = sortedProducts[0];
 
   // Listas para filtros
   const carrierOptions = useMemo(() => ['all', ...Object.keys(stats.byCarrier)], [stats.byCarrier]);
@@ -384,9 +393,7 @@ export function DispatchDashboard() {
               Por Transportadora
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {Object.entries(stats.byCarrier)
-                .sort(([, a], [, b]) => b.total - a.total)
-                .map(([carrier, d]) => (
+              {sortedCarriers.map(([carrier, d]) => (
                   <div key={carrier} className="bg-dark-800 rounded-2xl border border-white/[0.08] px-3 py-2.5">
                     <div className="flex items-center justify-between mb-1.5">
                       <span className="text-sm font-medium text-white truncate pr-2">{carrier}</span>
@@ -634,9 +641,7 @@ export function DispatchDashboard() {
               Resumen de Productos Despachados
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-              {Object.entries(stats.byProduct)
-                .sort((a, b) => b[1].qty - a[1].qty)
-                .map(([sku, product]) => (
+              {sortedProducts.map(([sku, product]) => (
                   <div
                     key={sku}
                     className="bg-dark-800 rounded-2xl border border-white/[0.08] px-3 py-2.5 flex items-center justify-between hover:bg-white/[0.08] transition-all"

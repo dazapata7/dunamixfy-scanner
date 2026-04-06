@@ -279,18 +279,18 @@ export default function CategoryManagement() {
 
         {/* Header */}
         <div className="lg:hidden flex items-center gap-3">
-          <button onClick={() => navigate(-1)}
+          <button onClick={() => navigate('/wms/production')}
             className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Volver
           </button>
-          <h1 className="text-lg font-bold text-white">Categorías</h1>
+          <h1 className="text-lg font-bold text-white">Categorías de Producción</h1>
         </div>
 
         {/* Card principal */}
         <div className="bg-white/[0.03] border border-white/[0.07] rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-white/[0.06]">
             <div>
-              <h2 className="text-white font-bold">Categorías de Productos</h2>
+              <h2 className="text-white font-bold">Categorías de Producción</h2>
               <p className="text-white/40 text-sm mt-0.5">{flat.length} categorías activas</p>
             </div>
             <button
