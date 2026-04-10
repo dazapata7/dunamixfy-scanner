@@ -142,8 +142,8 @@ function AppContent() {
                   <Route path="/wms/production/:id"         element={<ProductionOrderDetail />} />
                   <Route path="/wms/production"             element={<ProductionOrders />} />
                   <Route path="/wms/returns"                element={<Returns />} />
-                  {/* Legacy redirects */}
-                  <Route path="/wms/manage-materials"  element={<Navigate to="/wms/production/products" replace />} />
+                  <Route path="/wms/manage-materials"  element={<RawMaterialsManagement />} />
+                  {/* Legacy redirect */}
                   <Route path="/wms/manage-categories" element={<Navigate to="/wms/production/categories" replace />} />
 
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

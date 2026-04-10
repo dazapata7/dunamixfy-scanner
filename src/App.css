@@ -94,6 +94,26 @@ body {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* ── Selects nativos: forzar modo oscuro en toda la app ────────────────────
+   El popup del <select> lo renderiza el OS/browser con sus colores propios.
+   color-scheme: dark le dice que use el tema oscuro del sistema para ese popup.
+   El background y color del propio elemento <select> se controlan con Tailwind. */
+select {
+  color-scheme: dark;
+  background-color: #1a1a24;
+  color: rgba(255,255,255,0.75);
+}
+
+select option {
+  background-color: #1a1a24;
+  color: rgba(255,255,255,0.85);
+}
+
+select optgroup {
+  background-color: #13111C;
+  color: rgba(255,255,255,0.4);
+}
+
 /* Chrome performance: backdrop-filter causes GPU compositor lag in complex UIs.
    Removing blur keeps the dark theme readable via solid/semi-solid backgrounds. */
 .backdrop-blur-sm,
