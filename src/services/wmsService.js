@@ -1745,41 +1745,75 @@ export const bomService = {
 
   // Crear o actualizar BOM completo
   async save(productId, items) {
-    // Obtener o crear header
-    let { data: header } = await supabase
+    // 1) Buscar CUALQUIER header existente para este producto (activo o no)
+    //    para evitar conflict con UNIQUE(product_id, version)
+    const { data: existing, error: selErr } = await supabase
       .from('bom_headers')
-      .select('id')
+      .select('id, is_active, version')
       .eq('product_id', productId)
-      .eq('is_active', true)
+      .order('version', { ascending: false })
       .limit(1)
       .maybeSingle();
+    if (selErr) {
+      console.error('❌ Error buscando bom_header:', selErr);
+      throw selErr;
+    }
 
-    if (!header) {
-      const { data: newHeader, error } = await supabase
+    let header;
+    if (existing) {
+      // Reusar el header existente; reactivar si estaba inactivo
+      if (!existing.is_active) {
+        const { error: updErr } = await supabase
+          .from('bom_headers')
+          .update({ is_active: true, updated_at: new Date().toISOString() })
+          .eq('id', existing.id);
+        if (updErr) {
+          console.error('❌ Error reactivando bom_header:', updErr);
+          throw updErr;
+        }
+      }
+      header = existing;
+    } else {
+      // No existe ningún header → crear uno nuevo
+      const { data: newHeader, error: insErr } = await supabase
         .from('bom_headers')
-        .insert({ product_id: productId, version: 1 })
+        .insert({ product_id: productId, version: 1, is_active: true })
         .select()
         .single();
-      if (error) throw error;
+      if (insErr) {
+        console.error('❌ Error creando bom_header:', insErr);
+        throw insErr;
+      }
       header = newHeader;
     }
 
-    // Reemplazar todos los items
-    await supabase.from('bom_items').delete().eq('bom_id', header.id);
+    // 2) Reemplazar todos los items
+    const { error: delErr } = await supabase
+      .from('bom_items')
+      .delete()
+      .eq('bom_id', header.id);
+    if (delErr) {
+      console.error('❌ Error borrando bom_items:', delErr);
+      throw delErr;
+    }
 
     if (items.length > 0) {
-      const { error } = await supabase
+      const itemsPayload = items.map((it, idx) => ({
+        bom_id: header.id,
+        component_product_id: it.component_product_id,
+        qty_required: parseFloat(it.qty_required) || 1,
+        unit_of_measure: it.unit_of_measure || 'unidad',
+        waste_factor: parseFloat(it.waste_factor) || 1,
+        notes: it.notes || null,
+        sort_order: idx,
+      }));
+      const { error: itemsErr } = await supabase
         .from('bom_items')
-        .insert(items.map((it, idx) => ({
-          bom_id: header.id,
-          component_product_id: it.component_product_id,
-          qty_required: parseFloat(it.qty_required) || 1,
-          unit_of_measure: it.unit_of_measure || 'unidad',
-          waste_factor: parseFloat(it.waste_factor) || 1,
-          notes: it.notes || null,
-          sort_order: idx,
-        })));
-      if (error) throw error;
+        .insert(itemsPayload);
+      if (itemsErr) {
+        console.error('❌ Error insertando bom_items:', itemsErr, itemsPayload);
+        throw itemsErr;
+      }
     }
 
     return header.id;

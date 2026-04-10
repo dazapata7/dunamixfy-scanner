@@ -300,8 +300,18 @@ export function ProductionProducts() {
 
   async function handleSave() {
     if (!formData.sku || !formData.name) { toast.error('SKU y nombre son requeridos'); return; }
-    if (['finished_good', 'semi_finished'].includes(formData.type) && bomItems.some(b => !b.component_product_id)) {
-      toast.error('Todos los componentes del BOM deben tener un producto seleccionado'); return;
+    if (['finished_good', 'semi_finished'].includes(formData.type)) {
+      if (bomItems.some(b => !b.component_product_id)) {
+        toast.error('Todos los componentes del BOM deben tener un producto seleccionado'); return;
+      }
+      // Detectar componentes duplicados (UNIQUE bom_items(bom_id, component_product_id) en BD)
+      const ids = bomItems.map(b => b.component_product_id);
+      const dupId = ids.find((id, i) => ids.indexOf(id) !== i);
+      if (dupId) {
+        const dup = bomItems.find(b => b.component_product_id === dupId);
+        toast.error(`"${dup?.product_name || 'Componente'}" está repetido en el BOM. Suma las cantidades en una sola fila.`);
+        return;
+      }
     }
 
     setIsSaving(true);
@@ -316,15 +326,20 @@ export function ProductionProducts() {
           : null,
       };
 
+      console.log('[ProductionProducts] handleSave step 1: producto', { isCreating, payload });
       if (isCreating) {
         const newProd = await productsService.create({ ...payload, company_id: companyId });
         productId = newProd.id;
+        console.log('[ProductionProducts] producto creado id=', productId);
       } else {
         await productsService.update(productId, payload);
+        console.log('[ProductionProducts] producto actualizado id=', productId);
       }
 
       if (['finished_good', 'semi_finished'].includes(formData.type)) {
+        console.log('[ProductionProducts] handleSave step 2: BOM', bomItems);
         await bomService.save(productId, bomItems);
+        console.log('[ProductionProducts] BOM guardado');
       }
 
       if (isCreating && skuMappings.length > 0) {
@@ -343,7 +358,18 @@ export function ProductionProducts() {
       closeModal();
       loadProducts();
     } catch (error) {
-      toast.error(error.message || 'Error al guardar producto');
+      // Postgres unique violation → 409
+      if (error?.code === '23505') {
+        if (error.message?.includes('sku')) {
+          toast.error(`Ya existe un producto con el SKU "${formData.sku}"`);
+        } else if (error.message?.includes('bom_items')) {
+          toast.error('Hay un componente repetido en el BOM. Cada insumo debe aparecer una sola vez.');
+        } else {
+          toast.error('Conflicto: ya existe un registro con esos datos');
+        }
+      } else {
+        toast.error(error.message || 'Error al guardar producto');
+      }
     } finally { setIsSaving(false); }
   }
 
