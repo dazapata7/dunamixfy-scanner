@@ -114,8 +114,9 @@ export function RawMaterialsManagement() {
         selectedWarehouse?.id ? inventoryService.getAllStock(selectedWarehouse.id) : Promise.resolve([]),
       ]);
       const stockMap = Object.fromEntries((stockRows || []).map(r => [r.product_id, Number(r.qty_on_hand) || 0]));
+      // Solo insumos: lo que se compra/recibe, no lo que se fabrica
       const materials = data
-        .filter(p => ['raw_material', 'consumable', 'semi_finished'].includes(p.type))
+        .filter(p => ['raw_material', 'consumable'].includes(p.type))
         .map(p => ({ ...p, stock: stockMap[p.id] ?? 0 }));
       setProducts(materials);
     } catch { toast.error('Error al cargar insumos'); }
@@ -341,12 +342,8 @@ export function RawMaterialsManagement() {
     return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
   });
 
-  const finished   = filtered.filter(p => p.type === 'finished_good');
   const rawMat     = filtered.filter(p => p.type === 'raw_material');
   const consumable = filtered.filter(p => p.type === 'consumable');
-  const semiFin    = filtered.filter(p => p.type === 'semi_finished');
-  const simples    = filtered.filter(p => !p.type || p.type === 'simple');
-  const combos     = filtered.filter(p => p.type === 'combo');
 
   const ProductRow = ({ product }) => (
     <tr className="hover:bg-primary-500/[0.03] transition-colors group">
@@ -496,12 +493,8 @@ export function RawMaterialsManagement() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
-                  <TableSection title="Productos Terminados" items={finished}   color="text-emerald-400/60" />
-                  <TableSection title="Insumos de Fabricación" items={rawMat}   color="text-amber-400/60" />
-                  <TableSection title="Consumibles"           items={consumable} color="text-slate-400/60" />
-                  <TableSection title="Semiterminados"        items={semiFin}    color="text-purple-400/60" />
-                  <TableSection title="Simples (legacy)"      items={simples}    color="text-primary-400/60" />
-                  <TableSection title="Combos (legacy)"       items={combos}     color="text-blue-400/60" />
+                  <TableSection title="Insumos de Fabricación" items={rawMat}    color="text-amber-400/60" />
+                  <TableSection title="Consumibles"            items={consumable} color="text-slate-400/60" />
                 </tbody>
               </table>
             )}
@@ -519,20 +512,20 @@ export function RawMaterialsManagement() {
                 </div>
               </div>
             ) : (
-              <>
-                {simples.length > 0 && (
+              <div className="space-y-4">
+                {rawMat.length > 0 && (
                   <div>
-                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Productos ({simples.length})</p>
-                    <div className="space-y-2">{simples.map(p => <ProductCard key={p.id} product={p} />)}</div>
+                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Insumos ({rawMat.length})</p>
+                    <div className="space-y-2">{rawMat.map(p => <ProductCard key={p.id} product={p} />)}</div>
                   </div>
                 )}
-                {combos.length > 0 && (
+                {consumable.length > 0 && (
                   <div>
-                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Combos ({combos.length})</p>
-                    <div className="space-y-2">{combos.map(p => <ProductCard key={p.id} product={p} />)}</div>
+                    <p className="text-white/25 text-[11px] uppercase tracking-[0.12em] mb-2 px-1">Consumibles ({consumable.length})</p>
+                    <div className="space-y-2">{consumable.map(p => <ProductCard key={p.id} product={p} />)}</div>
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         )}
@@ -583,16 +576,8 @@ export function RawMaterialsManagement() {
                     onChange={e => setFormData({ ...formData, type: e.target.value })}
                     style={{ colorScheme: 'dark' }}
                     className={inputCls}>
-                    <optgroup label="Producción">
-                      <option value="finished_good">✅ Producto Terminado</option>
-                      <option value="raw_material">🧪 Insumo de Fabricación</option>
-                      <option value="semi_finished">⚙️ Semiterminado</option>
-                      <option value="consumable">🔧 Consumible Interno</option>
-                    </optgroup>
-                    <optgroup label="Legacy">
-                      <option value="simple">Simple</option>
-                      <option value="combo">Combo</option>
-                    </optgroup>
+                    <option value="raw_material">🧪 Insumo de Fabricación</option>
+                    <option value="consumable">🔧 Consumible Interno</option>
                   </select>
                 </div>
 

@@ -219,8 +219,12 @@ export function SidebarLayout() {
       <nav className="flex-1 overflow-y-auto py-2 space-y-0.5 scrollbar-thin">
         {nav.map((item) => {
           const isStandaloneActive = !item.children && (pathname === item.path || pathname.startsWith(item.path + '/'));
+          // Ordenar hijos por longitud de ruta desc para que rutas más específicas
+          // (/wms/production/products) ganen sobre prefijos cortos (/wms/production)
           const activeChild = item.children
-            ? item.children.find(c => pathname === c.path || pathname.startsWith(c.path + '/'))
+            ? [...item.children]
+                .sort((a, b) => b.path.length - a.path.length)
+                .find(c => pathname === c.path || pathname.startsWith(c.path + '/'))
             : null;
 
           return (

@@ -23,7 +23,8 @@ const TYPE_META = {
   raw_material:  { label: 'Insumo',      color: 'bg-amber-500/10 border-amber-500/20 text-amber-400/80' },
   consumable:    { label: 'Consumible',  color: 'bg-slate-500/10 border-slate-500/20 text-slate-400/80' },
 };
-const PRODUCTION_TYPES = ['finished_good', 'semi_finished', 'raw_material', 'consumable'];
+// Solo lo que se FABRICA (tienen BOM/fórmula). Los insumos se gestionan en /wms/manage-materials
+const PRODUCTION_TYPES = ['finished_good', 'semi_finished'];
 
 const TypeBadge = ({ type }) => {
   const meta = TYPE_META[type] || TYPE_META.raw_material;
@@ -424,10 +425,8 @@ export function ProductionProducts() {
     return !q || p.name?.toLowerCase().includes(q) || p.sku?.toLowerCase().includes(q) || p.barcode?.toLowerCase().includes(q);
   });
 
-  const finished   = filtered.filter(p => p.type === 'finished_good');
-  const semiFin    = filtered.filter(p => p.type === 'semi_finished');
-  const rawMat     = filtered.filter(p => p.type === 'raw_material');
-  const consumable = filtered.filter(p => p.type === 'consumable');
+  const finished = filtered.filter(p => p.type === 'finished_good');
+  const semiFin  = filtered.filter(p => p.type === 'semi_finished');
 
   const showBom = ['finished_good', 'semi_finished'].includes(formData.type);
 
@@ -589,10 +588,8 @@ export function ProductionProducts() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
-                  <TableSection title="Productos Terminados" items={finished}   color="text-emerald-400/60" />
-                  <TableSection title="Semiterminados"        items={semiFin}    color="text-purple-400/60" />
-                  <TableSection title="Insumos de Producción" items={rawMat}     color="text-amber-400/60" />
-                  <TableSection title="Consumibles"           items={consumable} color="text-slate-400/60" />
+                  <TableSection title="Productos Terminados" items={finished} color="text-emerald-400/60" />
+                  <TableSection title="Semiterminados"        items={semiFin}  color="text-purple-400/60" />
                 </tbody>
               </table>
             )}
@@ -654,8 +651,6 @@ export function ProductionProducts() {
                     style={{ colorScheme: 'dark' }} className={inputCls}>
                     <option value="finished_good">Producto Terminado</option>
                     <option value="semi_finished">Semiterminado</option>
-                    <option value="raw_material">Insumo de Producción</option>
-                    <option value="consumable">Consumible Interno</option>
                   </select>
                 </div>
                 <div>
