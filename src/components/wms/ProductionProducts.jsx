@@ -196,7 +196,7 @@ export function ProductionProducts() {
   const [formData, setFormData] = useState({
     sku: '', name: '', barcode: '', photo_url: '',
     description: '', is_active: true, type: 'raw_material', category_id: '',
-    linked_product_id: '',
+    linked_product_id: '', unit: 'unidades',
   });
 
   // SKU Mappings
@@ -239,7 +239,7 @@ export function ProductionProducts() {
 
   async function openCreate() {
     setEditingProduct(null);
-    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'raw_material', category_id: '', linked_product_id: '' });
+    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'raw_material', category_id: '', linked_product_id: '', unit: 'unidades' });
     setSkuMappings([]);
     setBomItems([]);
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
@@ -259,6 +259,7 @@ export function ProductionProducts() {
       photo_url: product.photo_url || '', description: product.description || '',
       is_active: product.is_active, type: product.type || 'raw_material',
       category_id: product.category_id || '', linked_product_id: product.linked_product_id || '',
+      unit: product.unit || 'unidades',
     });
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
     setBomItems([]);
@@ -404,8 +405,17 @@ export function ProductionProducts() {
   }
   function selectBomProduct(i, productId) {
     const prod = availableProducts.find(p => p.id === productId);
-    updateBomItem(i, 'component_product_id', productId);
-    if (prod) { updateBomItem(i, 'product_name', prod.name); updateBomItem(i, 'product_sku', prod.sku); }
+    const updated = [...bomItems];
+    updated[i] = {
+      ...updated[i],
+      component_product_id: productId,
+      ...(prod ? {
+        product_name: prod.name,
+        product_sku: prod.sku,
+        unit_of_measure: prod.unit || 'unidades',
+      } : {}),
+    };
+    setBomItems(updated);
   }
 
   // Filter & group
@@ -449,6 +459,9 @@ export function ProductionProducts() {
       <td className="px-4 py-3">
         <span className="text-white/70 text-sm font-semibold">{product.stock_in_warehouse ?? 0}</span>
       </td>
+      <td className="px-4 py-3">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/40 text-xs font-mono">{product.unit || 'uds'}</span>
+      </td>
       <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -481,6 +494,7 @@ export function ProductionProducts() {
           <TypeBadge type={product.type} />
           {product.linked_name && <LinkedBadge name={product.linked_name} />}
           <span className="text-white/40 text-xs ml-1">Stock: <strong className="text-white/70">{product.stock_in_warehouse ?? 0}</strong></span>
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/[0.04] text-white/30 text-[10px] font-mono">{product.unit || 'uds'}</span>
           <div className="flex-1" />
           {canTransfer(product) && (
             <button onClick={() => setTransferProduct(product)}
@@ -499,7 +513,7 @@ export function ProductionProducts() {
   const TableSection = ({ title, items, color }) => (
     items.length === 0 ? null : (
       <>
-        <tr><td colSpan={7} className="px-4 pt-5 pb-2"><p className={`text-[10px] font-semibold uppercase tracking-widest ${color}`}>{title} ({items.length})</p></td></tr>
+        <tr><td colSpan={8} className="px-4 pt-5 pb-2"><p className={`text-[10px] font-semibold uppercase tracking-widest ${color}`}>{title} ({items.length})</p></td></tr>
         {items.map(p => <ProductRow key={p.id} product={p} />)}
       </>
     )
@@ -569,6 +583,7 @@ export function ProductionProducts() {
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Tipo</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-32">Cód. de Barras</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Stock</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Unidad</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Estado</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-32">Acciones</th>
                   </tr>
@@ -658,6 +673,19 @@ export function ProductionProducts() {
                       </optgroup>
                     ))}
                   </select>
+                </div>
+
+                {/* Unidad base */}
+                <div>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Unidad base</label>
+                  <select value={formData.unit}
+                    onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                    style={{ colorScheme: 'dark' }} className={inputCls}>
+                    {['unidades','unidad','ml','mg','g','kg','L','m','cm','par','rollo'].map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                  <p className="text-white/15 text-xs mt-1">Usada para auto-rellenar la unidad en el BOM cuando este insumo es seleccionado como componente.</p>
                 </div>
 
                 {/* Vinculación a producto simple */}
@@ -755,10 +783,14 @@ export function ProductionProducts() {
                           <input type="number" min="0.0001" step="0.01" value={b.qty_required}
                             onChange={e => updateBomItem(i, 'qty_required', parseFloat(e.target.value) || 1)}
                             className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full text-center" />
-                          <input type="text" value={b.unit_of_measure}
+                          <select value={b.unit_of_measure}
                             onChange={e => updateBomItem(i, 'unit_of_measure', e.target.value)}
-                            placeholder="unidad"
-                            className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full" />
+                            style={{ colorScheme: 'dark' }}
+                            className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full">
+                            {['unidades','unidad','ml','mg','g','kg','L','m','cm','par','rollo'].map(u => (
+                              <option key={u} value={u}>{u}</option>
+                            ))}
+                          </select>
                           <input type="number" min="1" max="2" step="0.01" value={b.waste_factor}
                             onChange={e => updateBomItem(i, 'waste_factor', parseFloat(e.target.value) || 1)}
                             className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 focus:outline-none focus:border-amber-500/40 transition-all px-3 py-2.5 w-full text-center" />

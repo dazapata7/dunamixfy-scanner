@@ -13,7 +13,7 @@ import {
   Package, PackagePlus, TrendingDown,
   Upload, Tag, Warehouse,
   Users, Shield, Settings,
-  LogOut, ChevronDown, Factory, FolderOpen, RotateCcw
+  LogOut, ChevronDown, Factory, FolderOpen, RotateCcw, FlaskConical
 } from 'lucide-react';
 
 // ── Estructura de navegación ──────────────────────────
@@ -41,9 +41,10 @@ function buildNav(role) {
       icon: Factory,
       label: 'Producción',
       children: [
-        { icon: Factory,    label: 'Órdenes',     path: '/wms/production' },
-        { icon: Tag,        label: 'Productos',    path: '/wms/production/products' },
-        { icon: FolderOpen, label: 'Categorías',   path: '/wms/production/categories' },
+        { icon: Factory,       label: 'Órdenes',   path: '/wms/production' },
+        { icon: FlaskConical,  label: 'Insumos',   path: '/wms/manage-materials' },
+        { icon: Tag,           label: 'Productos',  path: '/wms/production/products' },
+        { icon: FolderOpen,    label: 'Categorías', path: '/wms/production/categories' },
       ],
     },
     // Standalone — Devoluciones

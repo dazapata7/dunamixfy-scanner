@@ -90,7 +90,8 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
       setBom(b);
       if (b && form.qtyPlanned > 0) {
         const mats = await bomService.calculateMaterials(productId, form.qtyPlanned);
-        setMaterials(mats);
+        const bomUnitMap = Object.fromEntries((b.items || []).map(i => [i.component_product_id, i.unit_of_measure]));
+        setMaterials(mats.map(m => ({ ...m, unit_of_measure: bomUnitMap[m.component_product_id] || 'uds' })));
         setMaxProducible(calcMaxProducible(mats));
       }
     } catch { /* ignore */ }
@@ -102,7 +103,8 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
     if (form.productId && qty > 0) {
       try {
         const mats = await bomService.calculateMaterials(form.productId, qty);
-        setMaterials(mats);
+        const bomUnitMap = Object.fromEntries((bom?.items || []).map(i => [i.component_product_id, i.unit_of_measure]));
+        setMaterials(mats.map(m => ({ ...m, unit_of_measure: bomUnitMap[m.component_product_id] || 'uds' })));
         setMaxProducible(calcMaxProducible(mats));
       } catch { /* ignore */ }
     }
@@ -248,7 +250,7 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
                       <p className="text-white/35 text-xs font-mono">{m.component_sku}</p>
                     </div>
                     <div className="text-right">
-                      <p className="text-white/70 text-sm font-semibold">{m.qty_required}</p>
+                      <p className="text-white/70 text-sm font-semibold">{m.qty_required} <span className="text-white/35 font-mono text-xs">{m.unit_of_measure || 'uds'}</span></p>
                       <p className={`text-xs font-semibold ${m.has_sufficient_stock ? 'text-emerald-400/70' : 'text-red-400'}`}>
                         {m.has_sufficient_stock ? `✓ ${m.qty_available} disp.` : `✗ solo ${m.qty_available}`}
                       </p>

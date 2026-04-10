@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { productsService, skuMappingsService, comboProductsService, categoriesService, bomService } from '../../services/wmsService';
+import { productsService, skuMappingsService, comboProductsService, categoriesService, bomService, inventoryService } from '../../services/wmsService';
 import { useStore } from '../../store/useStore';
 import {
   ArrowLeft,
@@ -75,6 +75,7 @@ const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm 
 export function RawMaterialsManagement() {
   const navigate = useNavigate();
   const companyId = useStore(s => s.companyId);
+  const selectedWarehouse = useStore(s => s.selectedWarehouse);
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,7 +88,7 @@ export function RawMaterialsManagement() {
 
   const [formData, setFormData] = useState({
     sku: '', name: '', barcode: '', photo_url: '',
-    description: '', is_active: true, type: 'raw_material'
+    description: '', is_active: true, type: 'raw_material', unit: 'unidades'
   });
 
   // SKU Mappings
@@ -103,14 +104,19 @@ export function RawMaterialsManagement() {
   const [bomItems, setBomItems] = useState([]);
   const [categories, setCategories] = useState([]);
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => { loadProducts(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [selectedWarehouse?.id]);
 
   async function loadProducts() {
     setIsLoading(true);
     try {
-      const data = await productsService.getAll();
-      // Filtrar solo insumos: raw_material, consumable, semi_finished
-      const materials = data.filter(p => ['raw_material', 'consumable', 'semi_finished'].includes(p.type));
+      const [data, stockRows] = await Promise.all([
+        productsService.getAll(),
+        selectedWarehouse?.id ? inventoryService.getAllStock(selectedWarehouse.id) : Promise.resolve([]),
+      ]);
+      const stockMap = Object.fromEntries((stockRows || []).map(r => [r.product_id, Number(r.qty_on_hand) || 0]));
+      const materials = data
+        .filter(p => ['raw_material', 'consumable', 'semi_finished'].includes(p.type))
+        .map(p => ({ ...p, stock: stockMap[p.id] ?? 0 }));
       setProducts(materials);
     } catch { toast.error('Error al cargar insumos'); }
     finally { setIsLoading(false); }
@@ -118,7 +124,7 @@ export function RawMaterialsManagement() {
 
   async function openCreate() {
     setEditingProduct(null);
-    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'raw_material', category_id: '' });
+    setFormData({ sku: '', name: '', barcode: '', photo_url: '', description: '', is_active: true, type: 'raw_material', category_id: '', unit: 'unidades' });
     setSkuMappings([]);
     setComboComponents([]);
     setBomItems([]);
@@ -145,6 +151,7 @@ export function RawMaterialsManagement() {
       is_active:   product.is_active,
       type:        product.type        || 'simple',
       category_id: product.category_id || '',
+      unit:        product.unit        || 'unidades',
     });
     setNewMapping({ source: 'dunamixfy', external_sku: '', notes: '' });
     setBomItems([]);
@@ -352,6 +359,12 @@ export function RawMaterialsManagement() {
       </td>
       <td className="px-4 py-3"><TypeBadge type={product.type} /></td>
       <td className="px-4 py-3 font-mono text-white/40 text-xs">{product.barcode || '—'}</td>
+      <td className="px-4 py-3">
+        <span className="text-white/70 text-sm font-semibold">{product.stock ?? 0}</span>
+      </td>
+      <td className="px-4 py-3">
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/40 text-xs font-mono">{product.unit || 'uds'}</span>
+      </td>
       <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -379,8 +392,10 @@ export function RawMaterialsManagement() {
           </div>
           <StatusBadge active={product.is_active} />
         </div>
-        <div className="flex items-center gap-2 mt-2">
+        <div className="flex flex-wrap items-center gap-1.5 mt-2">
           <TypeBadge type={product.type} />
+          <span className="text-white/40 text-xs ml-1">Stock: <strong className="text-white/70">{product.stock ?? 0}</strong></span>
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/[0.04] text-white/30 text-[10px] font-mono">{product.unit || 'uds'}</span>
           <div className="flex-1" />
           <button onClick={() => openEdit(product)}
             className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all">
@@ -399,7 +414,7 @@ export function RawMaterialsManagement() {
     items.length === 0 ? null : (
       <>
         <tr>
-          <td colSpan={6} className="px-4 pt-5 pb-2">
+          <td colSpan={8} className="px-4 pt-5 pb-2">
             <p className={`text-[10px] font-semibold uppercase tracking-widest ${color}`}>{title} ({items.length})</p>
           </td>
         </tr>
@@ -474,6 +489,8 @@ export function RawMaterialsManagement() {
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Tipo</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Cód. de Barras</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Stock</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Unidad</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Estado</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Acciones</th>
                   </tr>
@@ -593,6 +610,18 @@ export function RawMaterialsManagement() {
                           <option key={sub.id} value={sub.id}>  └ {sub.icon} {sub.name}</option>
                         ))}
                       </optgroup>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Unidad base */}
+                <div>
+                  <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">Unidad base</label>
+                  <select value={formData.unit}
+                    onChange={e => setFormData({ ...formData, unit: e.target.value })}
+                    style={{ colorScheme: 'dark' }} className={inputCls}>
+                    {['unidades','unidad','ml','mg','g','kg','L','m','cm','par','rollo'].map(u => (
+                      <option key={u} value={u}>{u}</option>
                     ))}
                   </select>
                 </div>

@@ -6,7 +6,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import toast from 'react-hot-toast';
-import { productionService } from '../../services/wmsService';
+import { productionService, bomService } from '../../services/wmsService';
 import { useStore } from '../../store/useStore';
 import {
   ArrowLeft, PlayCircle, PauseCircle, CheckCircle,
@@ -185,7 +185,7 @@ function CompleteModal({ order, onCompleted, onClose }) {
                   return (
                     <div key={i} className="flex items-center justify-between px-4 py-2">
                       <p className="text-white/70 text-sm">{m.component?.name || m.component_product_id}</p>
-                      <span className="text-white/50 text-sm font-mono">-{toConsume}</span>
+                      <span className="text-white/50 text-sm font-mono">-{toConsume} <span className="text-white/30 text-xs">{m.unit_of_measure || 'uds'}</span></span>
                     </div>
                   );
                 })}
@@ -223,6 +223,16 @@ export default function ProductionOrderDetail() {
   const load = useCallback(async () => {
     try {
       const data = await productionService.getById(id);
+      // Enrich materials with unit_of_measure from BOM
+      if (data?.product_id && data?.materials?.length) {
+        try {
+          const bom = await bomService.getByProduct(data.product_id);
+          if (bom?.items?.length) {
+            const bomUnitMap = Object.fromEntries(bom.items.map(i => [i.component_product_id, i.unit_of_measure || 'uds']));
+            data.materials = data.materials.map(m => ({ ...m, unit_of_measure: bomUnitMap[m.component_product_id] || 'uds' }));
+          }
+        } catch { /* ignore — units are optional */ }
+      }
       setOrder(data);
     } catch { toast.error('Error al cargar la orden'); }
     finally { setLoading(false); }
