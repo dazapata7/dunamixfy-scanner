@@ -95,18 +95,11 @@ function SubItem({ icon: Icon, label, path, active }) {
 }
 
 // ── Nav item (standalone o expandable) ───────────────
-function NavItem({ item, isActive, hasActiveChild }) {
-  const navigate     = useNavigate();
-  const [open, setOpen] = useState(hasActiveChild);
-
-  useEffect(() => {
-    if (hasActiveChild) setOpen(true);
-  }, [hasActiveChild]);
-
+function NavItem({ item, isActive, hasActiveChild, open, onToggle }) {
+  const navigate  = useNavigate();
   const highlighted = isActive || hasActiveChild;
 
   if (!item.children) {
-    // Standalone — sin bg activo (igual que Dunamixfy real)
     return (
       <div className="px-2">
         <button
@@ -129,11 +122,11 @@ function NavItem({ item, isActive, hasActiveChild }) {
     );
   }
 
-  // Expandable — bg-white/5 solo cuando está abierto (igual que Dunamixfy real)
+  // Expandable — accordion: solo uno abierto a la vez
   return (
     <div className="px-2">
       <button
-        onClick={() => setOpen(o => !o)}
+        onClick={onToggle}
         className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all group ${
           open
             ? 'bg-white/[0.05] text-primary-500'
@@ -174,6 +167,26 @@ export function SidebarLayout() {
   const pathname = location.pathname;
   const nav = buildNav(role);
 
+  // Accordion: solo un menú expandible abierto a la vez.
+  // Al cargar, abre el padre cuyo hijo esté activo.
+  const activeParentLabel = nav.find(item =>
+    item.children?.some(c => pathname === c.path || pathname.startsWith(c.path + '/'))
+  )?.label || null;
+
+  const [openLabel, setOpenLabel] = useState(activeParentLabel);
+
+  // Si la ruta cambia (navegación externa), sincronizar el ítem abierto
+  useEffect(() => {
+    const parent = nav.find(item =>
+      item.children?.some(c => pathname === c.path || pathname.startsWith(c.path + '/'))
+    );
+    if (parent) setOpenLabel(parent.label);
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleToggle(label) {
+    setOpenLabel(prev => (prev === label ? null : label));
+  }
+
   return (
     <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-900 border-r border-white/[0.06] z-40">
 
@@ -213,6 +226,8 @@ export function SidebarLayout() {
               item={item}
               isActive={item.children ? (activeChild ? activeChild.path : false) : isStandaloneActive}
               hasActiveChild={!!activeChild}
+              open={item.children ? openLabel === item.label : undefined}
+              onToggle={item.children ? () => handleToggle(item.label) : undefined}
             />
           );
         })}
