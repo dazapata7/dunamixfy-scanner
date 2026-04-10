@@ -176,12 +176,14 @@ export function SidebarLayout() {
 
   const [openLabel, setOpenLabel] = useState(activeParentLabel);
 
-  // Si la ruta cambia (navegación externa), sincronizar el ítem abierto
+  // Si la ruta cambia, sincronizar el ítem abierto.
+  // Si la ruta activa NO pertenece a ningún menú expandible, cerrar el que esté abierto.
   useEffect(() => {
     const parent = nav.find(item =>
       item.children?.some(c => pathname === c.path || pathname.startsWith(c.path + '/'))
     );
     if (parent) setOpenLabel(parent.label);
+    else setOpenLabel(null);
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleToggle(label) {
