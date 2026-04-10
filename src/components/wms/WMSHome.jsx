@@ -43,8 +43,8 @@ export function WMSHome() {
       title: 'Dashboard',
       description: 'Despachos del día',
       path: '/wms/dashboard',
-      accent: 'text-blue-400',
-      iconBg: 'bg-blue-500/20',
+      accent: 'text-primary-400',
+      iconBg: 'bg-primary-500/20',
     },
     {
       id: 'scan-guide',
@@ -164,7 +164,7 @@ export function WMSHome() {
             {(role === 'admin' || role === 'superadmin') && (
               <button
                 onClick={() => navigate('/admin')}
-                className="inline-flex items-center px-3 py-1.5 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400/80 text-xs font-semibold hover:bg-blue-500/20 transition-all gap-1.5"
+                className="inline-flex items-center px-3 py-1.5 rounded-lg bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold hover:bg-primary-500/20 transition-all gap-1.5"
               >
                 <Building2 className="w-3 h-3" /> Admin
               </button>

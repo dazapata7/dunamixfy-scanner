@@ -205,10 +205,10 @@ export function InventoryList() {
           </div>
 
           {/* Almacén */}
-          <div className="bg-gradient-to-br from-blue-500/10 to-blue-500/5 backdrop-blur-xl rounded-2xl border border-blue-500/20 p-5">
+          <div className="bg-gradient-to-br from-primary-500/10 to-primary-500/5 rounded-2xl border border-primary-500/20 p-5">
             <div className="flex items-center justify-between mb-3">
-              <div className="p-2 rounded-lg bg-blue-500/20">
-                <Warehouse className="w-5 h-5 text-blue-400" />
+              <div className="p-2 rounded-lg bg-primary-500/20">
+                <Warehouse className="w-5 h-5 text-primary-400" />
               </div>
               <span className="text-[10px] text-white/30 uppercase tracking-widest">Almacén</span>
             </div>

@@ -155,7 +155,7 @@ function CompleteModal({ order, onCompleted, onClose }) {
                 value={targetStock}
                 onChange={e => setTargetStock(e.target.value)}
                 placeholder="Ej: 100"
-                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-xl font-bold text-center focus:outline-none focus:border-blue-500/50"
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-xl font-bold text-center focus:outline-none focus:border-primary-500/50"
               />
               <p className="text-white/30 text-xs mt-1 text-center">
                 El sistema calculará el delta automáticamente y registrará un movimiento <code className="text-blue-400">production_adjust</code>
@@ -421,7 +421,7 @@ export default function ProductionOrderDetail() {
 
               {order.status === 'draft' && (
                 <button onClick={handleStart} disabled={acting}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all font-semibold text-sm disabled:opacity-50">
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 hover:bg-primary-500/20 transition-all font-semibold text-sm disabled:opacity-50">
                   <PlayCircle className="w-4 h-4" />
                   Iniciar producción
                 </button>
@@ -444,7 +444,7 @@ export default function ProductionOrderDetail() {
 
               {order.status === 'paused' && (
                 <button onClick={handleStart} disabled={acting}
-                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-blue-400 hover:bg-blue-500/20 transition-all font-semibold text-sm disabled:opacity-50">
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary-500/10 border border-primary-500/20 text-primary-400 hover:bg-primary-500/20 transition-all font-semibold text-sm disabled:opacity-50">
                   <PlayCircle className="w-4 h-4" />
                   Reanudar
                 </button>

@@ -103,7 +103,7 @@ export function ManageBodegas() {
           </div>
           <button
             onClick={openCreate}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/20 border border-blue-500/30 text-blue-300 hover:bg-blue-500/30 transition-all text-sm font-medium"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-500/15 border border-primary-500/25 text-primary-400 hover:bg-primary-500/25 transition-all text-sm font-medium"
           >
             <Plus className="w-4 h-4" /> Nueva
           </button>
@@ -122,7 +122,7 @@ export function ManageBodegas() {
                     value={form.code}
                     onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
                     placeholder="BOG-001"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-400 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-primary-500/60 transition-all"
                   />
                 </div>
                 <div>
@@ -132,7 +132,7 @@ export function ManageBodegas() {
                     value={form.name}
                     onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="Bodega Principal Bogotá"
-                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-400 transition-all"
+                    className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-primary-500/60 transition-all"
                   />
                 </div>
               </div>
@@ -143,14 +143,14 @@ export function ManageBodegas() {
                   value={form.address}
                   onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
                   placeholder="Calle 123 #45-67, Bogotá"
-                  className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-blue-400 transition-all"
+                  className="w-full px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-sm placeholder-white/30 focus:outline-none focus:border-primary-500/60 transition-all"
                 />
               </div>
               <div className="flex gap-3">
                 <button
                   onClick={handleSave}
                   disabled={isSaving}
-                  className="flex-1 py-2.5 rounded-xl bg-blue-500 text-white font-medium flex items-center justify-center gap-2 hover:bg-blue-600 transition-all disabled:opacity-50"
+                  className="flex-1 py-2.5 rounded-xl bg-primary-500/20 border border-primary-500/30 text-primary-400 font-medium flex items-center justify-center gap-2 hover:bg-primary-500/30 transition-all disabled:opacity-50"
                 >
                   {isSaving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check className="w-4 h-4" />}
                   {editingId ? 'Guardar' : 'Crear'}
@@ -187,8 +187,8 @@ export function ManageBodegas() {
                     : 'bg-white/2 border-white/5 opacity-60'
                 }`}
               >
-                <div className="p-2.5 rounded-xl bg-blue-500/20">
-                  <Warehouse className="w-5 h-5 text-blue-400" />
+                <div className="p-2.5 rounded-xl bg-primary-500/10">
+                  <Warehouse className="w-5 h-5 text-primary-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-white font-medium truncate">{wh.name}</p>
