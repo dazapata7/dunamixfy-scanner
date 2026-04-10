@@ -175,11 +175,11 @@ export function SidebarLayout() {
   const nav = buildNav(role);
 
   return (
-    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-900/90 backdrop-blur-xl border-r border-white/[0.06] z-40">
+    <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-48 bg-dark-900 border-r border-white/[0.06] z-40">
 
       {/* ── Logo ──────────────────────────────────────── */}
       <div className="flex items-center gap-2.5 px-4 h-16 border-b border-white/[0.06] flex-shrink-0">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(10,253,189,0.40)]">
+        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-primary-500 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-[0_0_14px_rgba(212,146,10,0.40)]">
           <span className="text-dark-950 font-black text-[11px]">D</span>
         </div>
         <div className="min-w-0 flex-1">

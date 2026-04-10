@@ -5,7 +5,7 @@
 @tailwind utilities;
 
 :root {
-  --color-primary: #0afdbd;
+  --color-primary: #D4920A;
   --color-dark-900: #13111C;
   --color-dark-800: #202126;
   --color-dark-700: #2a2f3e;
@@ -22,10 +22,10 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background:
-    radial-gradient(ellipse 35% 30% at 20% 20%, rgba(10,253,189,0.08) 0%, transparent 70%),
-    radial-gradient(ellipse 40% 35% at 50% 25%, rgba(23,177,211,0.10) 0%, transparent 60%),
+    radial-gradient(ellipse 35% 30% at 20% 20%, rgba(212,146,10,0.07) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 35% at 50% 25%, rgba(212,146,10,0.05) 0%, transparent 60%),
     radial-gradient(ellipse 30% 25% at 80% 15%, rgba(139,92,246,0.07) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 30% at 60% 85%, rgba(10,253,189,0.04) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 30% at 60% 85%, rgba(212,146,10,0.03) 0%, transparent 70%),
     #0a0a0f;
   color: white;
 }
@@ -92,4 +92,15 @@ body {
 
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Chrome performance: backdrop-filter causes GPU compositor lag in complex UIs.
+   Removing blur keeps the dark theme readable via solid/semi-solid backgrounds. */
+.backdrop-blur-sm,
+.backdrop-blur-md,
+.backdrop-blur-xl,
+.backdrop-blur-lg,
+.\[backdrop-blur\] {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
 }

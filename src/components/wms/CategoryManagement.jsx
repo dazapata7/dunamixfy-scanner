@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 
 const COLORS = [
-  '#0afdbd','#3b82f6','#f59e0b','#8b5cf6',
+  '#D4920A','#3b82f6','#f59e0b','#8b5cf6',
   '#ef4444','#10b981','#f97316','#06b6d4',
 ];
 
@@ -24,7 +24,7 @@ function CategoryModal({ category, categories, onSave, onClose }) {
     name:       category?.name       || '',
     parent_id:  category?.parent_id  || '',
     icon:       category?.icon       || '📦',
-    color:      category?.color      || '#0afdbd',
+    color:      category?.color      || '#D4920A',
     sort_order: category?.sort_order ?? 0,
   });
   const [saving, setSaving] = useState(false);

@@ -210,14 +210,14 @@ function App() {
           style: {
             background: "#202126",
             color: "#fff",
-            border: "1px solid rgba(10,253,189,0.25)",
+            border: "1px solid rgba(212,146,10,0.25)",
             borderRadius: "12px",
             fontSize: "14px",
             fontWeight: "600",
           },
           success: {
             iconTheme: {
-              primary: "#0afdbd",
+              primary: "#D4920A",
               secondary: "#202126",
             },
           },

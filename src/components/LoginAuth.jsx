@@ -24,13 +24,13 @@ export function LoginAuth() {
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4"
-      style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(0,229,191,0.08) 0%, transparent 60%), #05070d' }}>
+      style={{ background: 'radial-gradient(ellipse 80% 50% at 50% -10%, rgba(212,146,10,0.07) 0%, transparent 60%), #05070d' }}>
 
       <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-[0_0_24px_rgba(0,229,191,0.4)] mb-5">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-primary-500 to-primary-600 shadow-[0_0_24px_rgba(212,146,10,0.4)] mb-5">
             <span className="text-dark-950 font-black text-xl">D</span>
           </div>
           <h1 className="text-white font-black text-xl tracking-widest uppercase">Dunamixfy</h1>
