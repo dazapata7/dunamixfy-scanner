@@ -13,10 +13,10 @@ import { useStore } from '../../store/useStore';
 import {
   ArrowLeft,
   Package,
+  PackagePlus,
   Plus,
   Edit2,
   Trash2,
-  Loader2,
   Save,
   X,
   Image as ImageIcon,
@@ -76,6 +76,7 @@ export function RawMaterialsManagement() {
   const navigate = useNavigate();
   const companyId = useStore(s => s.companyId);
   const selectedWarehouse = useStore(s => s.selectedWarehouse);
+  const operator = useStore(s => s.operator);
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -90,6 +91,13 @@ export function RawMaterialsManagement() {
     sku: '', name: '', barcode: '', photo_url: '',
     description: '', is_active: true, type: 'raw_material', unit: 'unidades'
   });
+
+  // Entrada rápida de stock
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  const [entryProduct, setEntryProduct] = useState(null);
+  const [entryQty, setEntryQty] = useState('');
+  const [entryNotes, setEntryNotes] = useState('');
+  const [isSavingEntry, setIsSavingEntry] = useState(false);
 
   // SKU Mappings
   const [skuMappings, setSkuMappings] = useState([]);
@@ -199,6 +207,38 @@ export function RawMaterialsManagement() {
   function closeModal() {
     setShowModal(false);
     setEditingProduct(null);
+  }
+
+  function openEntry(product) {
+    if (!selectedWarehouse) { toast.error('Selecciona una bodega primero'); return; }
+    setEntryProduct(product);
+    setEntryQty('');
+    setEntryNotes('');
+    setShowEntryModal(true);
+  }
+
+  async function handleEntry() {
+    const qty = parseFloat(entryQty);
+    if (!qty || qty <= 0) { toast.error('Ingresa una cantidad válida'); return; }
+    setIsSavingEntry(true);
+    try {
+      await inventoryService.createMovement({
+        movement_type: 'IN',
+        qty_signed: qty,
+        warehouse_id: selectedWarehouse.id,
+        product_id: entryProduct.id,
+        user_id: operator?.id || null,
+        ref_type: 'receipt',
+        notes: entryNotes.trim() || `Entrada manual: ${entryProduct.name}`,
+      });
+      toast.success(`+${qty} ${entryProduct.unit || 'uds'} · ${entryProduct.name}`);
+      setShowEntryModal(false);
+      loadProducts();
+    } catch (e) {
+      toast.error(e.message || 'Error al registrar entrada');
+    } finally {
+      setIsSavingEntry(false);
+    }
   }
 
   async function handleSave() {
@@ -365,6 +405,10 @@ export function RawMaterialsManagement() {
       <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={() => openEntry(product)}
+            className="p-2 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/[0.15] text-emerald-400/60 hover:text-emerald-400 hover:bg-emerald-500/[0.15] transition-all" title="Registrar entrada de stock">
+            <PackagePlus className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => openEdit(product)}
             className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all" title="Editar">
             <Edit2 className="w-3.5 h-3.5" />
@@ -394,6 +438,10 @@ export function RawMaterialsManagement() {
           <span className="text-white/40 text-xs ml-1">Stock: <strong className="text-white/70">{product.stock ?? 0}</strong></span>
           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/[0.04] text-white/30 text-[10px] font-mono">{product.unit || 'uds'}</span>
           <div className="flex-1" />
+          <button onClick={() => openEntry(product)}
+            className="p-2 rounded-lg bg-emerald-500/[0.08] border border-emerald-500/[0.15] text-emerald-400/60 hover:text-emerald-400 transition-all" title="Registrar entrada">
+            <PackagePlus className="w-3.5 h-3.5" />
+          </button>
           <button onClick={() => openEdit(product)}
             className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all">
             <Edit2 className="w-3.5 h-3.5" />
@@ -847,6 +895,108 @@ export function RawMaterialsManagement() {
                 {isSaving
                   ? <><div className="w-4 h-4 border-2 border-dark-950/30 border-t-dark-950 rounded-full animate-spin" /> Guardando...</>
                   : <><Save className="w-4 h-4" /> {editingProduct ? 'Guardar Cambios' : 'Crear Producto'}</>
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════
+          MODAL - Entrada rápida de stock
+      ══════════════════════════════════════════════ */}
+      {showEntryModal && entryProduct && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-dark-800 rounded-2xl border border-white/[0.08] w-full max-w-sm shadow-2xl">
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
+                  <PackagePlus className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <h2 className="text-white font-semibold text-sm">Entrada de stock</h2>
+                  <p className="text-white/40 text-xs">{entryProduct.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setShowEntryModal(false)}
+                className="p-1.5 rounded-lg text-white/40 hover:text-white hover:bg-white/[0.06] transition-all">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 space-y-4">
+
+              {/* Info actual */}
+              <div className="flex items-center justify-between bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.05]">
+                <span className="text-white/40 text-xs">Stock actual</span>
+                <span className="text-white font-semibold text-sm">
+                  {entryProduct.stock ?? 0}
+                  <span className="text-white/30 font-normal ml-1">{entryProduct.unit || 'uds'}</span>
+                </span>
+              </div>
+
+              {/* Bodega */}
+              <div className="flex items-center justify-between bg-white/[0.03] rounded-xl px-4 py-3 border border-white/[0.05]">
+                <span className="text-white/40 text-xs">Bodega</span>
+                <span className="text-white/70 text-xs font-medium">{selectedWarehouse?.name}</span>
+              </div>
+
+              {/* Cantidad */}
+              <div>
+                <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">
+                  Cantidad a ingresar *
+                </label>
+                <input
+                  type="number" min="0.001" step="any"
+                  value={entryQty}
+                  onChange={e => setEntryQty(e.target.value)}
+                  placeholder={`ej: 100 ${entryProduct.unit || 'uds'}`}
+                  className={inputCls}
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && handleEntry()}
+                />
+              </div>
+
+              {/* Notas */}
+              <div>
+                <label className="block text-white/25 text-[11px] uppercase tracking-[0.12em] mb-1.5">
+                  Notas (opcional)
+                </label>
+                <input
+                  type="text"
+                  value={entryNotes}
+                  onChange={e => setEntryNotes(e.target.value)}
+                  placeholder="ej: Compra proveedor X, lote #123"
+                  className={inputCls}
+                  onKeyDown={e => e.key === 'Enter' && handleEntry()}
+                />
+              </div>
+
+              {/* Preview */}
+              {parseFloat(entryQty) > 0 && (
+                <div className="bg-emerald-500/[0.06] border border-emerald-500/15 rounded-xl px-4 py-2.5 text-xs text-white/60">
+                  Stock después de la entrada:
+                  <strong className="text-emerald-400 ml-1.5">
+                    {(entryProduct.stock ?? 0) + parseFloat(entryQty)} {entryProduct.unit || 'uds'}
+                  </strong>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="flex gap-3 px-5 pb-5">
+              <button onClick={() => setShowEntryModal(false)} disabled={isSavingEntry}
+                className="flex-1 bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all text-sm">
+                Cancelar
+              </button>
+              <button onClick={handleEntry} disabled={isSavingEntry || !(parseFloat(entryQty) > 0)}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-lg transition-all flex items-center justify-center gap-2 text-sm disabled:opacity-40">
+                {isSavingEntry
+                  ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Registrando...</>
+                  : <><PackagePlus className="w-4 h-4" /> Registrar entrada</>
                 }
               </button>
             </div>
