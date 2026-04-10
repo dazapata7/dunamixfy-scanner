@@ -11,7 +11,7 @@ import { useStore } from '../../store/useStore';
 import {
   ArrowLeft, PlayCircle, PauseCircle, CheckCircle,
   XCircle, AlertTriangle, Package, Beaker, ChevronRight,
-  X, Loader2, Check
+  X, Loader2, Check, Plus, Target
 } from 'lucide-react';
 
 const STATUS_CONFIG = {
@@ -25,8 +25,10 @@ const STATUS_CONFIG = {
 // ── Modal: Completar producción ───────────────────────────────────────────
 function CompleteModal({ order, onCompleted, onClose }) {
   const operatorId = useStore(s => s.operatorId);
-  const [qty, setQty]       = useState(order.qty_planned - order.qty_produced);
-  const [saving, setSaving] = useState(false);
+  const [qty, setQty]               = useState(order.qty_planned - order.qty_produced);
+  const [mode, setMode]             = useState('in');           // 'in' | 'adjust'
+  const [targetStock, setTargetStock] = useState('');
+  const [saving, setSaving]         = useState(false);
 
   const stockOK = (order.materials || []).filter(m => {
     const avail = (m.component?.stock_qty || 0);
@@ -35,9 +37,15 @@ function CompleteModal({ order, onCompleted, onClose }) {
 
   async function handleComplete() {
     if (qty <= 0) return toast.error('La cantidad debe ser mayor a 0');
+    if (mode === 'adjust' && (targetStock === '' || isNaN(parseFloat(targetStock)))) {
+      return toast.error('Ingresa el stock objetivo');
+    }
     setSaving(true);
     try {
-      const result = await productionService.complete(order.id, qty, operatorId || null);
+      const result = await productionService.complete(order.id, qty, operatorId || null, {
+        mode,
+        targetStock: mode === 'adjust' ? parseFloat(targetStock) : null,
+      });
       if (result?.success) {
         toast.success(result.message || 'Producción completada');
         onCompleted();
@@ -82,6 +90,45 @@ function CompleteModal({ order, onCompleted, onClose }) {
             </div>
           )}
 
+          {/* Selector de modo: Entrada vs Ajuste */}
+          <div>
+            <label className="text-white/40 text-xs uppercase tracking-widest mb-1.5 block">
+              Modo de registro
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMode('in')}
+                className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                  mode === 'in'
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                    : 'bg-white/[0.03] border-white/[0.07] text-white/50 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Plus className="w-3.5 h-3.5" />
+                  <span className="text-sm font-semibold">Entrada nueva</span>
+                </div>
+                <span className="text-[11px] opacity-70">Suma al stock actual</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('adjust')}
+                className={`flex flex-col items-start gap-1 p-3 rounded-xl border transition-all text-left ${
+                  mode === 'adjust'
+                    ? 'bg-blue-500/10 border-blue-500/30 text-blue-400'
+                    : 'bg-white/[0.03] border-white/[0.07] text-white/50 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center gap-1.5">
+                  <Target className="w-3.5 h-3.5" />
+                  <span className="text-sm font-semibold">Ajuste</span>
+                </div>
+                <span className="text-[11px] opacity-70">Fija el stock total</span>
+              </button>
+            </div>
+          </div>
+
           <div>
             <label className="text-white/40 text-xs uppercase tracking-widest mb-1.5 block">
               Cantidad producida en esta corrida
@@ -93,9 +140,38 @@ function CompleteModal({ order, onCompleted, onClose }) {
               className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-xl font-bold text-center focus:outline-none focus:border-emerald-500/50"
             />
             <p className="text-white/30 text-xs mt-1 text-center">
-              Se descontarán los insumos del BOM y se sumará {qty} ud(s) al inventario de {order.product?.name}
+              Se descontarán los insumos del BOM proporcionalmente a {qty} ud(s)
             </p>
           </div>
+
+          {/* Input adicional cuando mode === 'adjust' */}
+          {mode === 'adjust' && (
+            <div>
+              <label className="text-white/40 text-xs uppercase tracking-widest mb-1.5 block">
+                Stock objetivo de {order.product?.name} tras esta OP
+              </label>
+              <input
+                type="number" min="0" step="1"
+                value={targetStock}
+                onChange={e => setTargetStock(e.target.value)}
+                placeholder="Ej: 100"
+                className="w-full bg-white/[0.05] border border-white/[0.08] rounded-xl px-4 py-3 text-white text-xl font-bold text-center focus:outline-none focus:border-blue-500/50"
+              />
+              <p className="text-white/30 text-xs mt-1 text-center">
+                El sistema calculará el delta automáticamente y registrará un movimiento <code className="text-blue-400">production_adjust</code>
+              </p>
+            </div>
+          )}
+
+          {/* Hint si el producto tiene producto vinculado */}
+          {order.product?.linked_product_id && (
+            <div className="bg-primary-500/[0.05] border border-primary-500/15 rounded-xl px-4 py-2.5 flex items-start gap-2 text-xs">
+              <span className="text-primary-400 text-sm leading-none mt-0.5">🔗</span>
+              <span className="text-white/55 leading-relaxed italic">
+                Esta producción se acumulará en el pool de <strong className="text-primary-400 not-italic">{order.product?.name}</strong>. Para pasar unidades al producto de venta vinculado, usa <strong className="not-italic">"Transferir a venta"</strong> después en Productos de producción.
+              </span>
+            </div>
+          )}
 
           {/* Resumen de insumos a consumir */}
           {(order.materials || []).length > 0 && (

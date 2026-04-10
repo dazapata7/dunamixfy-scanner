@@ -48,6 +48,8 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
     notes:       '',
   });
   const [products, setProducts]     = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+  const [linkedProductName, setLinkedProductName] = useState(null);
   const [bom, setBom]               = useState(null);
   const [materials, setMaterials]   = useState([]);
   const [maxProducible, setMaxProducible] = useState(null);
@@ -55,9 +57,10 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
   const [saving, setSaving]         = useState(false);
 
   useEffect(() => {
-    productsService.getAll().then(all =>
-      setProducts(all.filter(p => ['finished_good', 'semi_finished', 'combo'].includes(p.type)))
-    ).catch(() => {});
+    productsService.getAll().then(all => {
+      setAllProducts(all);
+      setProducts(all.filter(p => ['finished_good', 'semi_finished', 'combo'].includes(p.type)));
+    }).catch(() => {});
   }, []);
 
   // Calcula cuántas unidades se pueden producir con el stock actual
@@ -74,7 +77,13 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
     setBom(null);
     setMaterials([]);
     setMaxProducible(null);
+    setLinkedProductName(null);
     if (!productId) return;
+    const selected = allProducts.find(p => p.id === productId);
+    if (selected?.linked_product_id) {
+      const linked = allProducts.find(p => p.id === selected.linked_product_id);
+      setLinkedProductName(linked?.name || null);
+    }
     setLoading(true);
     try {
       const b = await bomService.getByProduct(productId);
@@ -178,6 +187,16 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
                   Usar máximo
                 </button>
               )}
+            </div>
+          )}
+
+          {/* Banner producto vinculado (informativo) */}
+          {linkedProductName && (
+            <div className="bg-primary-500/[0.05] border border-primary-500/15 rounded-xl px-4 py-2.5 flex items-start gap-2 text-xs">
+              <span className="text-primary-400 text-sm leading-none mt-0.5">🔗</span>
+              <span className="text-white/60 leading-relaxed">
+                Vinculado a <strong className="text-primary-400">{linkedProductName}</strong>. El inventario producido se queda en este pool; para pasarlo al producto de venta usa el botón <em>"Transferir a venta"</em> en la lista de Productos de producción.
+              </span>
             </div>
           )}
 

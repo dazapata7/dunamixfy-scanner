@@ -1887,12 +1887,28 @@ export const productionService = {
     return data?.[0];
   },
 
-  async complete(orderId, qtyProduced, operatorId = null) {
+  async complete(orderId, qtyProduced, operatorId = null, options = {}) {
+    const { mode = 'in', targetStock = null } = options;
     const { data, error } = await supabase
       .rpc('complete_production_order', {
         p_order_id:     orderId,
         p_qty_produced: qtyProduced,
         p_operator_id:  operatorId,
+        p_mode:         mode,
+        p_target_stock: targetStock,
+      });
+    if (error) throw error;
+    return data?.[0];
+  },
+
+  async transferToSales(sourceProductId, warehouseId, qty, operatorId = null, notes = null) {
+    const { data, error } = await supabase
+      .rpc('transfer_production_to_sales', {
+        p_source_product_id: sourceProductId,
+        p_warehouse_id:      warehouseId,
+        p_qty:               qty,
+        p_operator_id:       operatorId,
+        p_notes:             notes,
       });
     if (error) throw error;
     return data?.[0];

@@ -104,15 +104,49 @@ Funcionalidades adicionales: `ProductionOrders` (BOM + capacidad), `Returns` (de
 
 ### Base de datos
 
-38 migraciones en `supabase/migrations/` (numeradas 005–040). Las más importantes:
+39 migraciones en `supabase/migrations/` (numeradas 005–041). Las más importantes:
 - `032` — empresas y roles (multi-tenant)
 - `035` — BOM (Bill of Materials) completo
 - `036` — órdenes de producción
 - `037` — módulo de devoluciones
 - `040` — RLS (Row Level Security) por company/warehouse
+- `041` — `linked_product_id` + RPC `transfer_production_to_sales` (transferencia manual producción → venta)
 
 Para aplicar migraciones nuevas: ejecutar el SQL directamente en el **SQL Editor del dashboard de Supabase** (no hay Supabase CLI configurado localmente).
 Dashboard Supabase: `https://supabase.com/dashboard/project/aejbpjvufpyxlvitlvfn`
+
+### Kardex / Trazabilidad
+
+La tabla **`inventory_movements`** es la **fuente única de verdad** del inventario. Toda variación de stock pasa por ahí — la vista `inventory_stock_view` es solo `SUM(qty_signed) GROUP BY product_id, warehouse_id`. Nunca actualizar stock por otra vía.
+
+**Estructura clave de cada movimiento:**
+- `movement_type` — `IN` o `OUT`
+- `qty_signed` — positivo para IN, negativo para OUT (es la fuente del SUM)
+- `ref_type` — clasifica el origen (ver tabla abajo)
+- `ref_id` — ID del documento origen (orden de producción, despacho, etc.) cuando aplica
+- `notes` — texto libre con trazabilidad cuando `ref_id` no basta
+- `user_id`, `created_at` — auditoría
+
+**Valores de `ref_type`:**
+
+| ref_type | Origen | ref_id | Descripción |
+|---|---|---|---|
+| `receipt` | Recepción | recepción | Entrada manual de inventario |
+| `dispatch` | Despacho | guía/lote | Salida hacia cliente |
+| `adjustment` | AdjustmentForm | — | Ajuste manual (modos increase/set/decrease) |
+| `return` | Devoluciones | devolución | Re-entrada por devolución |
+| `production_in` | OP completada (modo `in`) | OP | IN del producto producido al pool propio |
+| `production_out` | OP completada | OP | OUT de cada insumo del BOM |
+| `production_adjust` | OP completada (modo `adjust`) | OP | Delta calculado para fijar stock objetivo |
+| `production_release` | RPC `transfer_production_to_sales` | NULL | Transferencia manual semi/finished → producto simple vinculado |
+
+**Modelo de pools en producción** (decisión clave del negocio):
+
+Cada producto (insumo, semi, terminado, simple) tiene su **propio pool con Kardex propio**. Los productos de producción (`semi_finished` / `finished_good`) pueden tener `linked_product_id` apuntando a un producto de venta (`simple` / `combo`), pero **completar una OP NO transfiere automáticamente al producto vinculado**. La transferencia se hace explícitamente vía el botón **"Transferir a venta"** en *Producción → Productos*, que llama al RPC `transfer_production_to_sales` y crea 2 movimientos `production_release` atómicos (OUT en producción + IN en venta) con notas que mantienen la trazabilidad de origen.
+
+Para el flujo Rodillax/Lumbrax: varios productos de producción (Rodillax sin caja, Rodillax con caja) pueden apuntar al mismo producto simple `Rodillax`. El usuario decide cuándo y cuánto pasar de cada pool.
+
+**UI del Kardex:** *Inventario → Movimientos* ([InventoryHistory.jsx](src/components/wms/InventoryHistory.jsx)) con filtros por fecha, tipo y búsqueda. Para reconstruir cuánto se acumuló en un producto simple desde producción: filtrar por `ref_type=production_release` y agrupar por `notes`.
 
 ### PWA / Offline
 
