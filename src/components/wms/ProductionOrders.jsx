@@ -59,7 +59,7 @@ function CreateOrderModal({ warehouses, onCreated, onClose }) {
   useEffect(() => {
     productsService.getAll().then(all => {
       setAllProducts(all);
-      setProducts(all.filter(p => ['finished_good', 'semi_finished', 'combo'].includes(p.type)));
+      setProducts(all.filter(p => ['finished_good', 'semi_finished'].includes(p.type)));
     }).catch(() => {});
   }, []);
 
