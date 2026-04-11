@@ -5,6 +5,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { categoriesService } from '../../services/wmsService';
+import { useStore } from '../../store/useStore';
 import {
   Plus, Pencil, Trash2, ChevronRight, ChevronDown,
   FolderOpen, Folder, X, Check, ArrowLeft
@@ -223,6 +224,11 @@ function CategoryNode({ node, depth = 0, onEdit, onDelete, onAddChild }) {
 // ── Componente principal ──────────────────────────────────────────────────
 export default function CategoryManagement() {
   const navigate = useNavigate();
+  const companyId        = useStore(s => s.companyId);
+  const selectedWarehouse = useStore(s => s.selectedWarehouse);
+  // Para superadmin (companyId=NULL) usamos la empresa de la bodega activa
+  const effectiveCompanyId = companyId || selectedWarehouse?.company_id || null;
+
   const [tree, setTree]       = useState([]);
   const [flat, setFlat]       = useState([]);
   const [loading, setLoading] = useState(true);
@@ -250,7 +256,7 @@ export default function CategoryManagement() {
       await categoriesService.update(modal.category.id, data);
       toast.success('Categoría actualizada');
     } else {
-      await categoriesService.create(data);
+      await categoriesService.create({ ...data, company_id: effectiveCompanyId });
       toast.success('Categoría creada');
     }
     await load();

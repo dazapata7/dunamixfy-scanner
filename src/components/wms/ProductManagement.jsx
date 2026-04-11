@@ -70,6 +70,9 @@ const inputCls = "bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm 
 export function ProductManagement() {
   const navigate = useNavigate();
   const companyId = useStore(s => s.companyId);
+  const selectedWarehouse = useStore(s => s.selectedWarehouse);
+  // Superadmin tiene companyId=NULL: cae al company_id de la bodega activa
+  const effectiveCompanyId = companyId || selectedWarehouse?.company_id || null;
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -148,7 +151,7 @@ export function ProductManagement() {
       const payload = { ...formData };
 
       if (isCreating) {
-        const newProd = await productsService.create({ ...payload, company_id: companyId });
+        const newProd = await productsService.create({ ...payload, company_id: effectiveCompanyId });
         productId = newProd.id;
       } else {
         await productsService.update(productId, payload);

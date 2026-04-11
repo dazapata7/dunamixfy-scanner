@@ -62,6 +62,8 @@ export function ProductionProducts() {
   const companyId = useStore(s => s.companyId);
   const selectedWarehouse = useStore(s => s.selectedWarehouse);
   const operator = useStore(s => s.operator);
+  // Superadmin tiene companyId=NULL: cae al company_id de la bodega activa
+  const effectiveCompanyId = companyId || selectedWarehouse?.company_id || null;
 
   const [products, setProducts] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -218,7 +220,7 @@ export function ProductionProducts() {
 
       console.log('[ProductionProducts] handleSave step 1: producto', { isCreating, payload });
       if (isCreating) {
-        const newProd = await productsService.create({ ...payload, company_id: companyId });
+        const newProd = await productsService.create({ ...payload, company_id: effectiveCompanyId });
         productId = newProd.id;
         console.log('[ProductionProducts] producto creado id=', productId);
       } else {
