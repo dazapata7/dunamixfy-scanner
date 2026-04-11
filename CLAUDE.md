@@ -55,11 +55,7 @@ Todos los componentes son `lazy()` para code-splitting. El bundle inicial se red
 | `src/services/shipmentResolverService.js` | Resolución de guías contra la API externa Dunamixfy |
 | `src/services/dunamixfyApi.js` | Cliente HTTP para la API Dunamixfy (fuente de verdad para órdenes) |
 | `src/services/dunamixfyService.js` | Capa de alto nivel sobre `dunamixfyApi.js` |
-| `src/services/offlineQueue.js` | Cola de operaciones offline persistida en localStorage |
-| `src/services/syncService.js` | Auto-sync cuando el dispositivo recupera conexión |
 | `src/services/remoteScannerService.js` | Sesiones host/client para scanner remoto vía Supabase Realtime |
-
-**Archivos duplicados (versiones v2):** Existen `supabase-v2.js`, `validators-v2.js`, `useRealtimeV2.js` y `useScannerV2.js`. Los archivos sin sufijo (`supabase.js`, `validators.js`, etc.) son los canónicos activos. Los `-v2` son experimentos/migraciones en progreso; no crear nuevos `-v2` sin reemplazar el original.
 
 ### Validación de códigos
 
@@ -88,15 +84,14 @@ VALUES ('Servientrega', 'servientrega', 'Servientrega',
 
 ### Scanner QR/Barcode
 
-- `src/components/ZXingScanner.jsx` — usa `@zxing/library` como decoder principal (alta precisión).
-- `html5-qrcode` es dependencia secundaria de respaldo.
+- `html5-qrcode` es el decoder activo, cargado **dinámicamente** (`await import('html5-qrcode')`) en [ScanGuide.jsx](src/components/wms/ScanGuide.jsx), [Returns.jsx](src/components/wms/Returns.jsx) y [RemoteScannerClient.jsx](src/components/wms/RemoteScannerClient.jsx) para no inflar el bundle inicial.
 - Requiere **HTTPS** para acceso a cámara. En dev, `vite-plugin-mkcert` genera certificados válidos automáticamente.
 
 ### WMS (Warehouse Management System)
 
 Módulo principal en `src/components/wms/` (~26 componentes). Flujo principal:
 1. `WarehouseSelector` — seleccionar bodega activa (persiste en Zustand)
-2. `ScanGuide` — escaneo de guías con ZXing, valida contra transportadora activa
+2. `ScanGuide` — escaneo de guías con `html5-qrcode`, valida contra transportadora activa
 3. `BatchSummaryPage` — resumen del lote antes de confirmar despacho
 4. `DispatchDashboard` — vista principal de operaciones
 
