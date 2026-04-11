@@ -13,7 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import {
   ArrowLeft, TrendingDown, TrendingUp,
-  Package, Search, X, Download, RefreshCw
+  Package, Search, X, Download, RefreshCw, User
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -55,7 +55,7 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
     try {
       const { data, error } = await supabase
         .from('inventory_movements')
-        .select(`*, product:products(id, name, sku, type, unit), carrier:carriers(id, display_name, code)`)
+        .select(`*, product:products(id, name, sku, type, unit), carrier:carriers(id, display_name, code), operator:operators!user_id(id, name, email)`)
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -99,7 +99,9 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
       m.dispatch?.dispatch_number?.toLowerCase().includes(q) ||
       m.guide_code?.toLowerCase().includes(q) ||
       m.carrier?.display_name?.toLowerCase().includes(q) ||
-      m.external_order_id?.toLowerCase().includes(q);
+      m.external_order_id?.toLowerCase().includes(q) ||
+      m.operator?.name?.toLowerCase().includes(q) ||
+      m.operator?.email?.toLowerCase().includes(q);
 
     const matchesType = typeFilter === 'all' || m.movement_type === (typeFilter === 'in' ? 'IN' : 'OUT');
 
@@ -118,6 +120,7 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
         Producto:       m.product?.name || '',
         SKU:            m.product?.sku || '',
         Cantidad:       Math.abs(m.qty_signed ?? m.quantity ?? 0),
+        Usuario:        m.operator?.name || m.operator?.email || '',
       };
       if (isProduction) {
         return {
@@ -186,7 +189,7 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
             {/* Búsqueda */}
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
-              <input type="text" placeholder="Buscar producto, guía, orden..."
+              <input type="text" placeholder="Buscar producto, guía, orden, usuario..."
                 value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                 className="bg-white/[0.04] border border-white/[0.06] rounded-lg text-sm text-white/80 placeholder-white/25 focus:outline-none focus:border-primary-500/40 focus:bg-white/[0.06] transition-all px-3 py-2.5 w-full pl-9"
               />
@@ -281,6 +284,7 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
                         <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">Orden</th>
                       </>
                     )}
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-32">Usuario</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Fecha</th>
                   </tr>
                 </thead>
@@ -306,6 +310,16 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
                           <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.external_order_id || '—'}</td>
                         </>
                       )}
+                      <td className="px-4 py-3">
+                        {m.operator?.name ? (
+                          <div className="flex items-center gap-1.5 min-w-0" title={m.operator.email || ''}>
+                            <User className="w-3 h-3 text-white/25 flex-shrink-0" />
+                            <span className="text-white/60 text-xs truncate">{m.operator.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-white/25 text-xs">—</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-white/40 text-sm whitespace-nowrap">
                         {format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                       </td>
@@ -347,6 +361,17 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
                       <div><p className="text-white/30 mb-0.5">Guía</p><p className="text-white/60 font-mono truncate">{m.guide_code || '—'}</p></div>
                     </>
                   )}
+                  <div className="col-span-2 pt-1.5 mt-1 border-t border-white/[0.05]">
+                    <p className="text-white/30 mb-0.5">Usuario</p>
+                    {m.operator?.name ? (
+                      <div className="flex items-center gap-1.5">
+                        <User className="w-3 h-3 text-white/25 flex-shrink-0" />
+                        <span className="text-white/60 truncate">{m.operator.name}</span>
+                      </div>
+                    ) : (
+                      <p className="text-white/30">—</p>
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
