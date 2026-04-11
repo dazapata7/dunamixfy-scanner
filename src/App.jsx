@@ -133,6 +133,7 @@ function AppContent() {
                 <Route path="/wms/production/dashboard"   element={<ProductionDashboard />} />
                 <Route path="/wms/production/products"    element={<ProductionProducts />} />
                 <Route path="/wms/production/categories"  element={<CategoryManagement />} />
+                <Route path="/wms/production/movements"   element={<InventoryHistory scope="production" />} />
                 <Route path="/wms/production/:id"         element={<ProductionOrderDetail />} />
                 <Route path="/wms/production"             element={<ProductionOrders />} />
                 <Route path="/wms/returns"                element={<Returns />} />

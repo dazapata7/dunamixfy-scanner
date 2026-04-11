@@ -3,6 +3,9 @@
 // =====================================================
 // Desktop: tabla con columnas
 // Mobile: cards compactas
+// Reutilizable con prop `scope`:
+//   - 'sales' (default): productos tipo simple/combo (módulo Inventario)
+//   - 'production':      raw_material/consumable/semi/finished (módulo Producción)
 // =====================================================
 
 import { useState, useEffect } from 'react';
@@ -10,11 +13,14 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import {
   ArrowLeft, TrendingDown, TrendingUp,
-  Package, Loader2, Search, X, Download, RefreshCw
+  Package, Search, X, Download, RefreshCw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
+
+const PRODUCTION_TYPES = ['raw_material', 'consumable', 'semi_finished', 'finished_good'];
+const SALES_TYPES      = ['simple', 'combo'];
 
 // ── CSV helper ────────────────────────────────────────
 function downloadCSV(rows, filename) {
@@ -31,8 +37,9 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-export function InventoryHistory() {
+export function InventoryHistory({ scope = 'sales' } = {}) {
   const navigate = useNavigate();
+  const isProduction = scope === 'production';
 
   const [movements, setMovements] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,14 +48,14 @@ export function InventoryHistory() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
 
-  useEffect(() => { loadMovements(); }, []);
+  useEffect(() => { loadMovements(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [scope]);
 
   async function loadMovements() {
     setIsLoading(true);
     try {
       const { data, error } = await supabase
         .from('inventory_movements')
-        .select(`*, product:products(id, name, sku), carrier:carriers(id, display_name, code)`)
+        .select(`*, product:products(id, name, sku, type, unit), carrier:carriers(id, display_name, code)`)
         .order('created_at', { ascending: false })
         .limit(500);
 
@@ -74,6 +81,17 @@ export function InventoryHistory() {
   }
 
   const filteredMovements = movements.filter(m => {
+    // Filtro por scope: producción vs venta (según tipo de producto)
+    const productType = m.product?.type;
+    if (isProduction) {
+      if (!productType || !PRODUCTION_TYPES.includes(productType)) return false;
+    } else {
+      // Por defecto (sales): excluimos insumos de producción.
+      // Incluimos tipos de venta y también movimientos sin producto asociado / tipo desconocido
+      // para no ocultar datos legacy (productos viejos sin `type`).
+      if (productType && PRODUCTION_TYPES.includes(productType)) return false;
+    }
+
     const q = searchTerm.toLowerCase();
     const matchesSearch = !q ||
       m.product?.name?.toLowerCase().includes(q) ||
@@ -93,19 +111,35 @@ export function InventoryHistory() {
   });
 
   function handleExportCSV() {
-    const rows = filteredMovements.map(m => ({
-      Fecha:          m.created_at ? format(new Date(m.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
-      Tipo:           m.movement_type || '',
-      Producto:       m.product?.name || '',
-      SKU:            m.product?.sku || '',
-      Cantidad:       Math.abs(m.qty_signed ?? m.quantity ?? 0),
-      Guia:           m.guide_code || '',
-      Orden:          m.external_order_id || '',
-      Transportadora: m.carrier?.display_name || '',
-      Referencia:     m.ref_type || '',
-      Descripcion:    m.description || '',
-    }));
-    downloadCSV(rows, `movimientos_inventario_${new Date().toISOString().split('T')[0]}.csv`);
+    const rows = filteredMovements.map(m => {
+      const base = {
+        Fecha:          m.created_at ? format(new Date(m.created_at), 'yyyy-MM-dd HH:mm', { locale: es }) : '',
+        Tipo:           m.movement_type || '',
+        Producto:       m.product?.name || '',
+        SKU:            m.product?.sku || '',
+        Cantidad:       Math.abs(m.qty_signed ?? m.quantity ?? 0),
+      };
+      if (isProduction) {
+        return {
+          ...base,
+          Unidad:      m.product?.unit || '',
+          Referencia:  m.ref_type || '',
+          Descripcion: m.description || '',
+        };
+      }
+      return {
+        ...base,
+        Guia:           m.guide_code || '',
+        Orden:          m.external_order_id || '',
+        Transportadora: m.carrier?.display_name || '',
+        Referencia:     m.ref_type || '',
+        Descripcion:    m.description || '',
+      };
+    });
+    const filename = isProduction
+      ? `movimientos_produccion_${new Date().toISOString().split('T')[0]}.csv`
+      : `movimientos_inventario_${new Date().toISOString().split('T')[0]}.csv`;
+    downloadCSV(rows, filename);
     toast.success(`${rows.length} movimientos exportados`);
   }
 
@@ -136,11 +170,13 @@ export function InventoryHistory() {
 
         {/* Header – solo móvil */}
         <div className="lg:hidden flex items-center gap-3">
-          <button onClick={() => navigate('/wms')}
+          <button onClick={() => navigate(isProduction ? '/wms/production/dashboard' : '/wms')}
             className="bg-white/[0.05] border border-white/[0.08] text-white/70 hover:bg-white/[0.09] hover:text-white px-4 py-2 rounded-lg transition-all flex items-center gap-2 text-sm">
             <ArrowLeft className="w-4 h-4" /> Volver
           </button>
-          <h1 className="text-lg font-bold text-white">Movimientos</h1>
+          <h1 className="text-lg font-bold text-white">
+            {isProduction ? 'Movimientos de Producción' : 'Movimientos'}
+          </h1>
         </div>
 
         {/* ── Filtros ─────────────────────────────── */}
@@ -233,9 +269,18 @@ export function InventoryHistory() {
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">SKU</th>
                     <th className="px-4 py-3 text-center text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Cantidad</th>
-                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-40">Transportadora</th>
-                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Guía</th>
-                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">Orden</th>
+                    {isProduction && (
+                      <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Unidad</th>
+                    )}
+                    {isProduction ? (
+                      <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-32">Referencia</th>
+                    ) : (
+                      <>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-40">Transportadora</th>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Guía</th>
+                        <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-28">Orden</th>
+                      </>
+                    )}
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Fecha</th>
                   </tr>
                 </thead>
@@ -249,9 +294,18 @@ export function InventoryHistory() {
                       </td>
                       <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.product?.sku || '—'}</td>
                       <td className="px-4 py-3 text-center"><QtyCell m={m} /></td>
-                      <td className="px-4 py-3 text-white/60 text-sm truncate">{m.carrier?.display_name || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/60 text-xs">{m.guide_code || '—'}</td>
-                      <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.external_order_id || '—'}</td>
+                      {isProduction && (
+                        <td className="px-4 py-3 text-white/50 text-xs">{m.product?.unit || '—'}</td>
+                      )}
+                      {isProduction ? (
+                        <td className="px-4 py-3 text-white/40 text-xs">{m.ref_type || '—'}</td>
+                      ) : (
+                        <>
+                          <td className="px-4 py-3 text-white/60 text-sm truncate">{m.carrier?.display_name || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-white/60 text-xs">{m.guide_code || '—'}</td>
+                          <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.external_order_id || '—'}</td>
+                        </>
+                      )}
                       <td className="px-4 py-3 text-white/40 text-sm whitespace-nowrap">
                         {format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}
                       </td>
@@ -282,8 +336,17 @@ export function InventoryHistory() {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
                   <div><p className="text-white/30 mb-0.5">Producto</p><p className="text-white/70 font-medium truncate">{m.product?.name || 'N/A'}</p></div>
                   <div><p className="text-white/30 mb-0.5">Cantidad</p><QtyCell m={m} /></div>
-                  <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/60 truncate">{m.carrier?.display_name || '—'}</p></div>
-                  <div><p className="text-white/30 mb-0.5">Guía</p><p className="text-white/60 font-mono truncate">{m.guide_code || '—'}</p></div>
+                  {isProduction ? (
+                    <>
+                      <div><p className="text-white/30 mb-0.5">Unidad</p><p className="text-white/60 truncate">{m.product?.unit || '—'}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Referencia</p><p className="text-white/60 truncate">{m.ref_type || '—'}</p></div>
+                    </>
+                  ) : (
+                    <>
+                      <div><p className="text-white/30 mb-0.5">Transportadora</p><p className="text-white/60 truncate">{m.carrier?.display_name || '—'}</p></div>
+                      <div><p className="text-white/30 mb-0.5">Guía</p><p className="text-white/60 font-mono truncate">{m.guide_code || '—'}</p></div>
+                    </>
+                  )}
                 </div>
               </div>
             ))}

@@ -41,11 +41,12 @@ function buildNav(role) {
       icon: Factory,
       label: 'Producción',
       children: [
-        { icon: BarChart3,     label: 'Dashboard',  path: '/wms/production/dashboard' },
-        { icon: Factory,       label: 'Órdenes',    path: '/wms/production' },
-        { icon: FlaskConical,  label: 'Insumos',    path: '/wms/manage-materials' },
-        { icon: Tag,           label: 'Productos',  path: '/wms/production/products' },
-        { icon: FolderOpen,    label: 'Categorías', path: '/wms/production/categories' },
+        { icon: BarChart3,      label: 'Dashboard',   path: '/wms/production/dashboard' },
+        { icon: Factory,        label: 'Órdenes',     path: '/wms/production' },
+        { icon: FlaskConical,   label: 'Insumos',     path: '/wms/manage-materials' },
+        { icon: Tag,            label: 'Productos',   path: '/wms/production/products' },
+        { icon: FolderOpen,     label: 'Categorías',  path: '/wms/production/categories' },
+        { icon: ArrowLeftRight, label: 'Movimientos', path: '/wms/production/movements' },
       ],
     },
     // Standalone — Devoluciones
