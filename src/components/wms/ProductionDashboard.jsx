@@ -96,12 +96,14 @@ export function ProductionDashboard() {
   const totalFinPosible  = finished.reduce((s, p) => s + (p.stock_fisico || 0) + (p.stock_producible || 0), 0);
   const opsActivas       = orders.filter(o => ['in_progress', 'paused'].includes(o.status)).length;
 
-  // ─── Listo para liberar ─────────────────────────
-  const readyToRelease = allProducts.filter(p =>
-    ['finished_good', 'semi_finished'].includes(p.type)
-    && p.linked_product_id
-    && (p.stock_fisico || 0) > 0
+  // ─── Vinculados (listos o sin stock) ────────────
+  // Dos categorías: con stock físico > 0 (listos para transferir) y sin stock
+  // (sólo visibles para verificar que la vinculación quedó correcta en BD).
+  const linkedProducts = allProducts.filter(p =>
+    ['finished_good', 'semi_finished'].includes(p.type) && p.linked_product_id
   );
+  const readyToRelease = linkedProducts.filter(p => (p.stock_fisico || 0) > 0);
+  const linkedNoStock  = linkedProducts.filter(p => (p.stock_fisico || 0) === 0);
 
   // ─── Alertas ────────────────────────────────────
   // Insumos con disponible = 0 (bloquean cualquier producción que los use)
@@ -188,17 +190,23 @@ export function ProductionDashboard() {
             <div className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] overflow-hidden">
               <div className="p-4 border-b border-white/[0.06] flex items-center gap-2">
                 <ArrowRightLeft className="w-4 h-4 text-primary-400" />
-                <h2 className="text-white font-semibold text-sm">Listo para liberar a venta</h2>
-                <span className="ml-auto text-white/30 text-xs">{readyToRelease.length} {readyToRelease.length === 1 ? 'producto' : 'productos'}</span>
+                <h2 className="text-white font-semibold text-sm">Vinculados a venta</h2>
+                <span className="ml-auto text-white/30 text-xs">
+                  {readyToRelease.length} con stock
+                  {linkedNoStock.length > 0 && <span className="ml-1 text-white/20">· {linkedNoStock.length} sin stock</span>}
+                </span>
               </div>
-              {readyToRelease.length === 0 ? (
+              {linkedProducts.length === 0 ? (
                 <div className="p-8 text-center">
                   <Package className="w-10 h-10 text-white/10 mx-auto mb-3" />
-                  <p className="text-white/30 text-sm">No hay productos con stock físico vinculados a un producto de venta.</p>
-                  <p className="text-white/20 text-xs mt-1">Completa una OP para ver productos aquí.</p>
+                  <p className="text-white/30 text-sm">No hay productos de producción vinculados a un producto de venta.</p>
+                  <p className="text-white/20 text-xs mt-1">
+                    Edita un producto en <strong>Producción → Productos</strong> y usa el campo <em>&quot;Vincular a Producto&quot;</em>.
+                  </p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 p-4">
+                  {/* Primero los que tienen stock (transferibles) */}
                   {readyToRelease.map(p => (
                     <div key={p.id} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -223,6 +231,33 @@ export function ProductionDashboard() {
                           className="bg-primary-500 hover:bg-primary-600 text-dark-950 font-semibold px-3 py-2 rounded-lg transition-all shadow-lg shadow-primary-500/30 flex items-center gap-1.5 text-xs">
                           <ArrowRightLeft className="w-3.5 h-3.5" /> Transferir
                         </button>
+                      </div>
+                    </div>
+                  ))}
+                  {/* Después los vinculados sin stock (en gris, no transferibles) */}
+                  {linkedNoStock.map(p => (
+                    <div key={p.id} className="bg-white/[0.02] border border-white/[0.04] rounded-xl p-3 flex flex-col gap-2 opacity-60">
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white/60 font-medium text-sm truncate">{p.name}</p>
+                          <p className="text-white/25 text-xs font-mono">{p.sku}</p>
+                        </div>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/40 text-[10px] font-semibold">
+                          {p.type === 'finished_good' ? 'Terminado' : 'Semi'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <Tag className="w-3 h-3 text-primary-400/40" />
+                        <span className="text-primary-400/50 truncate">{p.linked_name}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-1">
+                        <div>
+                          <p className="text-white/20 text-[10px] uppercase tracking-widest">Disponible</p>
+                          <p className="text-white/40 font-bold text-lg">0</p>
+                        </div>
+                        <span className="inline-flex items-center px-2 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06] text-white/30 text-[10px] font-semibold">
+                          Sin stock físico
+                        </span>
                       </div>
                     </div>
                   ))}

@@ -389,16 +389,20 @@ export function ProductionProducts() {
       </td>
       <td className="px-4 py-3"><StatusBadge active={product.is_active} /></td>
       <td className="px-4 py-3">
-        <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="flex items-center gap-2">
+          {/* Transferir: siempre visible cuando aplica (no depende de hover) */}
           {canTransfer(product) && (
             <button onClick={() => setTransferProduct(product)}
-              className="p-2 rounded-lg bg-primary-500/[0.08] border border-primary-500/20 text-primary-400 hover:bg-primary-500/[0.15] transition-all"
-              title="Transferir a venta">
+              className="p-2 rounded-lg bg-primary-500/[0.12] border border-primary-500/30 text-primary-300 hover:bg-primary-500/[0.20] hover:text-primary-200 transition-all shadow-sm shadow-primary-500/10"
+              title={`Transferir a venta → ${product.linked_name || ''}`}>
               <ArrowRightLeft className="w-3.5 h-3.5" />
             </button>
           )}
-          <button onClick={() => openEdit(product)} className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>
-          <button onClick={() => handleDelete(product)} className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/[0.15] transition-all" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+          {/* Editar / Eliminar: sólo visibles con hover */}
+          <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={() => openEdit(product)} className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-white/80 hover:bg-white/[0.08] transition-all" title="Editar"><Edit2 className="w-3.5 h-3.5" /></button>
+            <button onClick={() => handleDelete(product)} className="p-2 rounded-lg bg-white/[0.04] border border-white/[0.06] text-white/40 hover:text-red-400 hover:bg-red-500/[0.08] hover:border-red-500/[0.15] transition-all" title="Eliminar"><Trash2 className="w-3.5 h-3.5" /></button>
+          </div>
         </div>
       </td>
     </tr>
