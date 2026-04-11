@@ -104,13 +104,14 @@ Funcionalidades adicionales: `ProductionOrders` (BOM + capacidad), `Returns` (de
 
 ### Base de datos
 
-39 migraciones en `supabase/migrations/` (numeradas 005–041). Las más importantes:
+Migraciones en `supabase/migrations/` (numeradas 005–043). Las más importantes:
 - `032` — empresas y roles (multi-tenant)
 - `035` — BOM (Bill of Materials) completo
 - `036` — órdenes de producción
 - `037` — módulo de devoluciones
 - `040` — RLS (Row Level Security) por company/warehouse
 - `041` — `linked_product_id` + RPC `transfer_production_to_sales` (transferencia manual producción → venta)
+- `043` — `inventory_reserved_view` (insumos comprometidos por OPs activas)
 
 Para aplicar migraciones nuevas: ejecutar el SQL directamente en el **SQL Editor del dashboard de Supabase** (no hay Supabase CLI configurado localmente).
 Dashboard Supabase: `https://supabase.com/dashboard/project/aejbpjvufpyxlvitlvfn`
@@ -147,6 +148,17 @@ Cada producto (insumo, semi, terminado, simple) tiene su **propio pool con Karde
 Para el flujo Rodillax/Lumbrax: varios productos de producción (Rodillax sin caja, Rodillax con caja) pueden apuntar al mismo producto simple `Rodillax`. El usuario decide cuándo y cuánto pasar de cada pool.
 
 **UI del Kardex:** *Inventario → Movimientos* ([InventoryHistory.jsx](src/components/wms/InventoryHistory.jsx)) con filtros por fecha, tipo y búsqueda. Para reconstruir cuánto se acumuló en un producto simple desde producción: filtrar por `ref_type=production_release` y agrupar por `notes`.
+
+**Stock reservado + producible (tres dimensiones):**
+
+- **Físico** — `inventory_stock_view.qty_on_hand` (lo que ya está armado/ensamblado)
+- **Reservado** — `inventory_reserved_view.qty_reserved` (migración 043): insumos comprometidos por OPs con status `in_progress` o `paused`, calculado como `MAX(qty_required - qty_consumed, 0)`. Es una vista SQL en tiempo real — cuando una OP se completa o cancela el reservado se libera automáticamente sin triggers.
+- **Disponible** = `Físico − Reservado` (lo libre para nuevas OPs)
+- **Producible** (solo `semi_finished` / `finished_good`): cálculo recursivo en [src/utils/productionCapacity.js](src/utils/productionCapacity.js). Para cada item del BOM toma `disponible + producible(sub-item)` y calcula el bottleneck `floor(usable / qty_required)`. Memoizado; detecta ciclos A→B→A devolviendo 0.
+
+*Insumos* muestra columnas **Físico | Reservado | Disponible**. *Producción → Productos* muestra **Físico | Producible**. El Dashboard ([ProductionDashboard.jsx](src/components/wms/ProductionDashboard.jsx)) agrega KPIs, alertas de insumos en 0 y stock bajo, y atajos de "Transferir a venta" para cualquier producto con `linked_product_id` y stock físico.
+
+**Limitación optimista del producible:** es un límite superior *por producto*. Si dos productos comparten un insumo, cada uno muestra su capacidad máxima asumiendo acceso exclusivo al pool — no se pueden fabricar la suma simultáneamente. El Dashboard muestra un banner explicativo. La asignación factible (reparto entre productos que comparten insumos) es trabajo futuro.
 
 ### PWA / Offline
 

@@ -117,15 +117,29 @@ export function RawMaterialsManagement() {
   async function loadProducts() {
     setIsLoading(true);
     try {
-      const [data, stockRows] = await Promise.all([
+      const [data, stockRows, reservedRows] = await Promise.all([
         productsService.getAll(),
         selectedWarehouse?.id ? inventoryService.getAllStock(selectedWarehouse.id) : Promise.resolve([]),
+        selectedWarehouse?.id ? inventoryService.getReservedStock(selectedWarehouse.id) : Promise.resolve([]),
       ]);
       const stockMap = Object.fromEntries((stockRows || []).map(r => [r.product_id, Number(r.qty_on_hand) || 0]));
+      const reservedMap = Object.fromEntries((reservedRows || []).map(r => [r.product_id, Number(r.qty_reserved) || 0]));
+
       // Solo insumos: lo que se compra/recibe, no lo que se fabrica
       const materials = data
         .filter(p => ['raw_material', 'consumable'].includes(p.type))
-        .map(p => ({ ...p, stock: stockMap[p.id] ?? 0 }));
+        .map(p => {
+          const fisico     = stockMap[p.id] ?? 0;
+          const reservado  = reservedMap[p.id] ?? 0;
+          const disponible = Math.max(0, fisico - reservado);
+          return {
+            ...p,
+            stock:            fisico, // compat con código previo (entrada rápida, etc.)
+            stock_fisico:     fisico,
+            stock_reservado:  reservado,
+            stock_disponible: disponible,
+          };
+        });
       setProducts(materials);
     } catch { toast.error('Error al cargar insumos'); }
     finally { setIsLoading(false); }
@@ -385,8 +399,10 @@ export function RawMaterialsManagement() {
   const rawMat     = filtered.filter(p => p.type === 'raw_material');
   const consumable = filtered.filter(p => p.type === 'consumable');
 
-  const ProductRow = ({ product }) => (
-    <tr className="hover:bg-primary-500/[0.03] transition-colors group">
+  const ProductRow = ({ product }) => {
+    const hasReserved = (product.stock_reservado ?? 0) > 0;
+    return (
+    <tr className={`hover:bg-primary-500/[0.03] transition-colors group ${hasReserved ? 'bg-amber-500/[0.02]' : ''}`}>
       <td className="px-4 py-3">
         <ProductThumb src={product.photo_url} name={product.name} size="sm" />
       </td>
@@ -396,8 +412,18 @@ export function RawMaterialsManagement() {
       </td>
       <td className="px-4 py-3"><TypeBadge type={product.type} /></td>
       <td className="px-4 py-3 font-mono text-white/40 text-xs">{product.barcode || '—'}</td>
-      <td className="px-4 py-3">
-        <span className="text-white/70 text-sm font-semibold">{product.stock ?? 0}</span>
+      <td className="px-4 py-3" title="Stock real en inventario">
+        <span className="text-white/70 text-sm font-semibold">{product.stock_fisico ?? 0}</span>
+      </td>
+      <td className="px-4 py-3" title="Reservado por OPs activas (in_progress + paused)">
+        <span className={`text-sm font-semibold ${hasReserved ? 'text-amber-400/80' : 'text-white/20'}`}>
+          {product.stock_reservado ?? 0}
+        </span>
+      </td>
+      <td className="px-4 py-3" title="Disponible = físico − reservado">
+        <span className={`text-sm font-semibold ${(product.stock_disponible ?? 0) === 0 ? 'text-red-400/70' : 'text-emerald-400/80'}`}>
+          {product.stock_disponible ?? 0}
+        </span>
       </td>
       <td className="px-4 py-3">
         <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/40 text-xs font-mono">{product.unit || 'uds'}</span>
@@ -420,7 +446,8 @@ export function RawMaterialsManagement() {
         </div>
       </td>
     </tr>
-  );
+    );
+  };
 
   const ProductCard = ({ product }) => (
     <div className="bg-dark-800 rounded-2xl border border-white/[0.08] p-3 flex gap-3">
@@ -435,7 +462,17 @@ export function RawMaterialsManagement() {
         </div>
         <div className="flex flex-wrap items-center gap-1.5 mt-2">
           <TypeBadge type={product.type} />
-          <span className="text-white/40 text-xs ml-1">Stock: <strong className="text-white/70">{product.stock ?? 0}</strong></span>
+          <span className="text-white/40 text-xs ml-1">
+            Físico: <strong className="text-white/70">{product.stock_fisico ?? 0}</strong>
+            {(product.stock_reservado ?? 0) > 0 && (
+              <>
+                <span className="mx-1 text-white/20">·</span>
+                Reserv: <strong className="text-amber-400/80">{product.stock_reservado}</strong>
+              </>
+            )}
+            <span className="mx-1 text-white/20">·</span>
+            Disp: <strong className={(product.stock_disponible ?? 0) === 0 ? 'text-red-400/80' : 'text-emerald-400/80'}>{product.stock_disponible ?? 0}</strong>
+          </span>
           <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-white/[0.04] text-white/30 text-[10px] font-mono">{product.unit || 'uds'}</span>
           <div className="flex-1" />
           <button onClick={() => openEntry(product)}
@@ -459,7 +496,7 @@ export function RawMaterialsManagement() {
     items.length === 0 ? null : (
       <>
         <tr>
-          <td colSpan={8} className="px-4 pt-5 pb-2">
+          <td colSpan={10} className="px-4 pt-5 pb-2">
             <p className={`text-[10px] font-semibold uppercase tracking-widest ${color}`}>{title} ({items.length})</p>
           </td>
         </tr>
@@ -534,7 +571,9 @@ export function RawMaterialsManagement() {
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em]">Producto</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Tipo</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-36">Cód. de Barras</th>
-                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Stock</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20" title="Stock real en inventario">Físico</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20" title="Reservado por OPs activas">Reservado</th>
+                    <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20" title="Físico − reservado">Disponible</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-20">Unidad</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Estado</th>
                     <th className="px-4 py-3 text-left text-white/25 font-medium text-[11px] uppercase tracking-[0.12em] w-24">Acciones</th>

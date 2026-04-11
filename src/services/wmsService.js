@@ -644,6 +644,28 @@ export const inventoryService = {
   },
 
   /**
+   * Obtener stock RESERVADO por OPs activas (in_progress + paused).
+   * Retorna [{ product_id, qty_reserved }] para un almacén.
+   * Requiere la vista `inventory_reserved_view` (migración 043).
+   */
+  async getReservedStock(warehouseId) {
+    const { data, error } = await supabase
+      .from('inventory_reserved_view')
+      .select('product_id, qty_reserved')
+      .eq('warehouse_id', warehouseId);
+    if (error) {
+      // Si la vista aún no existe (migración 043 no aplicada), devolvemos vacío
+      // en vez de romper toda la UI. El código llamante trata reservado=0 como ok.
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        console.warn('⚠️ inventory_reserved_view no existe aún — aplicar migración 043');
+        return [];
+      }
+      throw error;
+    }
+    return data || [];
+  },
+
+  /**
    * Validar stock antes de despacho
    * Retorna: { valid: boolean, results: [...] }
    */
@@ -1825,6 +1847,20 @@ export const bomService = {
       .rpc('calculate_materials_required', { p_product_id: productId, p_qty: qty });
     if (error) throw error;
     return data;
+  },
+
+  /**
+   * Obtener TODOS los BOMs activos en una sola query.
+   * Usado por el cálculo recursivo de stock producible
+   * (src/utils/productionCapacity.js).
+   */
+  async getAllActiveBoms() {
+    const { data, error } = await supabase
+      .from('bom_headers')
+      .select('id, product_id, items:bom_items(component_product_id, qty_required, waste_factor)')
+      .eq('is_active', true);
+    if (error) throw error;
+    return data || [];
   },
 };
 
