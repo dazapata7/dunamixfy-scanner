@@ -135,8 +135,16 @@ export function InventoryList() {
   };
 
   // ── Stats ─────────────────────────────────────────
-  const regularStock = stock.filter(s => s.type !== 'combo' && !s.is_combo);
-  const comboStock   = stock.filter(s => s.type === 'combo'  || s.is_combo);
+  // Inventario de VENTA: solo productos simples + combos.
+  // Los de producción (raw_material, consumable, semi_finished, finished_good)
+  // se manejan en Producción → Insumos/Productos.
+  const isSaleProduct = (s) => {
+    const isCombo = s.type === 'combo' || s.is_combo;
+    return isCombo || s.type === 'simple' || s.type == null;
+  };
+  const saleStock    = stock.filter(isSaleProduct);
+  const regularStock = saleStock.filter(s => s.type !== 'combo' && !s.is_combo);
+  const comboStock   = saleStock.filter(s => s.type === 'combo'  || s.is_combo);
 
   const effectiveQty  = (s) => s.type === 'combo' ? (s.estimated_capacity ?? 0) : s.qty_on_hand;
   const lowStock      = stock.filter(s => { const q = effectiveQty(s); return q > 0 && q < 10; }).length;

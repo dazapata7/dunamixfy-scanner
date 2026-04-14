@@ -246,13 +246,25 @@ export default function ProductionOrderDetail() {
     try {
       const result = await productionService.start(order.id);
       if (result?.success) {
-        if (result.warnings?.length > 0) {
-          result.warnings.forEach(w => toast(w, { icon: '⚠️', duration: 5000 }));
-        }
         toast.success('Orden iniciada');
         await load();
       } else {
-        toast.error(result?.message || 'Error al iniciar');
+        const blockers = result?.warnings || [];
+        if (blockers.length > 0) {
+          toast.error(
+            (t) => (
+              <div className="text-sm">
+                <p className="font-semibold mb-1">{result?.message || 'Stock insuficiente'}</p>
+                <ul className="list-disc pl-4 text-xs space-y-0.5">
+                  {blockers.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              </div>
+            ),
+            { duration: 8000 }
+          );
+        } else {
+          toast.error(result?.message || 'Error al iniciar');
+        }
       }
     } catch (err) {
       toast.error(err.message || 'Error al iniciar');
