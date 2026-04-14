@@ -13,7 +13,8 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../services/supabase';
 import {
   ArrowLeft, TrendingDown, TrendingUp,
-  Package, Search, X, Download, RefreshCw, User
+  Package, Search, X, Download, RefreshCw, User,
+  MessageSquare, Mail, Calendar, FileText, Tag, Hash
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { format } from 'date-fns';
@@ -37,6 +38,194 @@ function downloadCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
+// ── Helpers de formato ────────────────────────────────
+const REF_TYPE_LABELS = {
+  receipt:            'Recepción',
+  dispatch:           'Despacho',
+  adjustment:         'Ajuste manual',
+  return:             'Devolución',
+  shipment:           'Envío',
+  reversal:           'Reverso',
+  production_in:      'Entrada por producción',
+  production_out:     'Salida por producción',
+  production_adjust:  'Ajuste por producción',
+  production_release: 'Transferencia producción → venta',
+};
+
+const PRODUCT_TYPE_LABELS = {
+  simple:        'Simple',
+  combo:         'Combo',
+  raw_material:  'Insumo',
+  consumable:    'Consumible',
+  semi_finished: 'Semi-terminado',
+  finished_good: 'Terminado',
+};
+
+function refLabel(m) {
+  if (!m.ref_type) return null;
+  return REF_TYPE_LABELS[m.ref_type] || m.ref_type;
+}
+
+function combinedNotes(m) {
+  const parts = [];
+  if (m.description && m.description.trim()) parts.push(m.description.trim());
+  if (m.notes && m.notes.trim()) parts.push(m.notes.trim());
+  return parts.length ? parts.join(' · ') : null;
+}
+
+// ── Drawer de detalle del movimiento ──────────────────
+function MovementDetailDrawer({ movement, onClose }) {
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  if (!movement) return null;
+
+  const m        = movement;
+  const qty      = Math.abs(m.qty_signed ?? m.quantity ?? 0);
+  const isOut    = m.movement_type === 'OUT';
+  const notes    = combinedNotes(m);
+  const ref      = refLabel(m);
+  const prodType = m.product?.type && PRODUCT_TYPE_LABELS[m.product.type];
+
+  const SectionLabel = ({ children }) => (
+    <p className="text-white/35 text-[10px] uppercase tracking-[0.14em] font-semibold mb-1.5">{children}</p>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex" onClick={onClose}>
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm animate-in fade-in" />
+
+      {/* Panel */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="relative ml-auto w-full max-w-md h-full bg-dark-800 border-l border-white/10 shadow-2xl overflow-y-auto animate-in slide-in-from-right"
+      >
+        {/* Header */}
+        <div className="sticky top-0 bg-dark-800/95 backdrop-blur-md border-b border-white/[0.06] px-5 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {isOut
+              ? <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400/80 text-xs font-semibold">
+                  <TrendingDown className="w-3 h-3" /> Salida
+                </span>
+              : <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-500/10 border border-primary-500/20 text-primary-400/80 text-xs font-semibold">
+                  <TrendingUp className="w-3 h-3" /> Entrada
+                </span>}
+            <span className="text-white/50 text-sm font-medium">Detalle</span>
+          </div>
+          <button onClick={onClose} className="text-white/40 hover:text-white transition-colors p-1 -mr-1">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="p-5 space-y-5">
+          {/* Producto */}
+          <div>
+            <SectionLabel>Producto</SectionLabel>
+            <p className="text-white font-semibold text-base leading-tight">{m.product?.name || 'N/A'}</p>
+            <div className="flex items-center gap-2 mt-1 text-white/40 text-xs">
+              {m.product?.sku && <span className="font-mono">{m.product.sku}</span>}
+              {m.product?.sku && prodType && <span>·</span>}
+              {prodType && <span>{prodType}</span>}
+            </div>
+          </div>
+
+          {/* Movimiento */}
+          <div className="pt-4 border-t border-white/[0.06]">
+            <SectionLabel>Movimiento</SectionLabel>
+            <div className="flex items-baseline gap-2">
+              <span className={`font-bold tabular-nums text-2xl ${isOut ? 'text-red-400' : 'text-primary-400'}`}>
+                {isOut ? '-' : '+'}{qty}
+              </span>
+              {m.product?.unit && <span className="text-white/50 text-sm">{m.product.unit}</span>}
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-white/40 text-xs">
+              <Calendar className="w-3 h-3" />
+              <span>{format(new Date(m.created_at), "dd 'de' MMMM yyyy, HH:mm", { locale: es })}</span>
+            </div>
+          </div>
+
+          {/* Referencia */}
+          {(ref || m.guide_code || m.external_order_id || m.carrier?.display_name || m.dispatch?.dispatch_number) && (
+            <div className="pt-4 border-t border-white/[0.06]">
+              <SectionLabel>Referencia</SectionLabel>
+              <div className="space-y-1.5">
+                {ref && (
+                  <div className="flex items-center gap-1.5 text-white/80 text-sm">
+                    <Tag className="w-3.5 h-3.5 text-white/30" />
+                    <span>{ref}</span>
+                    {m.dispatch?.dispatch_number && (
+                      <span className="font-mono text-white/50 text-xs">#{m.dispatch.dispatch_number}</span>
+                    )}
+                  </div>
+                )}
+                {m.carrier?.display_name && (
+                  <div className="flex items-center gap-1.5 text-white/60 text-xs">
+                    <Package className="w-3 h-3 text-white/30" />
+                    <span>{m.carrier.display_name}</span>
+                  </div>
+                )}
+                {m.guide_code && (
+                  <div className="flex items-center gap-1.5 text-white/60 text-xs">
+                    <Hash className="w-3 h-3 text-white/30" />
+                    <span className="font-mono">{m.guide_code}</span>
+                  </div>
+                )}
+                {m.external_order_id && (
+                  <div className="flex items-center gap-1.5 text-white/60 text-xs">
+                    <FileText className="w-3 h-3 text-white/30" />
+                    <span className="font-mono">Orden {m.external_order_id}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Notas */}
+          {notes && (
+            <div className="pt-4 border-t border-white/[0.06]">
+              <SectionLabel>Notas</SectionLabel>
+              <div className="flex items-start gap-2">
+                <MessageSquare className="w-3.5 h-3.5 text-white/30 flex-shrink-0 mt-0.5" />
+                <p className="text-white/75 text-sm leading-relaxed whitespace-pre-wrap break-words">{notes}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Usuario */}
+          <div className="pt-4 border-t border-white/[0.06]">
+            <SectionLabel>Realizado por</SectionLabel>
+            {m.operator?.name ? (
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-full bg-primary-500/10 border border-primary-500/20 flex items-center justify-center flex-shrink-0">
+                  <User className="w-4 h-4 text-primary-400" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white font-semibold text-sm">{m.operator.name}</p>
+                  {m.operator.email && (
+                    <div className="flex items-center gap-1 text-white/40 text-xs mt-0.5">
+                      <Mail className="w-3 h-3" />
+                      <span className="truncate">{m.operator.email}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-white/40 text-sm">
+                <User className="w-4 h-4 text-white/25" />
+                <span>Sistema</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function InventoryHistory({ scope = 'sales' } = {}) {
   const navigate = useNavigate();
   const isProduction = scope === 'production';
@@ -47,6 +236,7 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
   const [typeFilter, setTypeFilter] = useState('all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectedMovement, setSelectedMovement] = useState(null);
 
   useEffect(() => { loadMovements(); /* eslint-disable-line react-hooks/exhaustive-deps */ }, [scope]);
 
@@ -290,10 +480,19 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
                 </thead>
                 <tbody className="divide-y divide-white/[0.03]">
                   {filteredMovements.map(m => (
-                    <tr key={m.id} className="hover:bg-primary-500/[0.03] transition-colors group">
+                    <tr
+                      key={m.id}
+                      onClick={() => setSelectedMovement(m)}
+                      className="hover:bg-primary-500/[0.03] transition-colors group cursor-pointer"
+                    >
                       <td className="px-4 py-3"><TypeBadge type={m.movement_type} /></td>
                       <td className="px-4 py-3">
-                        <p className="text-white/80 font-medium truncate max-w-[200px]" title={m.product?.name}>{m.product?.name || 'N/A'}</p>
+                        <div className="flex items-center gap-1.5 max-w-[220px]">
+                          <p className="text-white/80 font-medium truncate" title={m.product?.name}>{m.product?.name || 'N/A'}</p>
+                          {combinedNotes(m) && (
+                            <MessageSquare className="w-3 h-3 text-white/25 flex-shrink-0" />
+                          )}
+                        </div>
                         {m.description && <p className="text-white/25 text-xs truncate max-w-[200px] mt-0.5">{m.description}</p>}
                       </td>
                       <td className="px-4 py-3 font-mono text-white/40 text-xs">{m.product?.sku || '—'}</td>
@@ -342,13 +541,23 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
                 </div>
               </div>
             ) : filteredMovements.map(m => (
-              <div key={m.id} className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-3">
+              <div
+                key={m.id}
+                onClick={() => setSelectedMovement(m)}
+                className="bg-white/[0.04] backdrop-blur-md rounded-2xl border border-white/[0.08] p-3 cursor-pointer active:bg-white/[0.07] transition-colors"
+              >
                 <div className="flex items-center justify-between mb-2">
                   <TypeBadge type={m.movement_type} />
                   <span className="text-white/30 text-xs">{format(new Date(m.created_at), 'dd/MM/yy HH:mm', { locale: es })}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
-                  <div><p className="text-white/30 mb-0.5">Producto</p><p className="text-white/70 font-medium truncate">{m.product?.name || 'N/A'}</p></div>
+                  <div>
+                    <p className="text-white/30 mb-0.5">Producto</p>
+                    <div className="flex items-center gap-1.5">
+                      <p className="text-white/70 font-medium truncate">{m.product?.name || 'N/A'}</p>
+                      {combinedNotes(m) && <MessageSquare className="w-3 h-3 text-white/25 flex-shrink-0" />}
+                    </div>
+                  </div>
                   <div><p className="text-white/30 mb-0.5">Cantidad</p><QtyCell m={m} /></div>
                   {isProduction ? (
                     <>
@@ -378,6 +587,14 @@ export function InventoryHistory({ scope = 'sales' } = {}) {
           </div>
         )}
       </div>
+
+      {/* Drawer de detalle */}
+      {selectedMovement && (
+        <MovementDetailDrawer
+          movement={selectedMovement}
+          onClose={() => setSelectedMovement(null)}
+        />
+      )}
     </div>
   );
 }
